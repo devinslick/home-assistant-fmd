@@ -5,6 +5,11 @@ from homeassistant.core import callback
 from .const import DOMAIN, DEFAULT_POLLING_INTERVAL
 from .fmd_client.fmd_api import FmdApi
 
+def authenticate_and_get_locations(url, fmd_id, password):
+    """Create FMD API instance and get locations."""
+    api = FmdApi(url, fmd_id, password)
+    return api.get_all_locations()
+
 class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for FMD."""
 
@@ -16,9 +21,12 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             try:
-                api = FmdApi(user_input["url"], user_input["id"], user_input["password"])
-                await self.hass.async_add_executor_job(api.get_all_locations)
-                
+                await self.hass.async_add_executor_job(
+                    authenticate_and_get_locations,
+                    user_input["url"],
+                    user_input["id"],
+                    user_input["password"],
+                )
                 return self.async_create_entry(title=user_input["id"], data=user_input)
             except Exception:
                 errors["base"] = "cannot_connect"
