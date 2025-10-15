@@ -9,6 +9,7 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for FMD."""
 
     VERSION = 1
+    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -16,7 +17,7 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 api = FmdApi(user_input["url"], user_input["id"], user_input["password"])
-                await self.hass.async_add_executor_job(api.get_locations)
+                await self.hass.async_add_executor_job(api.get_all_locations)
                 
                 return self.async_create_entry(title=user_input["id"], data=user_input)
             except Exception:
