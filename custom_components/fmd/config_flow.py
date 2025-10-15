@@ -27,7 +27,7 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required("url"): str,
             vol.Required("id"): str,
             vol.Required("password"): str,
-            vol.Optional("polling_interval", default=DEFAULT_POLLING_INTERVAL): int,
+            # vol.Optional("polling_interval", default=DEFAULT_POLLING_INTERVAL): int,
         })
 
         return self.async_show_form(
