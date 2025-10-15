@@ -6,9 +6,9 @@
   "issue_tracker": "https://github.com/devinslick/home-assistant-fmd/issues",
   "codeowners": [],
   "requirements": [
-    "requests==2.31.0",
-    "argon2-cffi==23.1.0",
-    "cryptography==42.0.5"
+    "requests",
+    "argon2-cffi",
+    "cryptography"
   ],
   "iot_class": "cloud_polling",
   "version": "0.1.2",
