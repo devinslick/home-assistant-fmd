@@ -119,7 +119,7 @@ class FmdApi:
         aesgcm = AESGCM(session_key)
         return aesgcm.decrypt(iv, ciphertext, None)
 
-    async def _make_api_request(self, method, endpoint, payload, stream=False):
+    async def _make_api_request(self, method, endpoint, payload, stream=False, expect_json=True):
         """Helper function for making API requests."""
         url = self.base_url + endpoint
         try:
@@ -127,8 +127,11 @@ class FmdApi:
                 async with session.request(method, url, json=payload) as resp:
                     resp.raise_for_status()
                     if not stream:
-                        json_data = await resp.json()
-                        return json_data["Data"]
+                        if expect_json:
+                            json_data = await resp.json()
+                            return json_data["Data"]
+                        else:
+                            return await resp.text()
                     else:
                         return resp
         except aiohttp.ClientError as e:
@@ -159,7 +162,7 @@ class FmdApi:
 
         for i in indices:
             log.info(f"  - Downloading location at index {i}...")
-            blob = await self._make_api_request("POST", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
+            blob = await self._make_api_request("POST", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)}, expect_json=False)
             locations.append(blob)
         return locations
 
