@@ -8,9 +8,10 @@
   "requirements": [
     "requests",
     "argon2-cffi",
-    "cryptography"
+    "cryptography",
+    "aiohttp"
   ],
   "iot_class": "cloud_polling",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "config_flow": true
 }

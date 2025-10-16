@@ -5,10 +5,10 @@ from homeassistant.core import callback
 from .const import DOMAIN, DEFAULT_POLLING_INTERVAL
 from .fmd_client.fmd_api import FmdApi
 
-def authenticate_and_get_locations(url, fmd_id, password):
+async def authenticate_and_get_locations(url, fmd_id, password):
     """Create FMD API instance and get locations."""
-    api = FmdApi(url, fmd_id, password)
-    return api.get_all_locations()
+    api = await FmdApi.create(url, fmd_id, password)
+    return await api.get_all_locations()
 
 class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for FMD."""
