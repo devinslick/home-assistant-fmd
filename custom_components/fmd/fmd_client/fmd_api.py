@@ -42,10 +42,10 @@ class FmdApi:
     async def create(cls, base_url, fmd_id, password, session_duration=3600):
         """Creates and authenticates an FmdApi instance."""
         instance = cls(base_url, session_duration)
-        await instance._authenticate(fmd_id, password, session_duration)
+        await instance.authenticate(fmd_id, password, session_duration)
         return instance
 
-    async def _authenticate(self, fmd_id, password, session_duration):
+    async def authenticate(self, fmd_id, password, session_duration):
         """Performs the full authentication and key retrieval workflow."""
         log.info("[1] Requesting salt...")
         salt = await self._get_salt(fmd_id)

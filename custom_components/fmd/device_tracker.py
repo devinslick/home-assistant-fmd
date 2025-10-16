@@ -24,9 +24,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async def update_locations(now=None):
         """Update device locations."""
         await tracker.async_update()
-        hass.async_create_task(tracker.async_update_ha_state())
+        tracker.async_write_ha_state()
 
-    async_track_time_interval(hass, update_locations, timedelta(minutes=polling_interval))
+    await update_locations()
+
+    async_track_time_interval(hass, update_locations, timedelta(minutes=tracker.polling_interval))
 
 class FmdDeviceTracker(TrackerEntity):
     """Represent a tracked device."""
@@ -38,6 +40,11 @@ class FmdDeviceTracker(TrackerEntity):
         self._polling_interval = polling_interval
         self._location = None
         self._name = api.fmd_id
+
+    @property
+    def polling_interval(self):
+        """Return the polling interval."""
+        return self._polling_interval
 
     @property
     def unique_id(self):

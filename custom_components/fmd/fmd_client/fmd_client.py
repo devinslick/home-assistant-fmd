@@ -57,7 +57,9 @@ def save_pictures(api, picture_blobs, out_dir):
         except Exception as e:
             print(f"Warning: failed to decrypt or write picture {idx}: {e}")
 
-def main():
+import asyncio
+
+async def main():
     parser = argparse.ArgumentParser(description="FMD Server Client")
     parser.add_argument('--url', required=True, help='Base URL of the FMD server (e.g. https://fmd.example.com)')
     parser.add_argument('--id', required=True, help='FMD ID (username)')
@@ -80,16 +82,16 @@ def main():
         print("Nothing to export: specify --locations and/or --pictures")
         sys.exit(1)
 
-    api = FmdApi(base_url, fmd_id, password, session_duration)
+    api = await FmdApi.create(base_url, fmd_id, password, session_duration)
 
     locations_json = None
     pictures_json = None
     if num_locations_to_get is not None:
         print("[4] Downloading locations...")
-        locations_json = api.get_all_locations(num_locations_to_get)
+        locations_json = await api.get_all_locations(num_locations_to_get)
     if num_pictures_to_get is not None:
         print("[5] Downloading pictures...")
-        pictures_json = api.get_pictures(num_pictures_to_get)
+        pictures_json = await api.get_pictures(num_pictures_to_get)
 
     is_zip = output_path.lower().endswith('.zip')
     if is_zip:
@@ -143,4 +145,4 @@ def main():
         print(f"Exported data saved to {output_path}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
