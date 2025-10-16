@@ -37,11 +37,15 @@ class FmdApi:
         self.access_token = None
         self.private_key = None
         self.session_duration = session_duration
+        self._fmd_id = None
+        self._password = None
 
     @classmethod
     async def create(cls, base_url, fmd_id, password, session_duration=3600):
         """Creates and authenticates an FmdApi instance."""
         instance = cls(base_url, session_duration)
+        instance._fmd_id = fmd_id
+        instance._password = password
         await instance.authenticate(fmd_id, password, session_duration)
         return instance
 
@@ -118,10 +122,19 @@ class FmdApi:
                 # Not JSON, use as-is
                 pass
         
+        log.debug(f"Decoding base64 blob of length {len(data_b64)}")
         blob = base64.b64decode(_pad_base64(data_b64))
+        log.debug(f"Decoded blob size: {len(blob)} bytes, expected session_key_packet: {RSA_KEY_SIZE_BYTES} bytes")
+        
+        if len(blob) < RSA_KEY_SIZE_BYTES + AES_GCM_IV_SIZE_BYTES:
+            raise FmdApiException(f"Blob too short: {len(blob)} bytes, need at least {RSA_KEY_SIZE_BYTES + AES_GCM_IV_SIZE_BYTES}")
+        
         session_key_packet = blob[:RSA_KEY_SIZE_BYTES]
         iv = blob[RSA_KEY_SIZE_BYTES:RSA_KEY_SIZE_BYTES + AES_GCM_IV_SIZE_BYTES]
         ciphertext = blob[RSA_KEY_SIZE_BYTES + AES_GCM_IV_SIZE_BYTES:]
+        
+        log.debug(f"session_key_packet size: {len(session_key_packet)}, iv size: {len(iv)}, ciphertext size: {len(ciphertext)}")
+        
         session_key = self.private_key.decrypt(
             session_key_packet,
             padding.OAEP(
@@ -132,12 +145,20 @@ class FmdApi:
         aesgcm = AESGCM(session_key)
         return aesgcm.decrypt(iv, ciphertext, None)
 
-    async def _make_api_request(self, method, endpoint, payload, stream=False, expect_json=True):
+    async def _make_api_request(self, method, endpoint, payload, stream=False, expect_json=True, retry_auth=True):
         """Helper function for making API requests."""
         url = self.base_url + endpoint
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.request(method, url, json=payload) as resp:
+                    # Handle 401 Unauthorized by re-authenticating
+                    if resp.status == 401 and retry_auth and self._fmd_id and self._password:
+                        log.info("Received 401 Unauthorized, re-authenticating...")
+                        await self.authenticate(self._fmd_id, self._password, self.session_duration)
+                        # Retry the request with new token
+                        payload["IDT"] = self.access_token
+                        return await self._make_api_request(method, endpoint, payload, stream, expect_json, retry_auth=False)
+                    
                     resp.raise_for_status()
                     if not stream:
                         if expect_json:
