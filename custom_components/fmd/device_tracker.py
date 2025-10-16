@@ -1,5 +1,6 @@
 """Device tracker for FMD integration."""
 from datetime import timedelta
+import json
 import logging
 
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
@@ -19,14 +20,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     polling_interval = entry.data.get("polling_interval", DEFAULT_POLLING_INTERVAL)
 
     tracker = FmdDeviceTracker(hass, api, polling_interval)
+    
+    # Fetch initial location before adding the entity
+    await tracker.async_update()
+    
     async_add_entities([tracker])
 
     async def update_locations(now=None):
         """Update device locations."""
         await tracker.async_update()
         tracker.async_write_ha_state()
-
-    await update_locations()
 
     async_track_time_interval(hass, update_locations, timedelta(minutes=tracker.polling_interval))
 
@@ -59,12 +62,12 @@ class FmdDeviceTracker(TrackerEntity):
     @property
     def latitude(self):
         """Return latitude value of the device."""
-        return self._location["latitude"] if self._location else None
+        return self._location.get("lat") if self._location else None
 
     @property
     def longitude(self):
         """Return longitude value of the device."""
-        return self._location["longitude"] if self._location else None
+        return self._location.get("lon") if self._location else None
 
     @property
     def source_type(self) -> SourceType:
@@ -74,8 +77,11 @@ class FmdDeviceTracker(TrackerEntity):
     async def async_update(self):
         """Update the device location."""
         try:
-            locations = await self.api.get_all_locations()
-            if locations:
-                self._location = locations[0]
+            location_blobs = await self.api.get_all_locations(num_to_get=1)
+            if location_blobs:
+                # Decrypt and parse the location blob
+                decrypted_bytes = self.api.decrypt_data_blob(location_blobs[0])
+                self._location = json.loads(decrypted_bytes)
+                _LOGGER.debug("Updated location: %s", self._location)
         except Exception as e:
             _LOGGER.error("Error getting location: %s", e)
