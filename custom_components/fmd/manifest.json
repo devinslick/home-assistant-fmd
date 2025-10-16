@@ -12,6 +12,6 @@
     "aiohttp"
   ],
   "iot_class": "cloud_polling",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "config_flow": true
 }

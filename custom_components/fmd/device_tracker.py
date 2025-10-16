@@ -16,15 +16,19 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up the FMD device tracker."""
+    _LOGGER.info("Setting up FMD device tracker for %s", entry.data["id"])
     api = await FmdApi.create(entry.data["url"], entry.data["id"], entry.data["password"])
     polling_interval = entry.data.get("polling_interval", DEFAULT_POLLING_INTERVAL)
 
     tracker = FmdDeviceTracker(hass, api, polling_interval)
     
     # Fetch initial location before adding the entity
+    _LOGGER.info("Fetching initial location data...")
     await tracker.async_update()
+    _LOGGER.info("Initial location: %s", tracker._location)
     
     async_add_entities([tracker])
+    _LOGGER.info("FMD device tracker added")
 
     async def update_locations(now=None):
         """Update device locations."""
@@ -77,11 +81,22 @@ class FmdDeviceTracker(TrackerEntity):
     async def async_update(self):
         """Update the device location."""
         try:
+            _LOGGER.debug("Fetching location data...")
             location_blobs = await self.api.get_all_locations(num_to_get=1)
+            _LOGGER.debug("Received %d location blobs", len(location_blobs) if location_blobs else 0)
+            
             if location_blobs:
                 # Decrypt and parse the location blob
+                _LOGGER.debug("Decrypting location blob...")
                 decrypted_bytes = self.api.decrypt_data_blob(location_blobs[0])
+                _LOGGER.debug("Decrypted bytes: %s", decrypted_bytes)
+                
                 self._location = json.loads(decrypted_bytes)
-                _LOGGER.debug("Updated location: %s", self._location)
+                _LOGGER.info("Updated location: lat=%s, lon=%s, time=%s", 
+                            self._location.get('lat'), 
+                            self._location.get('lon'),
+                            self._location.get('time'))
+            else:
+                _LOGGER.warning("No location blobs returned from API")
         except Exception as e:
-            _LOGGER.error("Error getting location: %s", e)
+            _LOGGER.error("Error getting location: %s", e, exc_info=True)
