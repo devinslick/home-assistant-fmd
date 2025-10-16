@@ -105,6 +105,19 @@ class FmdApi:
 
     def decrypt_data_blob(self, data_b64: str) -> bytes:
         """Decrypts a data blob using the instance's private key."""
+        # Handle case where response might be JSON-wrapped
+        import json as json_module
+        if isinstance(data_b64, str):
+            # Try to parse as JSON first (in case it's wrapped in {"Data": "..."})
+            try:
+                parsed = json_module.loads(data_b64)
+                if isinstance(parsed, dict) and "Data" in parsed:
+                    data_b64 = parsed["Data"]
+                    log.debug("Extracted blob from JSON wrapper")
+            except (json_module.JSONDecodeError, ValueError):
+                # Not JSON, use as-is
+                pass
+        
         blob = base64.b64decode(_pad_base64(data_b64))
         session_key_packet = blob[:RSA_KEY_SIZE_BYTES]
         iv = blob[RSA_KEY_SIZE_BYTES:RSA_KEY_SIZE_BYTES + AES_GCM_IV_SIZE_BYTES]
@@ -162,7 +175,7 @@ class FmdApi:
 
         for i in indices:
             log.info(f"  - Downloading location at index {i}...")
-            blob = await self._make_api_request("POST", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)}, expect_json=True)
+            blob = await self._make_api_request("POST", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)}, expect_json=False)
             locations.append(blob)
         return locations
 
