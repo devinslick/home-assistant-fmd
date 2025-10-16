@@ -3,7 +3,7 @@ from datetime import timedelta
 import logging
 
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
-from homeassistant.components.device_tracker.const import SOURCE_TYPE_GPS
+from homeassistant.components.device_tracker.const import SourceType
 from homeassistant.core import HomeAssistant, ConfigEntry
 from homeassistant.helpers.event import async_track_time_interval
 
@@ -59,9 +59,9 @@ class FmdDeviceTracker(TrackerEntity):
         return self._location["longitude"] if self._location else None
 
     @property
-    def source_type(self):
+    def source_type(self) -> SourceType:
         """Return the source type, eg gps or router, of the device."""
-        return SOURCE_TYPE_GPS
+        return SourceType.GPS
 
     async def async_update(self):
         """Update the device location."""
