@@ -52,6 +52,7 @@ class FmdApi:
         log.info("[2] Hashing password with salt...")
         password_hash = self._hash_password(password, salt)
         log.info("[3] Requesting access token...")
+        self.fmd_id = fmd_id
         self.access_token = await self._get_access_token(fmd_id, password_hash, session_duration)
         
         log.info("[3a] Retrieving encrypted private key...")
@@ -71,17 +72,17 @@ class FmdApi:
         return f"$argon2id$v=19$m=131072,t=1,p=4${salt}${hash_b64}"
 
     async def _get_salt(self, fmd_id):
-        return await self._make_api_request("/api/v1/salt", {"IDT": fmd_id, "Data": ""})
+        return await self._make_api_request("POST", "/api/v1/salt", {"IDT": fmd_id, "Data": ""})
 
     async def _get_access_token(self, fmd_id, password_hash, session_duration):
         payload = {
             "IDT": fmd_id, "Data": password_hash,
             "SessionDurationSeconds": session_duration
         }
-        return await self._make_api_request("/api/v1/requestAccess", payload)
+        return await self._make_api_request("POST", "/api/v1/requestAccess", payload)
 
     async def _get_private_key_blob(self):
-        return await self._make_api_request("/api/v1/key", {"IDT": self.access_token, "Data": "unused"})
+        return await self._make_api_request("POST", "/api/v1/key", {"IDT": self.access_token, "Data": "unused"})
 
     def _decrypt_private_key_blob(self, key_b64: str, password: str) -> bytes:
         key_bytes = base64.b64decode(_pad_base64(key_b64))
@@ -118,12 +119,12 @@ class FmdApi:
         aesgcm = AESGCM(session_key)
         return aesgcm.decrypt(iv, ciphertext, None)
 
-    async def _make_api_request(self, endpoint, payload, stream=False):
+    async def _make_api_request(self, method, endpoint, payload, stream=False):
         """Helper function for making API requests."""
         url = self.base_url + endpoint
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.put(url, json=payload) as resp:
+                async with session.request(method, url, json=payload) as resp:
                     resp.raise_for_status()
                     if not stream:
                         json_data = await resp.json()
@@ -139,7 +140,7 @@ class FmdApi:
 
     async def get_all_locations(self, num_to_get=-1):
         """Fetches all or the N most recent location blobs."""
-        size_str = await self._make_api_request("/api/v1/locationDataSize", {"IDT": self.access_token, "Data": "unused"})
+        size_str = await self._make_api_request("POST", "/api/v1/locationDataSize", {"IDT": self.access_token, "Data": "unused"})
         size = int(size_str)
         if size == 0:
             log.info("No locations found to download.")
@@ -158,7 +159,7 @@ class FmdApi:
 
         for i in indices:
             log.info(f"  - Downloading location at index {i}...")
-            blob = await self._make_api_request("/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
+            blob = await self._make_api_request("POST", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
             locations.append(blob)
         return locations
 

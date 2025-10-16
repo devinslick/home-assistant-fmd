@@ -4,7 +4,8 @@ import logging
 
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
 from homeassistant.components.device_tracker.const import SourceType
-from homeassistant.core import HomeAssistant, ConfigEntry
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval
 
 from .const import DOMAIN, DEFAULT_POLLING_INTERVAL
@@ -36,12 +37,12 @@ class FmdDeviceTracker(TrackerEntity):
         self.api = api
         self._polling_interval = polling_interval
         self._location = None
-        self._name = api.username
+        self._name = api.fmd_id
 
     @property
-    def unique__id(self):
+    def unique_id(self):
         """Return a unique ID."""
-        return self.api.username
+        return self.api.fmd_id
 
     @property
     def name(self):

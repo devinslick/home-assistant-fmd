@@ -21,8 +21,7 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             try:
-                await self.hass.async_add_executor_job(
-                    authenticate_and_get_locations,
+                await authenticate_and_get_locations(
                     user_input["url"],
                     user_input["id"],
                     user_input["password"],
