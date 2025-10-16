@@ -111,6 +111,10 @@ class FmdApi:
         """Decrypts a data blob using the instance's private key."""
         # Handle case where response might be JSON-wrapped
         import json as json_module
+        
+        log.debug(f"Raw blob input type: {type(data_b64)}, length: {len(data_b64) if data_b64 else 0}")
+        log.debug(f"First 200 chars of raw blob: {str(data_b64)[:200]}")
+        
         if isinstance(data_b64, str):
             # Try to parse as JSON first (in case it's wrapped in {"Data": "..."})
             try:
@@ -122,6 +126,7 @@ class FmdApi:
                 # Not JSON, use as-is
                 pass
         
+        log.debug(f"After JSON check - blob length: {len(data_b64) if data_b64 else 0}")
         log.debug(f"Decoding base64 blob of length {len(data_b64)}")
         blob = base64.b64decode(_pad_base64(data_b64))
         log.debug(f"Decoded blob size: {len(blob)} bytes, expected session_key_packet: {RSA_KEY_SIZE_BYTES} bytes")
@@ -163,9 +168,12 @@ class FmdApi:
                     if not stream:
                         if expect_json:
                             json_data = await resp.json()
+                            log.debug(f"{endpoint} JSON response: {json_data}")
                             return json_data["Data"]
                         else:
-                            return await resp.text()
+                            text_data = await resp.text()
+                            log.debug(f"{endpoint} text response length: {len(text_data)}, content: {text_data[:200]}")
+                            return text_data
                     else:
                         return resp
         except aiohttp.ClientError as e:
@@ -177,8 +185,10 @@ class FmdApi:
 
     async def get_all_locations(self, num_to_get=-1):
         """Fetches all or the N most recent location blobs."""
+        log.debug(f"Getting locations, num_to_get={num_to_get}")
         size_str = await self._make_api_request("POST", "/api/v1/locationDataSize", {"IDT": self.access_token, "Data": "unused"})
         size = int(size_str)
+        log.debug(f"Server reports {size} locations available")
         if size == 0:
             log.info("No locations found to download.")
             return []
@@ -197,6 +207,11 @@ class FmdApi:
         for i in indices:
             log.info(f"  - Downloading location at index {i}...")
             blob = await self._make_api_request("POST", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)}, expect_json=False)
+            log.debug(f"Received blob type: {type(blob)}, length: {len(blob) if blob else 0}")
+            if blob:
+                log.debug(f"First 100 chars: {blob[:100]}")
+            else:
+                log.warning(f"Empty blob received for location index {i}")
             locations.append(blob)
         return locations
 
