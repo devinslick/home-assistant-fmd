@@ -183,9 +183,15 @@ class FmdApi:
             log.error(f"Failed to parse server response for {endpoint}: {e}")
             raise FmdApiException(f"Failed to parse server response for {endpoint}: {e}") from e
 
-    async def get_all_locations(self, num_to_get=-1):
-        """Fetches all or the N most recent location blobs."""
-        log.debug(f"Getting locations, num_to_get={num_to_get}")
+    async def get_all_locations(self, num_to_get=-1, skip_empty=True, max_attempts=10):
+        """Fetches all or the N most recent location blobs.
+        
+        Args:
+            num_to_get: Number of locations to get (-1 for all)
+            skip_empty: If True, skip empty blobs and search backwards for valid data
+            max_attempts: Maximum number of indices to try when skip_empty is True
+        """
+        log.debug(f"Getting locations, num_to_get={num_to_get}, skip_empty={skip_empty}")
         size_str = await self._make_api_request("POST", "/api/v1/locationDataSize", {"IDT": self.access_token, "Data": "unused"})
         size = int(size_str)
         log.debug(f"Server reports {size} locations available")
@@ -197,14 +203,21 @@ class FmdApi:
         if num_to_get == -1:  # Download all
             log.info(f"Found {size} locations to download.")
             indices = range(size)
+            skip_empty = False  # Don't skip when downloading all
         else:  # Download N most recent
             num_to_download = min(num_to_get, size)
             log.info(f"Found {size} locations. Downloading the {num_to_download} most recent.")
             start_index = size - 1
-            end_index = size - num_to_download
-            log.debug(f"Index calculation: start={start_index}, end={end_index}, range=({start_index}, {end_index - 1}, -1)")
-            indices = range(start_index, end_index - 1, -1)
-            log.info(f"Will fetch indices: {list(indices)}")
+            
+            if skip_empty:
+                # When skipping empties, we'll try indices one at a time starting from most recent
+                indices = range(start_index, max(0, start_index - max_attempts), -1)
+                log.info(f"Will search for {num_to_download} non-empty location(s) starting from index {start_index}")
+            else:
+                end_index = size - num_to_download
+                log.debug(f"Index calculation: start={start_index}, end={end_index}, range=({start_index}, {end_index - 1}, -1)")
+                indices = range(start_index, end_index - 1, -1)
+                log.info(f"Will fetch indices: {list(indices)}")
 
         for i in indices:
             log.info(f"  - Downloading location at index {i}...")
@@ -213,8 +226,15 @@ class FmdApi:
             if blob:
                 log.debug(f"First 100 chars: {blob[:100]}")
                 locations.append(blob)
+                log.info(f"Found valid location at index {i}")
+                # If we got enough non-empty locations, stop
+                if len(locations) >= num_to_get and num_to_get != -1:
+                    break
             else:
                 log.warning(f"Empty blob received for location index {i}, skipping")
+        
+        if not locations and num_to_get != -1:
+            log.warning(f"No valid locations found after checking {min(max_attempts, size)} indices")
         
         return locations
 
