@@ -14,7 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up the FMD device tracker."""
-    api = FmdApi(entry.data["url"], entry.data["id"], entry.data["password"])
+    api = await FmdApi.create(entry.data["url"], entry.data["id"], entry.data["password"])
     polling_interval = entry.data.get("polling_interval", DEFAULT_POLLING_INTERVAL)
 
     tracker = FmdDeviceTracker(hass, api, polling_interval)
@@ -39,7 +39,7 @@ class FmdDeviceTracker(TrackerEntity):
         self._name = api.username
 
     @property
-    def unique_id(self):
+    def unique__id(self):
         """Return a unique ID."""
         return self.api.username
 
@@ -66,7 +66,7 @@ class FmdDeviceTracker(TrackerEntity):
     async def async_update(self):
         """Update the device location."""
         try:
-            locations = await self.hass.async_add_executor_job(self.api.get_locations)
+            locations = await self.api.get_all_locations()
             if locations:
                 self._location = locations[0]
         except Exception as e:
