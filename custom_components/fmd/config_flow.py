@@ -6,9 +6,10 @@ from .const import DOMAIN, DEFAULT_POLLING_INTERVAL
 from .fmd_client.fmd_api import FmdApi
 
 async def authenticate_and_get_locations(url, fmd_id, password):
-    """Create FMD API instance and get locations."""
+    """Create FMD API instance and validate connection."""
     api = await FmdApi.create(url, fmd_id, password)
-    return await api.get_all_locations()
+    # Just validate we can connect - don't need to download all locations
+    return await api.get_all_locations(num_to_get=1)
 
 class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for FMD."""

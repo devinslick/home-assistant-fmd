@@ -202,7 +202,9 @@ class FmdApi:
             log.info(f"Found {size} locations. Downloading the {num_to_download} most recent.")
             start_index = size - 1
             end_index = size - num_to_download
+            log.debug(f"Index calculation: start={start_index}, end={end_index}, range=({start_index}, {end_index - 1}, -1)")
             indices = range(start_index, end_index - 1, -1)
+            log.info(f"Will fetch indices: {list(indices)}")
 
         for i in indices:
             log.info(f"  - Downloading location at index {i}...")
@@ -210,9 +212,10 @@ class FmdApi:
             log.debug(f"Received blob type: {type(blob)}, length: {len(blob) if blob else 0}")
             if blob:
                 log.debug(f"First 100 chars: {blob[:100]}")
+                locations.append(blob)
             else:
-                log.warning(f"Empty blob received for location index {i}")
-            locations.append(blob)
+                log.warning(f"Empty blob received for location index {i}, skipping")
+        
         return locations
 
     async def get_pictures(self, num_to_get=-1):

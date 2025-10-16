@@ -81,14 +81,20 @@ class FmdDeviceTracker(TrackerEntity):
     async def async_update(self):
         """Update the device location."""
         try:
+            _LOGGER.info("=== Starting location update ===")
             _LOGGER.debug("Fetching location data...")
             location_blobs = await self.api.get_all_locations(num_to_get=1)
+            _LOGGER.info(f"=== Received {len(location_blobs)} location blob(s) ===")
             _LOGGER.debug("Received %d location blobs", len(location_blobs) if location_blobs else 0)
             
             if location_blobs:
                 blob = location_blobs[0]
-                _LOGGER.debug("Location blob type: %s, length: %d", type(blob).__name__, len(blob))
-                _LOGGER.debug("First 100 chars of blob: %s", blob[:100] if len(blob) > 100 else blob)
+                _LOGGER.debug("Location blob type: %s, length: %d", type(blob).__name__, len(blob) if blob else 0)
+                if blob:
+                    _LOGGER.debug("First 100 chars of blob: %s", blob[:100] if len(blob) > 100 else blob)
+                else:
+                    _LOGGER.warning("Received empty blob from server")
+                    return
                 
                 # Decrypt and parse the location blob
                 _LOGGER.debug("Decrypting location blob...")
