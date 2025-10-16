@@ -86,9 +86,13 @@ class FmdDeviceTracker(TrackerEntity):
             _LOGGER.debug("Received %d location blobs", len(location_blobs) if location_blobs else 0)
             
             if location_blobs:
+                blob = location_blobs[0]
+                _LOGGER.debug("Location blob type: %s, length: %d", type(blob).__name__, len(blob))
+                _LOGGER.debug("First 100 chars of blob: %s", blob[:100] if len(blob) > 100 else blob)
+                
                 # Decrypt and parse the location blob
                 _LOGGER.debug("Decrypting location blob...")
-                decrypted_bytes = self.api.decrypt_data_blob(location_blobs[0])
+                decrypted_bytes = self.api.decrypt_data_blob(blob)
                 _LOGGER.debug("Decrypted bytes: %s", decrypted_bytes)
                 
                 self._location = json.loads(decrypted_bytes)
