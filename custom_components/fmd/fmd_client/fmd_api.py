@@ -204,7 +204,7 @@ class FmdApi:
 
         for i in indices:
             log.info(f"  - Downloading location at index {i}...")
-            blob = await self._make_api_request("POST", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)}, expect_json=False)
+            blob = await self._make_api_request("POST", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
             log.debug(f"Received blob type: {type(blob)}, length: {len(blob) if blob else 0}")
             if blob and blob.strip():  # Check for non-empty, non-whitespace
                 log.debug(f"First 100 chars: {blob[:100]}")
