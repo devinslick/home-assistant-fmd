@@ -16,13 +16,9 @@ Dependencies:
 import argparse
 import json
 import sys
-import asyncio
-# Add parent directory to path to import fmd_api
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from fmd_api import FmdApi
 
-async def main():
+def main():
     parser = argparse.ArgumentParser(description="FMD Server End-to-End Location Retriever")
     parser.add_argument('--url', required=True, help='Base URL of the FMD server (e.g. https://fmd.example.com)')
     parser.add_argument('--id', required=True, help='FMD ID (username)')
@@ -30,10 +26,10 @@ async def main():
     parser.add_argument('--session', type=int, default=3600, help='Session duration in seconds (default: 3600)')
     args = parser.parse_args()
 
-    api = await FmdApi.create(args.url, args.id, args.password, args.session)
+    api = FmdApi(args.url, args.id, args.password, args.session)
 
     print("[4] Downloading latest location...")
-    location_blobs = await api.get_all_locations(num_to_get=1)
+    location_blobs = api.get_all_locations(num_to_get=1)
 
     if not location_blobs:
         sys.exit(0)
@@ -46,4 +42,4 @@ async def main():
     print(json.dumps(json.loads(plaintext), indent=2))
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
