@@ -149,9 +149,18 @@ class FmdApi:
                     resp.raise_for_status()
                     if not stream:
                         if expect_json:
-                            json_data = await resp.json()
-                            log.debug(f"{endpoint} JSON response: {json_data}")
-                            return json_data["Data"]
+                            # Try JSON first, fall back to text if content-type is wrong
+                            content_type = resp.content_type.lower() if resp.content_type else ''
+                            if 'json' in content_type:
+                                json_data = await resp.json()
+                                log.debug(f"{endpoint} JSON response: {json_data}")
+                                return json_data["Data"]
+                            else:
+                                # Server returned non-JSON content type, read as text
+                                log.debug(f"{endpoint} returned content-type '{resp.content_type}', reading as text")
+                                text_data = await resp.text()
+                                log.debug(f"{endpoint} text response length: {len(text_data)}, content: {text_data[:500]}")
+                                return text_data
                         else:
                             text_data = await resp.text()
                             log.debug(f"{endpoint} text response status: {resp.status}, content-type: {resp.content_type}")
