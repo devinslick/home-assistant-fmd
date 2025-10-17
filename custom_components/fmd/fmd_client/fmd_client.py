@@ -21,13 +21,15 @@ from fmd_api import FmdApi, _pad_base64
 def save_locations_csv(api, location_blobs, out_path):
     header = "Date,Provider,Battery Percentage,Longitude,Latitude\n"
     lines = [header]
-    for location_blob in location_blobs:
+    skipped_count = 0
+    for idx, location_blob in enumerate(location_blobs):
         loc = None
         try:            
             decrypted_bytes = api.decrypt_data_blob(location_blob)
             loc = json.loads(decrypted_bytes)
         except Exception as e:
-            print(f"Warning: failed to decrypt or parse location: {e}")
+            skipped_count += 1
+            print(f"Warning: Skipping location {idx} - {e}")
             continue
 
         if not loc:
@@ -39,11 +41,16 @@ def save_locations_csv(api, location_blobs, out_path):
         lon = loc.get('lon', 'N/A')
         lat = loc.get('lat', 'N/A')
         lines.append(f"{date},{provider},{bat},{lon},{lat}\n")
+    
     with open(out_path, 'w', encoding='utf-8') as f:
         f.writelines(lines)
+    
+    if skipped_count > 0:
+        print(f"Note: Skipped {skipped_count} invalid/empty location(s) out of {len(location_blobs)} total")
 
 def save_pictures(api, picture_blobs, out_dir):
     os.makedirs(out_dir, exist_ok=True)
+    skipped_count = 0
     for idx, pic_blob in enumerate(picture_blobs):
         try:
             if pic_blob:
@@ -55,11 +62,13 @@ def save_pictures(api, picture_blobs, out_dir):
                 with open(os.path.join(out_dir, f"{idx}.png"), 'wb') as f:
                     f.write(image_bytes)
         except Exception as e:
-            print(f"Warning: failed to decrypt or write picture {idx}: {e}")
+            skipped_count += 1
+            print(f"Warning: Skipping picture {idx} - {e}")
+    
+    if skipped_count > 0:
+        print(f"Note: Skipped {skipped_count} invalid/empty picture(s) out of {len(picture_blobs)} total")
 
-import asyncio
-
-async def main():
+def main():
     parser = argparse.ArgumentParser(description="FMD Server Client")
     parser.add_argument('--url', required=True, help='Base URL of the FMD server (e.g. https://fmd.example.com)')
     parser.add_argument('--id', required=True, help='FMD ID (username)')
@@ -82,20 +91,22 @@ async def main():
         print("Nothing to export: specify --locations and/or --pictures")
         sys.exit(1)
 
-    api = await FmdApi.create(base_url, fmd_id, password, session_duration)
+    api = FmdApi(base_url, fmd_id, password, session_duration)
 
     locations_json = None
     pictures_json = None
     if num_locations_to_get is not None:
         print("[4] Downloading locations...")
-        locations_json = await api.get_all_locations(num_locations_to_get)
+        locations_json = api.get_all_locations(num_locations_to_get)
     if num_pictures_to_get is not None:
         print("[5] Downloading pictures...")
-        pictures_json = await api.get_pictures(num_pictures_to_get)
+        pictures_json = api.get_pictures(num_pictures_to_get)
 
     is_zip = output_path.lower().endswith('.zip')
     if is_zip:
         print(f"[6] Writing to zip: {output_path}")
+        skipped_locations = 0
+        skipped_pictures = 0
         with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
             if num_locations_to_get is not None and locations_json is not None:
                 import io
@@ -103,14 +114,15 @@ async def main():
                 header = "Date,Provider,Battery Percentage,Longitude,Latitude\n"
                 csv_buf.write(header)
                 location_list = locations_json
-                for location_blob in location_list:
+                for idx, location_blob in enumerate(location_list):
                     if not location_blob: continue
                     loc = None
                     try:
                         decrypted_bytes = api.decrypt_data_blob(location_blob)
                         loc = json.loads(decrypted_bytes)
                     except Exception as e:
-                        print(f"Warning: failed to decrypt or parse location for zip: {e}")
+                        skipped_locations += 1
+                        print(f"Warning: Skipping location {idx} for zip - {e}")
                         continue
 
                     if not loc:
@@ -122,6 +134,8 @@ async def main():
                     lat = loc.get('lat', 'N/A')
                     csv_buf.write(f"{date},{provider},{bat},{lon},{lat}\n")
                 zf.writestr('locations.csv', csv_buf.getvalue())
+                if skipped_locations > 0:
+                    print(f"Note: Skipped {skipped_locations} invalid/empty location(s) in zip")
             if num_pictures_to_get is not None and pictures_json is not None:
                 picture_list = pictures_json
                 for idx, pic_blob in enumerate(picture_list):
@@ -133,7 +147,10 @@ async def main():
                             image_bytes = base64.b64decode(_pad_base64(base64_data))
                             zf.writestr(f'pictures/{idx}.png', image_bytes)
                         except Exception as e:
-                            print(f"Warning: failed to decrypt or write picture {idx} for zip: {e}")
+                            skipped_pictures += 1
+                            print(f"Warning: Skipping picture {idx} for zip - {e}")
+                if skipped_pictures > 0:
+                    print(f"Note: Skipped {skipped_pictures} invalid/empty picture(s) in zip")
         print(f"Exported data saved to {output_path}")
     else:
         print(f"[6] Writing to directory: {output_path}")
@@ -145,4 +162,4 @@ async def main():
         print(f"Exported data saved to {output_path}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

@@ -116,6 +116,9 @@ class FmdApi:
         log.debug(f"First 200 chars of raw blob: {str(data_b64)[:200]}")
         
         if isinstance(data_b64, str):
+            # Strip whitespace and newlines
+            data_b64 = data_b64.strip()
+            
             # Try to parse as JSON first (in case it's wrapped in {"Data": "..."})
             try:
                 parsed = json_module.loads(data_b64)
@@ -128,6 +131,11 @@ class FmdApi:
         
         log.debug(f"After JSON check - blob length: {len(data_b64) if data_b64 else 0}")
         log.debug(f"Decoding base64 blob of length {len(data_b64)}")
+        
+        # Additional safety check for empty or whitespace-only strings
+        if not data_b64 or not data_b64.strip():
+            raise FmdApiException("Received empty location blob from server")
+        
         blob = base64.b64decode(_pad_base64(data_b64))
         log.debug(f"Decoded blob size: {len(blob)} bytes, expected session_key_packet: {RSA_KEY_SIZE_BYTES} bytes")
         
@@ -172,7 +180,8 @@ class FmdApi:
                             return json_data["Data"]
                         else:
                             text_data = await resp.text()
-                            log.debug(f"{endpoint} text response length: {len(text_data)}, content: {text_data[:200]}")
+                            log.debug(f"{endpoint} text response status: {resp.status}, content-type: {resp.content_type}")
+                            log.debug(f"{endpoint} text response length: {len(text_data)}, content: {text_data[:500]}")
                             return text_data
                     else:
                         return resp
@@ -223,7 +232,7 @@ class FmdApi:
             log.info(f"  - Downloading location at index {i}...")
             blob = await self._make_api_request("POST", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)}, expect_json=False)
             log.debug(f"Received blob type: {type(blob)}, length: {len(blob) if blob else 0}")
-            if blob:
+            if blob and blob.strip():  # Check for non-empty, non-whitespace
                 log.debug(f"First 100 chars: {blob[:100]}")
                 locations.append(blob)
                 log.info(f"Found valid location at index {i}")
@@ -231,7 +240,7 @@ class FmdApi:
                 if len(locations) >= num_to_get and num_to_get != -1:
                     break
             else:
-                log.warning(f"Empty blob received for location index {i}, skipping")
+                log.warning(f"Empty blob received for location index {i}, repr: {repr(blob[:50] if blob else blob)}")
         
         if not locations and num_to_get != -1:
             log.warning(f"No valid locations found after checking {min(max_attempts, size)} indices")

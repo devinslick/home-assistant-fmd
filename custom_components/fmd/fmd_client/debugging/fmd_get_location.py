@@ -16,9 +16,11 @@ Dependencies:
 import argparse
 import json
 import sys
-from fmd_api import FmdApi
-
 import asyncio
+# Add parent directory to path to import fmd_api
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from fmd_api import FmdApi
 
 async def main():
     parser = argparse.ArgumentParser(description="FMD Server End-to-End Location Retriever")

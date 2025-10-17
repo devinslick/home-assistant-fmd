@@ -12,9 +12,7 @@ Dependencies:
 import argparse
 from fmd_api import FmdApi
 
-import asyncio
-
-async def main():
+def main():
     parser = argparse.ArgumentParser(description="FMD Server Export Data Script")
     parser.add_argument('--url', required=True, help='Base URL of the FMD server (e.g. https://fmd.example.com)')
     parser.add_argument('--id', required=True, help='FMD ID (username)')
@@ -30,10 +28,10 @@ async def main():
     output_file = args.output
 
     # Authenticate to get a valid session and access token
-    api = await FmdApi.create(base_url, fmd_id, password, session_duration)
+    api = FmdApi(base_url, fmd_id, password, session_duration)
 
     print("[4] Downloading exported data...")
-    await api.export_data_zip(output_file)
+    api.export_data_zip(output_file)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
