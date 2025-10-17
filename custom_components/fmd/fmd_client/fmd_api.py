@@ -5,6 +5,7 @@ This module provides a class that handles authentication, key management,
 and data decryption for FMD clients.
 """
 import base64
+import json
 import logging
 import aiohttp
 from argon2.low_level import hash_secret_raw, Type
@@ -76,17 +77,17 @@ class FmdApi:
         return f"$argon2id$v=19$m=131072,t=1,p=4${salt}${hash_b64}"
 
     async def _get_salt(self, fmd_id):
-        return await self._make_api_request("POST", "/api/v1/salt", {"IDT": fmd_id, "Data": ""})
+        return await self._make_api_request("PUT", "/api/v1/salt", {"IDT": fmd_id, "Data": ""})
 
     async def _get_access_token(self, fmd_id, password_hash, session_duration):
         payload = {
             "IDT": fmd_id, "Data": password_hash,
             "SessionDurationSeconds": session_duration
         }
-        return await self._make_api_request("POST", "/api/v1/requestAccess", payload)
+        return await self._make_api_request("PUT", "/api/v1/requestAccess", payload)
 
     async def _get_private_key_blob(self):
-        return await self._make_api_request("POST", "/api/v1/key", {"IDT": self.access_token, "Data": "unused"})
+        return await self._make_api_request("PUT", "/api/v1/key", {"IDT": self.access_token, "Data": "unused"})
 
     def _decrypt_private_key_blob(self, key_b64: str, password: str) -> bytes:
         key_bytes = base64.b64decode(_pad_base64(key_b64))
@@ -147,19 +148,27 @@ class FmdApi:
                         return await self._make_api_request(method, endpoint, payload, stream, expect_json, retry_auth=False)
                     
                     resp.raise_for_status()
+                    
+                    # Log response details for debugging
+                    log.debug(f"{endpoint} response - status: {resp.status}, content-type: {resp.content_type}, content-length: {resp.content_length}")
+                    
                     if not stream:
                         if expect_json:
-                            # Try JSON first, fall back to text if content-type is wrong
-                            content_type = resp.content_type.lower() if resp.content_type else ''
-                            if 'json' in content_type:
-                                json_data = await resp.json()
+                            # FMD server sometimes returns wrong content-type (application/octet-stream instead of application/json)
+                            # Use content_type=None to force JSON parsing regardless of Content-Type header
+                            try:
+                                json_data = await resp.json(content_type=None)
                                 log.debug(f"{endpoint} JSON response: {json_data}")
                                 return json_data["Data"]
-                            else:
-                                # Server returned non-JSON content type, read as text
-                                log.debug(f"{endpoint} returned content-type '{resp.content_type}', reading as text")
+                            except (KeyError, ValueError, json.JSONDecodeError) as e:
+                                # If JSON parsing fails, fall back to text
+                                log.debug(f"{endpoint} JSON parsing failed ({e}), trying as text")
                                 text_data = await resp.text()
-                                log.debug(f"{endpoint} text response length: {len(text_data)}, content: {text_data[:500]}")
+                                log.debug(f"{endpoint} returned text length: {len(text_data)}")
+                                if text_data:
+                                    log.debug(f"{endpoint} first 200 chars: {text_data[:200]}")
+                                else:
+                                    log.warning(f"{endpoint} returned EMPTY response body")
                                 return text_data
                         else:
                             text_data = await resp.text()
@@ -184,7 +193,7 @@ class FmdApi:
             max_attempts: Maximum number of indices to try when skip_empty is True
         """
         log.debug(f"Getting locations, num_to_get={num_to_get}, skip_empty={skip_empty}")
-        size_str = await self._make_api_request("POST", "/api/v1/locationDataSize", {"IDT": self.access_token, "Data": "unused"})
+        size_str = await self._make_api_request("PUT", "/api/v1/locationDataSize", {"IDT": self.access_token, "Data": "unused"})
         size = int(size_str)
         log.debug(f"Server reports {size} locations available")
         if size == 0:
@@ -195,7 +204,12 @@ class FmdApi:
         if num_to_get == -1:  # Download all
             log.info(f"Found {size} locations to download.")
             indices = range(size)
-            skip_empty = False  # Don't skip when downloading all
+            # Download all, don't skip any
+            for i in indices:
+                log.info(f"  - Downloading location at index {i}...")
+                blob = await self._make_api_request("PUT", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
+                locations.append(blob)
+            return locations
         else:  # Download N most recent
             num_to_download = min(num_to_get, size)
             log.info(f"Found {size} locations. Downloading the {num_to_download} most recent.")
@@ -213,7 +227,7 @@ class FmdApi:
 
         for i in indices:
             log.info(f"  - Downloading location at index {i}...")
-            blob = await self._make_api_request("POST", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
+            blob = await self._make_api_request("PUT", "/api/v1/location", {"IDT": self.access_token, "Data": str(i)})
             log.debug(f"Received blob type: {type(blob)}, length: {len(blob) if blob else 0}")
             if blob and blob.strip():  # Check for non-empty, non-whitespace
                 log.debug(f"First 100 chars: {blob[:100]}")
