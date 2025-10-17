@@ -1,9 +1,12 @@
 """Config flow for FMD integration."""
+import logging
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from .const import DOMAIN, DEFAULT_POLLING_INTERVAL
 from .fmd_client.fmd_api import FmdApi
+
+_LOGGER = logging.getLogger(__name__)
 
 async def authenticate_and_get_locations(url, fmd_id, password):
     """Create FMD API instance and validate connection."""
@@ -28,7 +31,8 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     user_input["password"],
                 )
                 return self.async_create_entry(title=user_input["id"], data=user_input)
-            except Exception:
+            except Exception as e:
+                _LOGGER.error("Failed to connect to FMD server: %s", e, exc_info=True)
                 errors["base"] = "cannot_connect"
 
         data_schema = vol.Schema({
