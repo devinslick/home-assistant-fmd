@@ -83,7 +83,7 @@ class FmdDeviceTracker(TrackerEntity):
         try:
             _LOGGER.info("=== Starting location update ===")
             _LOGGER.debug("Fetching location data...")
-            location_blobs = await self.api.get_all_locations(num_to_get=1)
+            location_blobs = await self.api.get_all_locations(num_to_get=1, skip_empty=True)
             _LOGGER.info(f"=== Received {len(location_blobs)} location blob(s) ===")
             _LOGGER.debug("Received %d location blobs", len(location_blobs) if location_blobs else 0)
             
@@ -96,7 +96,7 @@ class FmdDeviceTracker(TrackerEntity):
                     _LOGGER.warning("Received empty blob from server")
                     return
                 
-                # Decrypt and parse the location blob
+                # Decrypt and parse the location blob (synchronous call)
                 _LOGGER.debug("Decrypting location blob...")
                 decrypted_bytes = self.api.decrypt_data_blob(blob)
                 _LOGGER.debug("Decrypted bytes: %s", decrypted_bytes)

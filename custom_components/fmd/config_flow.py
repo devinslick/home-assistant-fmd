@@ -11,8 +11,8 @@ _LOGGER = logging.getLogger(__name__)
 async def authenticate_and_get_locations(url, fmd_id, password):
     """Create FMD API instance and validate connection."""
     api = await FmdApi.create(url, fmd_id, password)
-    # Just validate we can connect - don't need to download all locations
-    return await api.get_all_locations(num_to_get=1)
+    locations = await api.get_all_locations(num_to_get=1, skip_empty=True)
+    return locations
 
 class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for FMD."""
