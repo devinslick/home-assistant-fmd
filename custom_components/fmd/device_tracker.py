@@ -146,6 +146,22 @@ class FmdDeviceTracker(TrackerEntity):
             # Store as string to prevent comma formatting in UI
             if "date" in self._location:
                 attributes["device_timestamp_ms"] = str(self._location["date"])
+            
+            # GPS accuracy in meters (optional)
+            if "accuracy" in self._location:
+                attributes["gps_accuracy"] = self._location["accuracy"]
+            
+            # Altitude in meters (optional)
+            if "altitude" in self._location:
+                attributes["altitude"] = self._location["altitude"]
+            
+            # Speed in m/s - only present when moving (optional)
+            if "speed" in self._location:
+                attributes["speed"] = self._location["speed"]
+            
+            # Heading/direction 0-360° - only present when moving (optional)
+            if "heading" in self._location:
+                attributes["heading"] = self._location["heading"]
         
         return attributes
 

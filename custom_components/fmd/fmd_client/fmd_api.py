@@ -3,6 +3,66 @@ Core API library for interacting with an FMD server.
 
 This module provides a class that handles authentication, key management,
 and data decryption for FMD clients.
+
+Example Usage:
+    import asyncio
+    import json
+    from fmd_api import FmdApi
+    
+    async def main():
+        # Authenticate and create API client
+        api = await FmdApi.create(
+            'https://fmd.example.com',
+            'your-device-id',
+            'your-password'
+        )
+        
+        # Get the 10 most recent locations
+        location_blobs = await api.get_all_locations(num_to_get=10)
+        
+        # Decrypt and parse each location
+        for blob in location_blobs:
+            decrypted_bytes = api.decrypt_data_blob(blob)
+            location = json.loads(decrypted_bytes)
+            
+            # Always-present fields:
+            timestamp = location['time']      # Human-readable: "Sat Oct 18 14:08:20 CDT 2025"
+            date_ms = location['date']        # Unix timestamp in milliseconds
+            provider = location['provider']   # "gps", "network", "fused", or "BeaconDB"
+            battery = location['bat']         # Battery percentage (0-100)
+            latitude = location['lat']        # Latitude in degrees
+            longitude = location['lon']       # Longitude in degrees
+            
+            # Optional fields (use .get() with default):
+            accuracy = location.get('accuracy')   # GPS accuracy in meters (float)
+            altitude = location.get('altitude')   # Altitude in meters (float)
+            speed = location.get('speed')         # Speed in meters/second (float)
+            heading = location.get('heading')     # Direction in degrees 0-360 (float)
+            
+            # Example: Convert speed to km/h and print if moving
+            if speed is not None and speed > 0.5:  # Moving faster than 0.5 m/s
+                speed_kmh = speed * 3.6
+                direction = heading if heading else "unknown"
+                print(f"{timestamp}: Moving at {speed_kmh:.1f} km/h, heading {direction}°")
+            else:
+                print(f"{timestamp}: Stationary at ({latitude}, {longitude})")
+    
+    asyncio.run(main())
+
+Location Data Field Reference:
+    Always Present:
+        - time (str): Human-readable timestamp
+        - date (int): Unix timestamp in milliseconds
+        - provider (str): Location provider name
+        - bat (int): Battery percentage
+        - lat (float): Latitude
+        - lon (float): Longitude
+    
+    Optional (GPS/Movement-Dependent):
+        - accuracy (float): GPS accuracy radius in meters
+        - altitude (float): Altitude above sea level in meters
+        - speed (float): Speed in meters per second (only when moving)
+        - heading (float): Direction in degrees 0-360 (only when moving with direction)
 """
 import base64
 import json
@@ -109,7 +169,30 @@ class FmdApi:
             return serialization.load_der_private_key(privkey_bytes, password=None)
 
     def decrypt_data_blob(self, data_b64: str) -> bytes:
-        """Decrypts a data blob using the instance's private key."""
+        """Decrypts a location or picture data blob using the instance's private key.
+        
+        Args:
+            data_b64: Base64-encoded encrypted blob from the server
+            
+        Returns:
+            bytes: Decrypted data (JSON for locations, base64 string for pictures)
+            
+        Raises:
+            FmdApiException: If blob is too small or decryption fails
+            
+        Example:
+            # For locations:
+            location_blob = await api.get_all_locations(1)
+            decrypted = api.decrypt_data_blob(location_blob[0])
+            location = json.loads(decrypted)
+            
+            # Access fields:
+            lat = location['lat']
+            lon = location['lon']
+            accuracy = location.get('accuracy')  # Optional field
+            speed = location.get('speed')        # Optional, only when moving
+            heading = location.get('heading')    # Optional, only when moving
+        """
         blob = base64.b64decode(_pad_base64(data_b64))
         
         # Check if blob is large enough to contain encrypted data

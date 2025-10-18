@@ -20,7 +20,7 @@ import json
 from fmd_api import FmdApi, _pad_base64
 
 def save_locations_csv(api, location_blobs, out_path):
-    header = "Date,Provider,Battery Percentage,Longitude,Latitude\n"
+    header = "Date,Provider,Battery %,Latitude,Longitude,Accuracy (m),Altitude (m),Speed (m/s),Heading (°)\n"
     lines = [header]
     skipped_count = 0
     for idx, location_blob in enumerate(location_blobs):
@@ -39,9 +39,13 @@ def save_locations_csv(api, location_blobs, out_path):
         date = loc.get('time', 'N/A')
         provider = loc.get('provider', 'N/A')
         bat = loc.get('bat', 'N/A')
-        lon = loc.get('lon', 'N/A')
         lat = loc.get('lat', 'N/A')
-        lines.append(f"{date},{provider},{bat},{lon},{lat}\n")
+        lon = loc.get('lon', 'N/A')
+        accuracy = loc.get('accuracy', 'N/A')
+        altitude = loc.get('altitude', 'N/A')
+        speed = loc.get('speed', 'N/A')
+        heading = loc.get('heading', 'N/A')  # Changed from 'bearing' to 'heading'
+        lines.append(f"{date},{provider},{bat},{lat},{lon},{accuracy},{altitude},{speed},{heading}\n")
     
     with open(out_path, 'w', encoding='utf-8') as f:
         f.writelines(lines)
@@ -113,7 +117,7 @@ async def main():
             if num_locations_to_get is not None and locations_json is not None:
                 import io
                 csv_buf = io.StringIO()
-                header = "Date,Provider,Battery Percentage,Longitude,Latitude\n"
+                header = "Date,Provider,Battery %,Latitude,Longitude,Accuracy (m),Altitude (m),Speed (m/s),Heading (°)\n"
                 csv_buf.write(header)
                 location_list = locations_json
                 for idx, location_blob in enumerate(location_list):
@@ -132,9 +136,13 @@ async def main():
                     date = loc.get('time', 'N/A')
                     provider = loc.get('provider', 'N/A')
                     bat = loc.get('bat', 'N/A')
-                    lon = loc.get('lon', 'N/A')
                     lat = loc.get('lat', 'N/A')
-                    csv_buf.write(f"{date},{provider},{bat},{lon},{lat}\n")
+                    lon = loc.get('lon', 'N/A')
+                    accuracy = loc.get('accuracy', 'N/A')
+                    altitude = loc.get('altitude', 'N/A')
+                    speed = loc.get('speed', 'N/A')
+                    heading = loc.get('heading', 'N/A')  # Changed from 'bearing' to 'heading'
+                    csv_buf.write(f"{date},{provider},{bat},{lat},{lon},{accuracy},{altitude},{speed},{heading}\n")
                 zf.writestr('locations.csv', csv_buf.getvalue())
                 if skipped_locations > 0:
                     print(f"Note: Skipped {skipped_locations} invalid/empty location(s) in zip")
