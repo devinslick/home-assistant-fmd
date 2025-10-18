@@ -40,6 +40,7 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required("id"): str,
             vol.Required("password"): str,
             vol.Optional("polling_interval", default=DEFAULT_POLLING_INTERVAL): int,
+            vol.Optional("block_inaccurate", default=True): bool,
         })
 
         return self.async_show_form(

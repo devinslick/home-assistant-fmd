@@ -23,7 +23,7 @@ async def async_setup_entry(
     """Set up FMD switch entities."""
     async_add_entities([
         FmdHighFrequencyModeSwitch(entry),
-        FmdAllowInaccurateSwitch(entry),
+        FmdAllowInaccurateSwitch(hass, entry),
     ])
 
 
@@ -73,12 +73,16 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
     _attr_entity_category = EntityCategory.CONFIG
     _attr_icon = "mdi:map-marker-question"
 
-    def __init__(self, entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the switch entity."""
+        self.hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_allow_inaccurate"
         self._attr_name = "Allow inaccurate locations"
-        self._attr_is_on = False
+        # Initial state is the inverse of block_inaccurate setting
+        # If block_inaccurate=True, then allow_inaccurate=False (switch is off)
+        block_inaccurate = entry.data.get("block_inaccurate", True)
+        self._attr_is_on = not block_inaccurate
 
     @property
     def device_info(self):
@@ -92,14 +96,28 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Allow inaccurate location updates."""
-        _LOGGER.info("Inaccurate locations allowed")
+        _LOGGER.info("Inaccurate locations allowed (blocking disabled)")
         self._attr_is_on = True
         self.async_write_ha_state()
-        # TODO: Update location filtering logic
+        
+        # Update the tracker to disable filtering
+        tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
+        if tracker:
+            tracker._block_inaccurate = False
+            _LOGGER.info("Location accuracy filtering disabled in tracker")
+        else:
+            _LOGGER.error("Could not find tracker to update filtering setting")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disallow inaccurate location updates."""
-        _LOGGER.info("Inaccurate locations disallowed")
+        _LOGGER.info("Inaccurate locations disallowed (blocking enabled)")
         self._attr_is_on = False
         self.async_write_ha_state()
-        # TODO: Update location filtering logic
+        
+        # Update the tracker to enable filtering
+        tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
+        if tracker:
+            tracker._block_inaccurate = True
+            _LOGGER.info("Location accuracy filtering enabled in tracker")
+        else:
+            _LOGGER.error("Could not find tracker to update filtering setting")

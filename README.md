@@ -16,8 +16,10 @@ This is a Home Assistant integration for FMD (Find My Device). It allows you to 
 1.  Go to **Settings** -> **Devices & Services**.
 2.  Click **Add Integration**.
 3.  Search for "FMD" and select it.
-4.  Enter your FMD server URL, ID, and password. You can also set the polling interval in minutes.
-5.  Click **Submit**.
+4.  Enter your FMD server URL, ID, and password.
+5.  Configure the polling interval (in minutes) and location accuracy filtering.
+    - **Block inaccurate locations** (default: enabled) - Filters out low-accuracy location updates from providers like BeaconDB
+6.  Click **Submit**.
 
 ## Entities Created
 
@@ -25,9 +27,15 @@ The integration will create the following entities for each configured FMD devic
 
 ### Device Tracker
 - **Device Tracker** - Displays the current location of your device on the map
-  - Entity ID example: `device_tracker.fmd_test_user_location`
+  - Entity ID example: `device_tracker.fmd_test_user`
   - Updates automatically based on the configured polling interval
   - Shows latitude, longitude, and other location metadata
+  - **Attributes:**
+    - `battery_level` - Device battery percentage (0-100)
+    - `provider` - Location provider used by the device (`gps` or `network`)
+    - `last_poll_time` - ISO timestamp when Home Assistant last polled the FMD server
+    - `device_timestamp` - Human-readable timestamp when the device sent the location to FMD server
+    - `device_timestamp_ms` - Unix timestamp (milliseconds) when the device sent the location to FMD server
 
 ### Number Entities (Configuration)
 - **Update Interval** - Set the standard polling interval (1-1440 minutes, default: 30)
@@ -55,16 +63,17 @@ The integration will create the following entities for each configured FMD devic
 
 - **Allow Inaccurate Locations** - Toggle location filtering
   - Entity ID example: `switch.fmd_test_user_allow_inaccurate`
-  - When disabled, filters out location updates with low accuracy
-  - When enabled, accepts all location updates regardless of accuracy
-  - _Note: Filtering logic not yet implemented (functionality pending)_
+  - When **off** (default): Blocks location updates from low-accuracy providers (e.g., BeaconDB). Only accepts updates from GPS and network providers.
+  - When **on**: Accepts all location updates regardless of provider accuracy.
+  - ✅ **Fully implemented** - Filtering is active and can be toggled at runtime.
+  - _Note: You can also configure this during initial setup via the config flow._
 
 **All entities are grouped together under a single FMD device** in Home Assistant (e.g., "FMD test-user").
 
 ### Example Entity IDs
 For a user with FMD account ID `test-user`, the following entities will be created:
 
-1. `device_tracker.fmd_test_user_location` - Device location tracker
+1. `device_tracker.fmd_test_user` - Device location tracker (with battery_level attribute)
 2. `number.fmd_test_user_update_interval` - Standard polling interval setting
 3. `number.fmd_test_user_high_frequency_interval` - High-frequency polling interval setting
 4. `button.fmd_test_user_manual_update` - Manual location update trigger
@@ -84,6 +93,8 @@ The following features are planned but not yet implemented:
 - [ ] **High-frequency mode switching** - Enable/disable switch should toggle between standard and high-frequency polling intervals
 - [ ] **Location metadata sensors** - Add sensors for provider (GPS/network), timestamp, accuracy, etc.
 - [ ] **Historical location history** - Option to fetch and store location history from FMD in the home assistant device tracker entity
+- [ ] **Timestamp configuration** - Option to use FMD timestamp for location updates instead of the polling time
+
 
 ### Photos
 - [ ] **Browsing** -  View historical photos taken that are already stored on the FMD server
