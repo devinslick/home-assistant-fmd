@@ -4,14 +4,11 @@ import sys
 sys.path.insert(0, '..')
 import asyncio
 import json
+import argparse
 from fmd_api import FmdApi
 
-async def main():
-    api = await FmdApi.create(
-        'https://fmd.devinslick.com',
-        'devinslick-p9',
-        'cCBWpONsZblamq403YGG0pySbWu'
-    )
+async def main(url, device_id, password):
+    api = await FmdApi.create(url, device_id, password)
     
     print("Fetching 20 most recent locations...")
     locs = await api.get_all_locations(20)
@@ -29,4 +26,10 @@ async def main():
             print(f"Location {i+1}: Error - {e}\n")
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description='Show raw location JSON')
+    parser.add_argument('--url', required=True, help='FMD server URL')
+    parser.add_argument('--id', required=True, help='Device ID')
+    parser.add_argument('--password', required=True, help='Device password')
+    args = parser.parse_args()
+    
+    asyncio.run(main(args.url, args.id, args.password))

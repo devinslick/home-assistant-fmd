@@ -59,6 +59,32 @@ cd debugging
 python fmd_export_data.py --url <server_url> --id <fmd_id> --password <password> --output export.zip
 ```
 
+#### `request_location_example.py`
+**Request new location:** Triggers a device to capture and upload a new location update.
+
+**Usage:**
+```bash
+cd debugging
+python request_location_example.py --url <server_url> --id <fmd_id> --password <password> [--provider all|gps|cell|last] [--wait SECONDS]
+```
+
+**Options:**
+- `--provider`: Location provider to use (default: all)
+  - `all`: Use all available providers (GPS, network, fused)
+  - `gps`: GPS only (most accurate, slower)
+  - `cell`: Cellular network (faster, less accurate)
+  - `last`: Don't request new location, just get last known
+- `--wait`: Seconds to wait for location update (default: 30)
+
+**Example:**
+```bash
+# Request GPS location and wait 45 seconds
+python request_location_example.py --url https://fmd.example.com --id alice --password secret --provider gps --wait 45
+
+# Quick cellular network location
+python request_location_example.py --url https://fmd.example.com --id alice --password secret --provider cell --wait 20
+```
+
 #### `diagnose_blob.py`
 **Diagnostic tool:** Analyzes encrypted blob structure to troubleshoot decryption issues.
 
@@ -82,6 +108,8 @@ The foundational API library providing the `FmdApi` class. Handles:
 - Encrypted private key retrieval and decryption
 - Data blob decryption (RSA-OAEP + AES-GCM)
 - Location and picture retrieval
+- Command sending (request location updates, ring, lock, camera)
+  - Commands are cryptographically signed using RSA-PSS to prove authenticity
 
 **For application developers:** See [LOCATION_FIELDS.md](LOCATION_FIELDS.md) for detailed documentation on extracting and using accuracy, altitude, speed, and heading fields.
 
@@ -95,6 +123,10 @@ async def main():
     # Authenticate (automatically retrieves and decrypts private key)
     api = await FmdApi.create("https://fmd.example.com", "alice", "secret")
 
+    # Request a new location update
+    await api.request_location('gps')  # or 'all', 'cell', 'last'
+    await asyncio.sleep(30)  # Wait for device to respond
+
     # Get locations
     locations = await api.get_all_locations(num_to_get=10)  # Last 10, or -1 for all
 
@@ -107,6 +139,10 @@ async def main():
     lon = location['lon']
     speed = location.get('speed')      # Optional, only when moving
     heading = location.get('heading')  # Optional, only when moving
+    
+    # Send other commands
+    await api.send_command('ring')           # Make device ring
+    await api.send_command('camera front')   # Take picture with front camera
 
 asyncio.run(main())
 ```

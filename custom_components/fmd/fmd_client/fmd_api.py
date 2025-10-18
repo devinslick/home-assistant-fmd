@@ -67,6 +67,7 @@ Location Data Field Reference:
 import base64
 import json
 import logging
+import time
 import aiohttp
 from argon2.low_level import hash_secret_raw, Type
 from cryptography.hazmat.primitives import serialization
@@ -362,3 +363,117 @@ class FmdApi:
         except aiohttp.ClientError as e:
             log.error(f"Failed to export data: {e}")
             raise FmdApiException(f"Failed to export data: {e}") from e
+    async def send_command(self, command: str) -> bool:
+        """Sends a command to the device.
+        
+        Available commands:
+            - "locate" or "locate all": Request location using all providers
+            - "locate gps": Request GPS-only location
+            - "locate cell": Request cellular network location
+            - "locate last": Get last known location (no new request)
+            - "ring": Make device ring
+            - "lock": Lock the device
+            - "camera front": Take picture with front camera
+            - "camera back": Take picture with rear camera
+            
+        Args:
+            command: The command string to send to the device
+            
+        Returns:
+            bool: True if command was sent successfully
+            
+        Raises:
+            FmdApiException: If command sending fails
+            
+        Example:
+            # Request a new GPS location
+            await api.send_command("locate gps")
+            
+            # Request location with all providers
+            await api.send_command("locate")
+            
+            # Make the device ring
+            await api.send_command("ring")
+        """
+        log.info(f"Sending command to device: {command}")
+        
+        # Get current Unix time in milliseconds
+        unix_time_ms = int(time.time() * 1000)
+        
+        # Sign the command using RSA-PSS
+        # IMPORTANT: The web client signs "timestamp:command", not just the command!
+        # See fmd-server/web/logic.js line 489: sign(key, `${time}:${message}`)
+        message_to_sign = f"{unix_time_ms}:{command}"
+        message_bytes = message_to_sign.encode('utf-8')
+        signature = self.private_key.sign(
+            message_bytes,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=32
+            ),
+            hashes.SHA256()
+        )
+        signature_b64 = base64.b64encode(signature).decode('utf-8').rstrip('=')
+        
+        try:
+            result = await self._make_api_request(
+                "POST",
+                "/api/v1/command",
+                {
+                    "IDT": self.access_token,
+                    "Data": command,
+                    "UnixTime": unix_time_ms,
+                    "CmdSig": signature_b64
+                },
+                expect_json=False
+            )
+            log.info(f"Command sent successfully: {command}")
+            return True
+        except Exception as e:
+            log.error(f"Failed to send command '{command}': {e}")
+            raise FmdApiException(f"Failed to send command '{command}': {e}") from e
+
+    async def request_location(self, provider: str = "all") -> bool:
+        """Convenience method to request a new location update from the device.
+        
+        This triggers the FMD Android app to capture a new location and upload it
+        to the server. The location will be available after a short delay (typically
+        10-60 seconds depending on GPS acquisition time).
+        
+        Args:
+            provider: Which location provider to use:
+                - "all" (default): Use all available providers (GPS, network, fused)
+                - "gps": GPS only (most accurate, slower, requires clear sky)
+                - "cell" or "network": Cellular network location (fast, less accurate)
+                - "last": Don't request new location, just get last known
+                
+        Returns:
+            bool: True if request was sent successfully
+            
+        Raises:
+            FmdApiException: If request fails
+            
+        Example:
+            # Request a new GPS-only location
+            api = await FmdApi.create('https://fmd.example.com', 'device-id', 'password')
+            await api.request_location('gps')
+            
+            # Wait for device to capture and upload location
+            await asyncio.sleep(30)
+            
+            # Fetch the new location
+            locations = await api.get_all_locations(1)
+            location = json.loads(api.decrypt_data_blob(locations[0]))
+            print(f"New location: {location['lat']}, {location['lon']}")
+        """
+        provider_map = {
+            "all": "locate",
+            "gps": "locate gps",
+            "cell": "locate cell",
+            "network": "locate cell",
+            "last": "locate last"
+        }
+        
+        command = provider_map.get(provider.lower(), "locate")
+        log.info(f"Requesting location update with provider: {provider} (command: {command})")
+        return await self.send_command(command)

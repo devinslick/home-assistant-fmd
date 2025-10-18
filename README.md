@@ -53,10 +53,11 @@ The integration will create the following entities for each configured FMD devic
   - _Note: Not yet connected to polling logic (functionality pending)_
 
 ### Button Entities (Configuration)
-- **Manual Update** - Trigger an immediate location update
-  - Entity ID example: `button.fmd_test_user_manual_update`
-  - Press to force an immediate location fetch outside the normal schedule
-  - _Note: Currently logs the action but doesn't trigger update (functionality pending)_
+- **Location Update** - Request a new location from the device
+  - Entity ID example: `button.fmd_test_user_location_update`
+  - Sends a command to the FMD device to capture a new location using all available providers (GPS, network)
+  - Waits 10 seconds for the device to respond, then fetches the updated location from the server
+  - ✅ **Fully implemented** - Triggers immediate location update on-demand
 
 ### Switch Entities (Configuration)
 - **High Frequency Mode** - Enable rapid location polling
@@ -80,7 +81,7 @@ For a user with FMD account ID `test-user`, the following entities will be creat
 1. `device_tracker.fmd_test_user` - Device location tracker (with battery_level attribute)
 2. `number.fmd_test_user_update_interval` - Standard polling interval setting
 3. `number.fmd_test_user_high_frequency_interval` - High-frequency polling interval setting
-4. `button.fmd_test_user_manual_update` - Manual location update trigger
+4. `button.fmd_test_user_location_update` - Location update trigger
 5. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
 6. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
 
