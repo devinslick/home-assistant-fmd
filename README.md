@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
 
-This is a Home Assistant integration for FMD (Find My Device). It allows you to track the location of your devices.
+This is a Home Assistant integration for FMD (Find My Device). It allows you to track the location of your devices running the FMD Android app.
 
 ## Installation
 
@@ -19,8 +19,106 @@ This is a Home Assistant integration for FMD (Find My Device). It allows you to 
 4.  Enter your FMD server URL, ID, and password. You can also set the polling interval in minutes.
 5.  Click **Submit**.
 
-The integration will create a device tracker entity for your device.
+## Entities Created
+
+The integration will create the following entities for each configured FMD device:
+
+### Device Tracker
+- **Device Tracker** - Displays the current location of your device on the map
+  - Entity ID example: `device_tracker.fmd_test_user_location`
+  - Updates automatically based on the configured polling interval
+  - Shows latitude, longitude, and other location metadata
+
+### Number Entities (Configuration)
+- **Update Interval** - Set the standard polling interval (1-1440 minutes, default: 30)
+  - Entity ID example: `number.fmd_test_user_update_interval`
+  - Controls how frequently the integration checks for location updates in normal mode
+  - ✅ **Changes take effect immediately** - No reload required!
+
+- **High Frequency Interval** - Set the high-frequency polling interval (1-60 minutes, default: 5)
+  - Entity ID example: `number.fmd_test_user_high_frequency_interval`
+  - Controls the polling rate when High Frequency Mode is enabled
+  - _Note: Not yet connected to polling logic (functionality pending)_
+
+### Button Entities (Configuration)
+- **Manual Update** - Trigger an immediate location update
+  - Entity ID example: `button.fmd_test_user_manual_update`
+  - Press to force an immediate location fetch outside the normal schedule
+  - _Note: Currently logs the action but doesn't trigger update (functionality pending)_
+
+### Switch Entities (Configuration)
+- **High Frequency Mode** - Enable rapid location polling
+  - Entity ID example: `switch.fmd_test_user_high_frequency_mode`
+  - When enabled, switches to the high-frequency polling interval
+  - Useful for tracking during active travel or emergencies
+  - _Note: Currently toggles state but doesn't change polling rate (functionality pending)_
+
+- **Allow Inaccurate Locations** - Toggle location filtering
+  - Entity ID example: `switch.fmd_test_user_allow_inaccurate`
+  - When disabled, filters out location updates with low accuracy
+  - When enabled, accepts all location updates regardless of accuracy
+  - _Note: Filtering logic not yet implemented (functionality pending)_
+
+**All entities are grouped together under a single FMD device** in Home Assistant (e.g., "FMD test-user").
+
+### Example Entity IDs
+For a user with FMD account ID `test-user`, the following entities will be created:
+
+1. `device_tracker.fmd_test_user_location` - Device location tracker
+2. `number.fmd_test_user_update_interval` - Standard polling interval setting
+3. `number.fmd_test_user_high_frequency_interval` - High-frequency polling interval setting
+4. `button.fmd_test_user_manual_update` - Manual location update trigger
+5. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
+6. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
+
+_Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
+
+## Current Limitations & TODO
+
+The following features are planned but not yet implemented:
+
+### Location tracking improvements
+- [x] **Dynamic polling interval updates** - ✅ **IMPLEMENTED** - Changing the update interval number immediately updates the polling schedule
+- [ ] **Location accuracy filtering** - Implement logic to filter inaccurate location updates based on the "Allow Inaccurate" switch setting
+- [ ] **Manual update button functionality** - Button should trigger immediate location fetch from device
+- [ ] **High-frequency mode switching** - Enable/disable switch should toggle between standard and high-frequency polling intervals
+- [ ] **Location metadata sensors** - Add sensors for provider (GPS/network), timestamp, accuracy, etc.
+- [ ] **Historical location history** - Option to fetch and store location history from FMD in the home assistant device tracker entity
+
+### Photos
+- [ ] **Browsing** -  View historical photos taken that are already stored on the FMD server
+- [ ] **Capture** - Capture front/read camera photos
+
+### Other
+- [ ] **Wipe** - A button to wipe all data from a device by sending
+- [ ] **Account Deletion*** - A button to delete your FMD account
+
+
+## Troubleshooting
+
+### Location not updating
+- Check that your FMD server is accessible from Home Assistant
+- Verify your credentials are correct in the integration configuration
+- Check Home Assistant logs for errors (`custom_components.fmd`)
+- Ensure your device is sending location updates to the FMD server
+
+### Integration won't load
+- Verify all required dependencies are installed (aiohttp, argon2-cffi, cryptography)
+- Check for errors in Home Assistant logs during startup
+- Try removing and re-adding the integration
 
 ## Contributions
 
 Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request.
+
+### Development
+This integration uses:
+- Async/await for all I/O operations
+- aiohttp for HTTP communication
+- RSA-3072 encryption for key exchange
+- AES-GCM for data encryption
+- Argon2id for password hashing
+
+## License
+
+This project is open source. See the repository for license details.
