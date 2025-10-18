@@ -143,8 +143,9 @@ class FmdDeviceTracker(TrackerEntity):
                 attributes["device_timestamp"] = self._location["time"]
             
             # Unix timestamp (milliseconds) when FMD client sent location to server
+            # Store as string to prevent comma formatting in UI
             if "date" in self._location:
-                attributes["device_timestamp_ms"] = self._location["date"]
+                attributes["device_timestamp_ms"] = str(self._location["date"])
         
         return attributes
 
