@@ -32,10 +32,14 @@ The integration will create the following entities for each configured FMD devic
   - Shows latitude, longitude, and other location metadata
   - **Attributes:**
     - `battery_level` - Device battery percentage (0-100)
-    - `provider` - Location provider used by the device (`gps` or `network`)
+    - `provider` - Location provider used by the device (e.g., `gps`, `network`, `BeaconDB`)
     - `last_poll_time` - ISO timestamp when Home Assistant last polled the FMD server
     - `device_timestamp` - Human-readable timestamp when the device sent the location to FMD server
     - `device_timestamp_ms` - Unix timestamp (milliseconds) when the device sent the location to FMD server
+    - `gps_accuracy` - GPS accuracy in meters (optional - only when available)
+    - `altitude` - Altitude in meters (optional - only when available)
+    - `speed` - Speed in meters per second (optional - only present when device is moving)
+    - `heading` - Direction/bearing in degrees 0-360° (optional - only present when device is moving)
 
 ### Number Entities (Configuration)
 - **Update Interval** - Set the standard polling interval (1-1440 minutes, default: 30)
