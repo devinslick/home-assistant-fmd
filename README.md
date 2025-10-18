@@ -82,16 +82,16 @@ For a user with FMD account ID `test-user`, the following entities will be creat
 
 _Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
 
+## Features
+- [x] **Dynamic polling interval updates** - Changing the update interval number immediately updates the polling schedule
+- [x] **Location accuracy filtering** - Implement logic to filter inaccurate location updates based on the "Allow Inaccurate" switch setting
+- [x] **Location metadata sensors** - Add attributes to track gps_accuracy, altitude, speed, and heading
+
 ## Current Limitations & TODO
 
-The following features are planned but not yet implemented:
-
 ### Location tracking improvements
-- [x] **Dynamic polling interval updates** - ✅ **IMPLEMENTED** - Changing the update interval number immediately updates the polling schedule
-- [ ] **Location accuracy filtering** - ✅ **IMPLEMENTED** - Implement logic to filter inaccurate location updates based on the "Allow Inaccurate" switch setting
 - [ ] **Manual update button functionality** - Button should trigger immediate location fetch from device
-- [ ] **High-frequency mode switching** - Enable/disable switch should toggle between standard and high-frequency polling intervals
-- [ ] **Location metadata sensors** - Add sensors for provider (GPS/network), timestamp, accuracy, etc.
+- [ ] **High-frequency mode switching** - Enable/disable switch should toggle between standard FMD server polling and high-frequency polling intervals
 - [ ] **Historical location history** - Option to fetch and store location history from FMD in the home assistant device tracker entity
 - [ ] **Timestamp configuration** - Option to use FMD timestamp for location updates instead of the polling time
 
@@ -101,7 +101,9 @@ The following features are planned but not yet implemented:
 - [ ] **Capture** - Capture front/read camera photos
 
 ### Other
-- [ ] **Wipe** - A button to wipe all data from a device by sending
+- [ ] **Alarm** - A button to trigger the alarm/ring the device
+- [ ] **Lock** - A button to lock the device
+- [ ] **Wipe** - A button to wipe all data from the device
 - [ ] **Account Deletion*** - A button to delete your FMD account
 
 
