@@ -18,7 +18,7 @@ This is a Home Assistant integration for FMD (Find My Device). It allows you to 
 3.  Search for "FMD" and select it.
 4.  Enter your FMD server URL, ID, and password.
 5.  Configure the polling interval (in minutes) and location accuracy filtering.
-    - **Block inaccurate locations** (default: enabled) - Filters out low-accuracy location updates from providers like BeaconDB
+    - **Allow inaccurate locations** (default: off) - When on low-accuracy location updates from providers like BeaconDB will be accepted, otherwise only more-accurate GPS and network locations will be accepted.
 6.  Click **Submit**.
 
 ## Entities Created

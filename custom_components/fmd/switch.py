@@ -79,10 +79,11 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_allow_inaccurate"
         self._attr_name = "Allow inaccurate locations"
-        # Initial state is the inverse of block_inaccurate setting
-        # If block_inaccurate=True, then allow_inaccurate=False (switch is off)
-        block_inaccurate = entry.data.get("block_inaccurate", True)
-        self._attr_is_on = not block_inaccurate
+        # Get allow_inaccurate setting, defaulting to False (blocking enabled, switch off)
+        # For backward compatibility, also check old "block_inaccurate" key
+        allow_inaccurate = entry.data.get("allow_inaccurate_locations",
+                                         not entry.data.get("block_inaccurate", True))
+        self._attr_is_on = allow_inaccurate
 
     @property
     def device_info(self):

@@ -20,7 +20,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     _LOGGER.info("Setting up FMD device tracker for %s", entry.data["id"])
     api = await FmdApi.create(entry.data["url"], entry.data["id"], entry.data["password"])
     polling_interval = entry.data.get("polling_interval", DEFAULT_POLLING_INTERVAL)
-    block_inaccurate = entry.data.get("block_inaccurate", True)
+    # Get allow_inaccurate setting, defaulting to False (blocking enabled)
+    # For backward compatibility, also check old "block_inaccurate" key
+    allow_inaccurate = entry.data.get("allow_inaccurate_locations", 
+                                      not entry.data.get("block_inaccurate", True))
+    block_inaccurate = not allow_inaccurate  # Internal logic still uses block
 
     tracker = FmdDeviceTracker(hass, entry, api, polling_interval, block_inaccurate)
     
