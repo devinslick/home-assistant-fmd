@@ -182,58 +182,81 @@ class FmdDeviceTracker(TrackerEntity):
             # Record the time when we're polling the FMD server
             poll_time = dt_util.now()
             
-            _LOGGER.debug("Fetching location data...")
-            location_blobs = await self.api.get_all_locations(num_to_get=1, skip_empty=True)
+            # If filtering is enabled, fetch multiple recent locations to handle cases
+            # where the most recent location is inaccurate (e.g., BeaconDB) but a slightly
+            # older accurate location (e.g., GPS) exists. If filtering is disabled, just
+            # fetch the most recent location.
+            num_locations_to_check = 5 if self._block_inaccurate else 1
+            
+            _LOGGER.debug("Fetching up to %d recent location(s) (filtering %s)...", 
+                         num_locations_to_check, "enabled" if self._block_inaccurate else "disabled")
+            location_blobs = await self.api.get_all_locations(num_to_get=num_locations_to_check, skip_empty=True)
             _LOGGER.info(f"=== Received {len(location_blobs)} location blob(s) ===")
             _LOGGER.debug("Received %d location blobs", len(location_blobs) if location_blobs else 0)
             
             if location_blobs:
-                blob = location_blobs[0]
-                _LOGGER.debug("Location blob type: %s, length: %d", type(blob).__name__, len(blob) if blob else 0)
-                if blob:
-                    _LOGGER.debug("First 100 chars of blob: %s", blob[:100] if len(blob) > 100 else blob)
-                else:
-                    _LOGGER.warning("Received empty blob from server")
-                    return
+                selected_location = None
                 
-                # Decrypt and parse the location blob (synchronous call)
-                _LOGGER.debug("Decrypting location blob...")
-                decrypted_bytes = self.api.decrypt_data_blob(blob)
-                _LOGGER.debug("Decrypted bytes: %s", decrypted_bytes)
-                
-                location_data = json.loads(decrypted_bytes)
-                
-                # Check if location should be filtered based on accuracy
-                if self._block_inaccurate and not self._is_location_accurate(location_data):
+                # Decrypt and check each location blob, most recent first
+                for idx, blob in enumerate(location_blobs):
+                    _LOGGER.debug("Checking location blob %d/%d (type: %s, length: %d)", 
+                                idx + 1, len(location_blobs), type(blob).__name__, len(blob) if blob else 0)
+                    
+                    if not blob:
+                        _LOGGER.warning("Empty blob at index %d", idx)
+                        continue
+                    
+                    # Decrypt and parse the location blob (synchronous call)
+                    _LOGGER.debug("Decrypting location blob %d...", idx)
+                    decrypted_bytes = self.api.decrypt_data_blob(blob)
+                    location_data = json.loads(decrypted_bytes)
+                    
                     provider = location_data.get("provider", "unknown")
-                    _LOGGER.info(
-                        "Skipping inaccurate location update from provider '%s' (filtering enabled)",
-                        provider
+                    _LOGGER.debug("Location %d: provider=%s", idx, provider)
+                    
+                    # If filtering is disabled, use the first (most recent) location
+                    if not self._block_inaccurate:
+                        _LOGGER.debug("Filtering disabled, using most recent location (index %d)", idx)
+                        selected_location = location_data
+                        break
+                    
+                    # If filtering is enabled, look for the most recent accurate location
+                    if self._is_location_accurate(location_data):
+                        _LOGGER.info("Found accurate location at index %d (provider: %s)", idx, provider)
+                        selected_location = location_data
+                        break
+                    else:
+                        _LOGGER.debug("Location %d from provider '%s' is inaccurate, checking next...", idx, provider)
+                
+                # Check if we found a suitable location
+                if selected_location:
+                    self._location = selected_location
+                    provider = self._location.get("provider", "unknown")
+                    _LOGGER.debug("Using location from provider: %s", provider)
+                    
+                    # Store the poll time (when we queried the server)
+                    self._last_poll_time = poll_time.isoformat()
+                    
+                    # Update battery level when location is updated
+                    if "bat" in self._location:
+                        try:
+                            self._battery_level = int(self._location["bat"])
+                            _LOGGER.debug("Battery level: %s%%", self._battery_level)
+                        except (ValueError, TypeError):
+                            _LOGGER.warning("Invalid battery value: %s", self._location.get("bat"))
+                            self._battery_level = None
+                    
+                    _LOGGER.info("Updated location: lat=%s, lon=%s, battery=%s%%, time=%s", 
+                                self._location.get('lat'), 
+                                self._location.get('lon'),
+                                self._battery_level,
+                                self._location.get('time'))
+                else:
+                    _LOGGER.warning(
+                        "No accurate locations found in the %d most recent location(s). "
+                        "Keeping previous location. Toggle 'Allow Inaccurate Locations' to accept all locations.",
+                        len(location_blobs)
                     )
-                    return
-                
-                # Location is accurate (or filtering is disabled), accept the update
-                self._location = location_data
-                provider = self._location.get("provider", "unknown")
-                _LOGGER.debug("Accepted location from provider: %s", provider)
-                
-                # Store the poll time (when we queried the server)
-                self._last_poll_time = poll_time.isoformat()
-                
-                # Update battery level when location is updated
-                if "bat" in self._location:
-                    try:
-                        self._battery_level = int(self._location["bat"])
-                        _LOGGER.debug("Battery level: %s%%", self._battery_level)
-                    except (ValueError, TypeError):
-                        _LOGGER.warning("Invalid battery value: %s", self._location.get("bat"))
-                        self._battery_level = None
-                
-                _LOGGER.info("Updated location: lat=%s, lon=%s, battery=%s%%, time=%s", 
-                            self._location.get('lat'), 
-                            self._location.get('lon'),
-                            self._battery_level,
-                            self._location.get('time'))
             else:
                 _LOGGER.warning("No location blobs returned from API")
         except Exception as e:

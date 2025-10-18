@@ -88,7 +88,7 @@ The following features are planned but not yet implemented:
 
 ### Location tracking improvements
 - [x] **Dynamic polling interval updates** - ✅ **IMPLEMENTED** - Changing the update interval number immediately updates the polling schedule
-- [ ] **Location accuracy filtering** - Implement logic to filter inaccurate location updates based on the "Allow Inaccurate" switch setting
+- [ ] **Location accuracy filtering** - ✅ **IMPLEMENTED** - Implement logic to filter inaccurate location updates based on the "Allow Inaccurate" switch setting
 - [ ] **Manual update button functionality** - Button should trigger immediate location fetch from device
 - [ ] **High-frequency mode switching** - Enable/disable switch should toggle between standard and high-frequency polling intervals
 - [ ] **Location metadata sensors** - Add sensors for provider (GPS/network), timestamp, accuracy, etc.
