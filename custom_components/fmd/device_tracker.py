@@ -40,6 +40,7 @@ class FmdDeviceTracker(TrackerEntity):
     """Represent a tracked device."""
 
     _attr_has_entity_name = True
+    _attr_entity_category = None  # Explicitly set to None to ensure it's a primary entity
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: FmdApi, polling_interval: int):
         """Initialize the device tracker."""
