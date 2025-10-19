@@ -76,6 +76,21 @@ class FmdDeviceTracker(TrackerEntity):
         
         async def update_locations(now=None):
             """Update device locations."""
+            # If in high-frequency mode, request fresh location from device
+            if self._high_frequency_mode:
+                _LOGGER.debug("High-frequency mode active - requesting fresh location from device")
+                try:
+                    import asyncio
+                    success = await self.api.request_location(provider="all")
+                    if success:
+                        _LOGGER.debug("Location request sent, waiting 10 seconds for device...")
+                        await asyncio.sleep(10)
+                    else:
+                        _LOGGER.warning("Failed to request location from device")
+                except Exception as e:
+                    _LOGGER.error("Error requesting location during high-frequency poll: %s", e)
+            
+            # Fetch location from server and update state
             await self.async_update()
             self.async_write_ha_state()
         
