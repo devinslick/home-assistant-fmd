@@ -77,6 +77,9 @@ class FmdLocationUpdateButton(ButtonEntity):
                 _LOGGER.info("Fetching updated location from server...")
                 await tracker.async_update()
                 
+                # Write the updated state to Home Assistant
+                tracker.async_write_ha_state()
+                
                 _LOGGER.info("Location update completed successfully")
             else:
                 _LOGGER.warning("Failed to send location request to device")
