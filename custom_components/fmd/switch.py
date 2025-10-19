@@ -22,7 +22,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up FMD switch entities."""
     async_add_entities([
-        FmdHighFrequencyModeSwitch(entry),
+        FmdHighFrequencyModeSwitch(hass, entry),
         FmdAllowInaccurateSwitch(hass, entry),
     ])
 
@@ -33,8 +33,9 @@ class FmdHighFrequencyModeSwitch(SwitchEntity):
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the switch entity."""
+        self.hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_high_frequency_mode"
         self._attr_name = "High frequency mode"
@@ -56,14 +57,28 @@ class FmdHighFrequencyModeSwitch(SwitchEntity):
         _LOGGER.info("High frequency mode enabled")
         self._attr_is_on = True
         self.async_write_ha_state()
-        # TODO: Switch to high-frequency polling interval
+        
+        # Enable high-frequency mode in the tracker
+        tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
+        if tracker:
+            await tracker.set_high_frequency_mode(True)
+            _LOGGER.info("High-frequency mode activated in tracker")
+        else:
+            _LOGGER.error("Could not find tracker to enable high-frequency mode")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off high-frequency mode."""
         _LOGGER.info("High frequency mode disabled")
         self._attr_is_on = False
         self.async_write_ha_state()
-        # TODO: Switch back to standard polling interval
+        
+        # Disable high-frequency mode in the tracker
+        tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
+        if tracker:
+            await tracker.set_high_frequency_mode(False)
+            _LOGGER.info("High-frequency mode deactivated in tracker")
+        else:
+            _LOGGER.error("Could not find tracker to disable high-frequency mode")
 
 
 class FmdAllowInaccurateSwitch(SwitchEntity):

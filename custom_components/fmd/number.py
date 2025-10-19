@@ -110,4 +110,11 @@ class FmdHighFrequencyIntervalNumber(NumberEntity):
         _LOGGER.info("High frequency interval changed to %s minutes", value)
         self._attr_native_value = value
         self.async_write_ha_state()
-        # TODO: Update the actual polling interval when high-frequency mode is enabled
+        
+        # Update the high-frequency interval in the tracker
+        tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
+        if tracker:
+            tracker.set_high_frequency_interval(int(value))
+            _LOGGER.info("Successfully updated tracker high-frequency interval to %s minutes", value)
+        else:
+            _LOGGER.error("Could not find tracker to update high-frequency interval")

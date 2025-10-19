@@ -6,6 +6,15 @@ This is a Home Assistant integration for FMD (Find My Device). It allows you to 
 
 ## Installation
 
+### HACS Installation (Recommended)
+
+1.  Open HACS in Home Assistant
+2.  Click on "Integrations"
+3.  Click the "+" button
+4.  Search for "FMD" or "Find My Device"
+5.  Click "Download"
+6.  Restart Home Assistant
+
 ### Manual Installation
 
 1.  Copy the `custom_components/fmd` directory to your Home Assistant `custom_components` directory.
@@ -32,7 +41,7 @@ The integration will create the following entities for each configured FMD devic
   - Shows latitude, longitude, and other location metadata
   - **Attributes:**
     - `battery_level` - Device battery percentage (0-100)
-    - `provider` - Location provider used by the device (e.g., `gps`, `network`, `BeaconDB`)
+    - `provider` - Location provider used by the device (e.g., `fused`, `gps`, `network`, `BeaconDB`)
     - `last_poll_time` - ISO timestamp when Home Assistant last polled the FMD server
     - `device_timestamp` - Human-readable timestamp when the device sent the location to FMD server
     - `device_timestamp_ms` - Unix timestamp (milliseconds) when the device sent the location to FMD server
@@ -50,12 +59,12 @@ The integration will create the following entities for each configured FMD devic
 - **High Frequency Interval** - Set the high-frequency polling interval (1-60 minutes, default: 5)
   - Entity ID example: `number.fmd_test_user_high_frequency_interval`
   - Controls the polling rate when High Frequency Mode is enabled
-  - _Note: Not yet connected to polling logic (functionality pending)_
+  - ✅ **Changes take effect immediately** - If high-frequency mode is active, the new interval is applied right away
 
 ### Button Entities (Configuration)
 - **Location Update** - Request a new location from the device
   - Entity ID example: `button.fmd_test_user_location_update`
-  - Sends a command to the FMD device to capture a new location using all available providers (GPS, network)
+  - Sends a command to the FMD device to capture a new location using all available providers (Fused, GPS, network, cell)
   - Waits 10 seconds for the device to respond, then fetches the updated location from the server
   - ✅ **Fully implemented** - Triggers immediate location update on-demand
 
@@ -72,11 +81,16 @@ The integration will create the following entities for each configured FMD devic
   - ✅ **Fully implemented** - Triggers lock command immediately
 
 ### Switch Entities (Configuration)
-- **High Frequency Mode** - Enable rapid location polling
+- **High Frequency Mode** - Enable active tracking with device location requests
   - Entity ID example: `switch.fmd_test_user_high_frequency_mode`
-  - When enabled, switches to the high-frequency polling interval
-  - Useful for tracking during active travel or emergencies
-  - _Note: Currently toggles state but doesn't change polling rate (functionality pending)_
+  - When enabled:
+    - Immediately requests a new location from the device
+    - Switches to high-frequency polling interval
+    - Each poll requests fresh location data from the device (impacts battery life)
+  - When disabled, returns to normal polling interval
+  - ⚠️ **Battery impact**: Active tracking drains device battery faster
+  - Useful for tracking during active travel, emergencies, or finding lost devices
+  - ✅ **Fully implemented** - True active tracking mode
 
 - **Allow Inaccurate Locations** - Toggle location filtering
   - Entity ID example: `switch.fmd_test_user_allow_inaccurate`
@@ -102,28 +116,32 @@ For a user with FMD account ID `test-user`, the following entities will be creat
 _Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
 
 ## Features
-- [x] **Dynamic polling interval updates** - Changing the update interval number immediately updates the polling schedule
-- [x] **Location accuracy filtering** - Implement logic to filter inaccurate location updates based on the "Allow Inaccurate" switch setting
-- [x] **Location metadata sensors** - Add attributes to track gps_accuracy, altitude, speed, and heading
 
-## Current Limitations & TODO
+### ✅ Implemented
+- **Dynamic polling interval updates** - Changes take effect immediately without restart
+- **High-frequency active-tracking mode** - Requests fresh device location at faster intervals (battery intensive)
+- **Location update button** - Triggers immediate on-demand location update from device
+- **Location accuracy filtering** - Filters inaccurate providers (BeaconDB) while accepting accurate ones (Fused, GPS, network)
+- **Location metadata attributes** - Tracks GPS accuracy, altitude, speed, and heading
+- **Ring button** - Makes device play loud sound at maximum volume
+- **Lock button** - Remotely locks the device screen
+- **Multiple location provider support** - Fused (Android's best), GPS, network, and cell tower
+- **Smart location selection** - Checks up to 5 recent locations to find most recent accurate one
 
-### Location tracking improvements
-- [ ] **Manual update button functionality** - Button should trigger immediate location fetch from device
-- [ ] **High-frequency mode switching** - Enable/disable switch should toggle between standard FMD server polling and high-frequency polling intervals
-- [ ] **Historical location history** - Option to fetch and store location history from FMD in the home assistant device tracker entity
-- [ ] **Timestamp configuration** - Option to use FMD timestamp for location updates instead of the polling time
+## TODO & Planned Features
 
+### Location Tracking
+- [ ] **Historical location history** - Option to fetch and display location history from FMD server
+- [ ] **Geofencing triggers** - Automation triggers when device enters/exits zones
+- [ ] **Location request optimization** - Smart decision on when to request new vs fetch cached location
 
-### Photos
-- [ ] **Browsing** -  View historical photos taken that are already stored on the FMD server
-- [ ] **Capture** - Capture front/read camera photos
+### Camera
+- [ ] **Photo capture** - Buttons to trigger front/rear camera photos (command available in FMD API)
+- [ ] **Photo browsing** - View historical photos stored on the FMD server
 
-### Other
-- [ ] **Alarm** - A button to trigger the alarm/ring the device
-- [ ] **Lock** - A button to lock the device
-- [ ] **Wipe** - A button to wipe all data from the device
-- [ ] **Account Deletion*** - A button to delete your FMD account
+### Advanced Features
+- [ ] **Device wipe** - Add wipe command support to FMD API and integration
+- [ ] **Account deletion** - Add account deletion endpoint to FMD API and integration button
 
 
 ## Troubleshooting

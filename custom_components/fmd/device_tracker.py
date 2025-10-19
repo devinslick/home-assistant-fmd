@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, DEFAULT_POLLING_INTERVAL
+from .const import DOMAIN, DEFAULT_POLLING_INTERVAL, DEFAULT_HIGH_FREQUENCY_INTERVAL
 from .fmd_client.fmd_api import FmdApi
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,7 +53,10 @@ class FmdDeviceTracker(TrackerEntity):
         self.hass = hass
         self._entry = entry
         self.api = api
-        self._polling_interval = polling_interval
+        self._normal_interval = polling_interval  # Normal polling interval
+        self._polling_interval = polling_interval  # Current active interval
+        self._high_frequency_interval = DEFAULT_HIGH_FREQUENCY_INTERVAL  # High-freq interval
+        self._high_frequency_mode = False  # Whether high-freq mode is active
         self._block_inaccurate = block_inaccurate
         self._location = None
         self._attr_name = None  # Use device name only, no suffix
@@ -87,7 +90,49 @@ class FmdDeviceTracker(TrackerEntity):
         """Update the polling interval and restart the timer."""
         _LOGGER.info("Updating polling interval from %s to %s minutes", self._polling_interval, interval_minutes)
         self._polling_interval = interval_minutes
+        # If not in high-frequency mode, also update the stored normal interval
+        if not self._high_frequency_mode:
+            self._normal_interval = interval_minutes
         self.start_polling()
+
+    def set_high_frequency_interval(self, interval_minutes: int):
+        """Update the high-frequency interval value."""
+        _LOGGER.info("Setting high-frequency interval to %s minutes", interval_minutes)
+        self._high_frequency_interval = interval_minutes
+        # If already in high-frequency mode, apply the new interval immediately
+        if self._high_frequency_mode:
+            _LOGGER.info("High-frequency mode is active, applying new interval immediately")
+            self.set_polling_interval(interval_minutes)
+
+    async def set_high_frequency_mode(self, enabled: bool):
+        """Enable or disable high-frequency mode."""
+        _LOGGER.info("High-frequency mode %s", "enabled" if enabled else "disabled")
+        self._high_frequency_mode = enabled
+        
+        if enabled:
+            # Request an immediate location update from the device
+            _LOGGER.info("Requesting immediate location update from device...")
+            try:
+                success = await self.api.request_location(provider="all")
+                if success:
+                    _LOGGER.info("Location request sent. Waiting 10 seconds for device response...")
+                    import asyncio
+                    await asyncio.sleep(10)
+                    
+                    # Fetch the updated location
+                    await self.async_update()
+                    self.async_write_ha_state()
+                    _LOGGER.info("Initial high-frequency location update completed")
+                else:
+                    _LOGGER.warning("Failed to request location from device")
+            except Exception as e:
+                _LOGGER.error("Error requesting location in high-frequency mode: %s", e, exc_info=True)
+            
+            # Switch to high-frequency polling interval
+            self.set_polling_interval(self._high_frequency_interval)
+        else:
+            # Switch back to normal polling interval
+            self.set_polling_interval(self._normal_interval)
 
     async def async_will_remove_from_hass(self) -> None:
         """Clean up when entity is removed."""
