@@ -59,6 +59,18 @@ The integration will create the following entities for each configured FMD devic
   - Waits 10 seconds for the device to respond, then fetches the updated location from the server
   - ✅ **Fully implemented** - Triggers immediate location update on-demand
 
+- **Ring** - Make the device ring at maximum volume
+  - Entity ID example: `button.fmd_test_user_ring`
+  - Sends a ring command to the device, making it play a loud sound
+  - Useful for finding a lost device nearby
+  - ✅ **Fully implemented** - Triggers ring command immediately
+
+- **Lock** - Lock the device screen
+  - Entity ID example: `button.fmd_test_user_lock`
+  - Sends a lock command to secure the device
+  - Useful if device is lost or stolen
+  - ✅ **Fully implemented** - Triggers lock command immediately
+
 ### Switch Entities (Configuration)
 - **High Frequency Mode** - Enable rapid location polling
   - Entity ID example: `switch.fmd_test_user_high_frequency_mode`
@@ -82,8 +94,10 @@ For a user with FMD account ID `test-user`, the following entities will be creat
 2. `number.fmd_test_user_update_interval` - Standard polling interval setting
 3. `number.fmd_test_user_high_frequency_interval` - High-frequency polling interval setting
 4. `button.fmd_test_user_location_update` - Location update trigger
-5. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
-6. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
+5. `button.fmd_test_user_ring` - Ring device trigger
+6. `button.fmd_test_user_lock` - Lock device trigger
+7. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
+8. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
 
 _Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
 
