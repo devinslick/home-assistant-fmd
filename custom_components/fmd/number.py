@@ -40,7 +40,6 @@ class FmdUpdateIntervalNumber(NumberEntity):
     _attr_native_max_value = 1440  # 24 hours in minutes
     _attr_native_step = 1
     _attr_native_unit_of_measurement = "min"
-    _attr_icon = "mdi:timer-outline"
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the number entity."""
@@ -49,6 +48,7 @@ class FmdUpdateIntervalNumber(NumberEntity):
         self._attr_unique_id = f"{entry.entry_id}_update_interval"
         self._attr_name = "Update interval"
         self._attr_native_value = entry.data.get("polling_interval", DEFAULT_UPDATE_INTERVAL)
+        self._attr_icon = "mdi:timer-outline"
 
     @property
     def device_info(self):
@@ -85,7 +85,6 @@ class FmdHighFrequencyIntervalNumber(NumberEntity):
     _attr_native_max_value = 60
     _attr_native_step = 1
     _attr_native_unit_of_measurement = "min"
-    _attr_icon = "mdi:timer-fast-outline"
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the number entity."""
@@ -94,6 +93,7 @@ class FmdHighFrequencyIntervalNumber(NumberEntity):
         self._attr_unique_id = f"{entry.entry_id}_high_frequency_interval"
         self._attr_name = "High frequency interval"
         self._attr_native_value = DEFAULT_HIGH_FREQUENCY_INTERVAL
+        self._attr_icon = "mdi:timer-fast-outline"
 
     @property
     def device_info(self):

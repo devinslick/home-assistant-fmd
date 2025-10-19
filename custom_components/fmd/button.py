@@ -33,7 +33,6 @@ class FmdLocationUpdateButton(ButtonEntity):
 
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_icon = "mdi:map-marker-refresh"
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the button entity."""
@@ -41,6 +40,7 @@ class FmdLocationUpdateButton(ButtonEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_location_update"
         self._attr_name = "Location update"
+        self._attr_icon = "mdi:map-marker-refresh"
 
     @property
     def device_info(self):

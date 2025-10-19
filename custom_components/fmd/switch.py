@@ -32,7 +32,6 @@ class FmdHighFrequencyModeSwitch(SwitchEntity):
 
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_icon = "mdi:timer-fast-outline"
 
     def __init__(self, entry: ConfigEntry) -> None:
         """Initialize the switch entity."""
@@ -40,6 +39,7 @@ class FmdHighFrequencyModeSwitch(SwitchEntity):
         self._attr_unique_id = f"{entry.entry_id}_high_frequency_mode"
         self._attr_name = "High frequency mode"
         self._attr_is_on = False
+        self._attr_icon = "mdi:run-fast"
 
     @property
     def device_info(self):
