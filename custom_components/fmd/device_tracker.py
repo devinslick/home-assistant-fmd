@@ -174,16 +174,17 @@ class FmdDeviceTracker(TrackerEntity):
         Determine if a location is accurate based on the provider.
         
         Accuracy hierarchy (most to least accurate):
-        1. gps - Direct GPS satellite positioning (most accurate)
-        2. network - Cell tower + WiFi triangulation (moderate accuracy)
-        3. BeaconDB - WiFi beacon database lookup (least accurate, often blocked)
+        1. fused - Android Fused Location Provider (combines GPS, WiFi, cell, sensors - highly accurate)
+        2. gps - Direct GPS satellite positioning (highly accurate)
+        3. network - Cell tower + WiFi triangulation (moderate accuracy)
+        4. BeaconDB - WiFi beacon database lookup (least accurate, often blocked)
         
         Returns True if location is considered accurate, False otherwise.
         """
         provider = location_data.get("provider", "").lower()
         
-        # GPS and network are considered accurate
-        if provider in ("gps", "network"):
+        # Fused, GPS, and network are considered accurate
+        if provider in ("fused", "gps", "network"):
             return True
         
         # BeaconDB and unknown providers are considered inaccurate
