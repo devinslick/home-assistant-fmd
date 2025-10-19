@@ -61,6 +61,12 @@ The integration will create the following entities for each configured FMD devic
   - Controls the polling rate when High Frequency Mode is enabled
   - ✅ **Changes take effect immediately** - If high-frequency mode is active, the new interval is applied right away
 
+- **Max Photos to Download** - Set how many recent photos to download (1-50, default: 10)
+  - Entity ID example: `number.fmd_test_user_max_photos`
+  - Controls how many of the most recent photos are fetched when pressing the "Download Photos" button
+  - Larger values = more photos but larger download size (~2-3 MB per photo)
+  - ✅ **Fully implemented** - Configure before downloading photos
+
 ### Button Entities (Configuration)
 - **Location Update** - Request a new location from the device
   - Entity ID example: `button.fmd_test_user_location_update`
@@ -79,6 +85,28 @@ The integration will create the following entities for each configured FMD devic
   - Sends a lock command to secure the device
   - Useful if device is lost or stolen
   - ✅ **Fully implemented** - Triggers lock command immediately
+
+- **Capture Front Camera** - Take a photo with the front-facing camera
+  - Entity ID example: `button.fmd_test_user_capture_front`
+  - Sends a "camera front" command to the device
+  - Device captures photo and uploads to FMD server (~15-30 seconds)
+  - Press "Download Photos" button afterwards to retrieve the photo
+  - ✅ **Fully implemented** - Triggers front camera photo capture
+
+- **Capture Rear Camera** - Take a photo with the rear-facing camera
+  - Entity ID example: `button.fmd_test_user_capture_rear`
+  - Sends a "camera back" command to the device
+  - Device captures photo and uploads to FMD server (~15-30 seconds)
+  - Press "Download Photos" button afterwards to retrieve the photo
+  - ✅ **Fully implemented** - Triggers rear camera photo capture
+
+- **Download Photos** - Download photos from server to media folder
+  - Entity ID example: `button.fmd_test_user_download_photos`
+  - Fetches the N most recent photos from server (N = "Max Photos to Download" setting)
+  - Decrypts and saves photos to `/config/media/fmd/` folder
+  - Photos automatically appear in Home Assistant's Media Browser
+  - Updates the "Photo Count" sensor
+  - ✅ **Fully implemented** - Downloads photos to media browser
 
 ### Switch Entities (Configuration)
 - **High Frequency Mode** - Enable active tracking with device location requests
@@ -99,19 +127,44 @@ The integration will create the following entities for each configured FMD devic
   - ✅ **Fully implemented** - Filtering is active and can be toggled at runtime.
   - _Note: You can also configure this during initial setup via the config flow._
 
+### Sensor Entities
+- **Photo Count** - Number of photos available on the server
+  - Entity ID example: `sensor.fmd_test_user_photo_count`
+  - Shows how many photos were retrieved in the last download
+  - **Attributes:**
+    - `last_download_time` - ISO timestamp of the last photo download
+    - `photos_in_media_folder` - Count of `.jpg` files in `/config/media/fmd/`
+  - ✅ **Fully implemented** - Updates automatically when photos are downloaded
+
 **All entities are grouped together under a single FMD device** in Home Assistant (e.g., "FMD test-user").
 
 ### Example Entity IDs
 For a user with FMD account ID `test-user`, the following entities will be created:
 
-1. `device_tracker.fmd_test_user` - Device location tracker (with battery_level attribute)
+**Device Tracker:**
+1. `device_tracker.fmd_test_user` - Device location tracker
+
+**Number Entities (3):**
 2. `number.fmd_test_user_update_interval` - Standard polling interval setting
 3. `number.fmd_test_user_high_frequency_interval` - High-frequency polling interval setting
-4. `button.fmd_test_user_location_update` - Location update trigger
-5. `button.fmd_test_user_ring` - Ring device trigger
-6. `button.fmd_test_user_lock` - Lock device trigger
-7. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
-8. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
+4. `number.fmd_test_user_max_photos` - Max photos to download setting
+
+**Button Entities (6):**
+5. `button.fmd_test_user_location_update` - Location update trigger
+6. `button.fmd_test_user_ring` - Ring device trigger
+7. `button.fmd_test_user_lock` - Lock device trigger
+8. `button.fmd_test_user_capture_front` - Capture front camera photo
+9. `button.fmd_test_user_capture_rear` - Capture rear camera photo
+10. `button.fmd_test_user_download_photos` - Download photos from server
+
+**Switch Entities (2):**
+11. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
+12. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
+
+**Sensor Entities (1):**
+13. `sensor.fmd_test_user_photo_count` - Photo count sensor
+
+**Total: 13 entities per device**
 
 _Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
 
@@ -127,20 +180,45 @@ _Note: Hyphens in your FMD account ID will be converted to underscores in entity
 - **Lock button** - Remotely locks the device screen
 - **Multiple location provider support** - Fused (Android's best), GPS, network, and cell tower
 - **Smart location selection** - Checks up to 5 recent locations to find most recent accurate one
+- **Photo capture** - Remote front and rear camera photo capture
+- **Photo download** - Download and decrypt photos from FMD server
+- **Media browser integration** - Photos automatically appear in Home Assistant's media browser
+- **Configurable photo downloads** - Set how many recent photos to download (1-50)
+
+## Photo Workflow
+
+The integration provides complete photo management functionality:
+
+1. **Capture a Photo:**
+   - Press "Capture Front Camera" or "Capture Rear Camera" button
+   - Wait 15-30 seconds for device to capture and upload to server
+
+2. **Download Photos:**
+   - Set "Max Photos to Download" to desired number (default: 10)
+   - Press "Download Photos" button
+   - Photos are fetched, decrypted, and saved to `/config/media/fmd/`
+
+3. **View Photos:**
+   - Navigate to **Media** → **FMD** in Home Assistant
+   - Browse photos in grid view
+   - Click to view full size
+   - Use photos in automations or notifications
+
+**Photo Storage:**
+- Location: `/config/media/fmd/`
+- Format: `photo_YYYYMMDD_HHMMSS_NN.jpg`
+- Size: ~2-3 MB per photo
+- No automatic polling - photos are downloaded only when requested
 
 ## TODO & Planned Features
-### Camera
-- [ ] **Photo capture** - Buttons to trigger front/rear camera photos (in progress)
-- [ ] **Photo browsing** - View historical photos stored on the FMD server  (in progress)
 
 ### Advanced Features
 - [ ] **Device wipe** - Add wipe command support to FMD API and integration
 - [ ] **Account deletion** - Add account deletion endpoint to FMD API and integration button
+- [ ] **Photo cleanup** - Automatic deletion of old photos after X days
+- [ ] **Photo organization** - Organize photos in date-based subfolders
 
 ## Troubleshooting
-
-### Known issues
-- Integration/entity icons are not showing up properly.  (in progress)
 
 ### Location not updating
 - Check that your FMD server is accessible from Home Assistant

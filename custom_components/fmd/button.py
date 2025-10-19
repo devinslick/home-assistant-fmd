@@ -344,8 +344,18 @@ class FmdDownloadPhotosButton(ButtonEntity):
             _LOGGER.info("Retrieved %s photo blob(s) from server. Decrypting and saving...", len(pictures))
             
             # Create media directory
-            media_dir = Path(self.hass.config.path("media/fmd"))
-            media_dir.mkdir(parents=True, exist_ok=True)
+            # Use /media for Docker/Core installations, falls back to config/media for HAOS
+            try:
+                media_base = Path("/media")
+                if not media_base.exists() or not media_base.is_dir():
+                    # Fall back to config/media for Home Assistant OS
+                    media_base = Path(self.hass.config.path("media"))
+                media_dir = media_base / "fmd"
+                media_dir.mkdir(parents=True, exist_ok=True)
+                _LOGGER.info("Saving photos to: %s", media_dir)
+            except Exception as e:
+                _LOGGER.error("Failed to create media directory: %s", e)
+                return
             
             # Download and save each photo
             successful_downloads = 0

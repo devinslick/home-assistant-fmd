@@ -28,6 +28,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     tracker = FmdDeviceTracker(hass, entry, api, polling_interval, block_inaccurate)
     
+    # Store API and device info for other platforms to use
+    hass.data[DOMAIN][entry.entry_id]["api"] = api
+    hass.data[DOMAIN][entry.entry_id]["device_info"] = {
+        "identifiers": {(DOMAIN, entry.entry_id)},
+        "name": f"FMD {entry.data['id']}",
+        "manufacturer": "FMD",
+        "model": "Device Tracker",
+    }
+    
     # Store tracker in hass.data for access by other entities
     hass.data[DOMAIN][entry.entry_id]["tracker"] = tracker
     
