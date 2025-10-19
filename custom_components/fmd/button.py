@@ -40,7 +40,11 @@ class FmdLocationUpdateButton(ButtonEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_location_update"
         self._attr_name = "Location update"
-        self._attr_icon = "mdi:map-marker-refresh"
+
+    @property
+    def icon(self):
+        """Return the icon for this button."""
+        return "mdi:map-marker-refresh"
 
     @property
     def device_info(self):

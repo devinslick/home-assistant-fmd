@@ -93,7 +93,11 @@ class FmdHighFrequencyIntervalNumber(NumberEntity):
         self._attr_unique_id = f"{entry.entry_id}_high_frequency_interval"
         self._attr_name = "High frequency interval"
         self._attr_native_value = DEFAULT_HIGH_FREQUENCY_INTERVAL
-        self._attr_icon = "mdi:timer-fast-outline"
+
+    @property
+    def icon(self):
+        """Return the icon for this number entity."""
+        return "mdi:timer-fast-outline"
 
     @property
     def device_info(self):
