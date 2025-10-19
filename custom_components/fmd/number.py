@@ -24,10 +24,16 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up FMD number entities."""
-    async_add_entities([
+    entities = [
         FmdUpdateIntervalNumber(hass, entry),
         FmdHighFrequencyIntervalNumber(hass, entry),
-    ])
+        FmdMaxPhotosNumber(hass, entry),
+    ]
+    
+    async_add_entities(entities)
+    
+    # Store max photos number reference for download button to access
+    hass.data[DOMAIN][entry.entry_id]["max_photos_number"] = entities[2]
 
 
 class FmdUpdateIntervalNumber(NumberEntity):
@@ -122,3 +128,45 @@ class FmdHighFrequencyIntervalNumber(NumberEntity):
             _LOGGER.info("Successfully updated tracker high-frequency interval to %s minutes", value)
         else:
             _LOGGER.error("Could not find tracker to update high-frequency interval")
+
+
+class FmdMaxPhotosNumber(NumberEntity):
+    """Number entity for maximum photos to download."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_mode = NumberMode.BOX
+    _attr_native_min_value = 1
+    _attr_native_max_value = 50
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "photos"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Initialize the number entity."""
+        self.hass = hass
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_max_photos"
+        self._attr_name = "Max photos to download"
+        self._attr_native_value = 10  # Default to 10 photos
+
+    @property
+    def icon(self):
+        """Return the icon for this number entity."""
+        return "mdi:image-multiple"
+
+    @property
+    def device_info(self):
+        """Return device info."""
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": f"FMD {self._entry.data['id']}",
+            "manufacturer": "FMD",
+            "model": "Device Tracker",
+        }
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the max photos value."""
+        _LOGGER.info("Max photos to download changed to %s", value)
+        self._attr_native_value = value
+        self.async_write_ha_state()
+

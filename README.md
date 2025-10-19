@@ -129,22 +129,18 @@ _Note: Hyphens in your FMD account ID will be converted to underscores in entity
 - **Smart location selection** - Checks up to 5 recent locations to find most recent accurate one
 
 ## TODO & Planned Features
-
-### Location Tracking
-- [ ] **Historical location history** - Option to fetch and display location history from FMD server
-- [ ] **Geofencing triggers** - Automation triggers when device enters/exits zones
-- [ ] **Location request optimization** - Smart decision on when to request new vs fetch cached location
-
 ### Camera
-- [ ] **Photo capture** - Buttons to trigger front/rear camera photos (command available in FMD API)
-- [ ] **Photo browsing** - View historical photos stored on the FMD server
+- [ ] **Photo capture** - Buttons to trigger front/rear camera photos (in progress)
+- [ ] **Photo browsing** - View historical photos stored on the FMD server  (in progress)
 
 ### Advanced Features
 - [ ] **Device wipe** - Add wipe command support to FMD API and integration
 - [ ] **Account deletion** - Add account deletion endpoint to FMD API and integration button
 
-
 ## Troubleshooting
+
+### Known issues
+- Integration/entity icons are not showing up properly.  (in progress)
 
 ### Location not updating
 - Check that your FMD server is accessible from Home Assistant
