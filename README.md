@@ -108,6 +108,15 @@ The integration will create the following entities for each configured FMD devic
   - Updates the "Photo Count" sensor
   - ✅ **Fully implemented** - Downloads photos to media browser
 
+- **Wipe Device** - ⚠️ **DANGEROUS**: Factory reset the device (erases ALL data)
+  - Entity ID example: `button.fmd_test_user_wipe_device`
+  - **Requires "Device Wipe Safety" switch to be enabled first**
+  - Sends the "delete" command which performs a factory reset
+  - ⚠️ **THIS CANNOT BE UNDONE** - All data on device will be permanently erased
+  - Safety switch automatically disables after use to prevent accidental repeated presses
+  - Icon: `mdi:delete-forever` to indicate destructive action
+  - ✅ **Fully implemented** - Device wipe with safety mechanism
+
 ### Switch Entities (Configuration)
 - **High Frequency Mode** - Enable active tracking with device location requests
   - Entity ID example: `switch.fmd_test_user_high_frequency_mode`
@@ -126,6 +135,14 @@ The integration will create the following entities for each configured FMD devic
   - When **on**: Accepts all location updates regardless of provider accuracy.
   - ✅ **Fully implemented** - Filtering is active and can be toggled at runtime.
   - _Note: You can also configure this during initial setup via the config flow._
+
+- **Device Wipe Safety** - Safety switch for device wipe command
+  - Entity ID example: `switch.fmd_test_user_device_wipe_safety`
+  - Must be enabled before the "Wipe Device" button will function
+  - ⚠️ **Automatically disables after 60 seconds** for safety
+  - ⚠️ **DANGEROUS**: Only enable if you intend to wipe the device
+  - Icon: `mdi:alert-octagon` to indicate danger
+  - ✅ **Fully implemented** - Prevents accidental device wipes
 
 ### Select Entities (Configuration)
 - **Location Source** - Choose which location provider the Location Update button uses
@@ -182,28 +199,30 @@ For a user with FMD account ID `test-user`, the following entities will be creat
 3. `number.fmd_test_user_high_frequency_interval` - High-frequency polling interval setting
 4. `number.fmd_test_user_max_photos` - Max photos to download setting
 
-**Button Entities (6):**
+**Button Entities (7):**
 5. `button.fmd_test_user_location_update` - Location update trigger
 6. `button.fmd_test_user_ring` - Ring device trigger
 7. `button.fmd_test_user_lock` - Lock device trigger
 8. `button.fmd_test_user_capture_front` - Capture front camera photo
 9. `button.fmd_test_user_capture_rear` - Capture rear camera photo
 10. `button.fmd_test_user_download_photos` - Download photos from server
+11. `button.fmd_test_user_wipe_device` - ⚠️ Device wipe (factory reset)
 
-**Switch Entities (2):**
-11. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
-12. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
+**Switch Entities (3):**
+12. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
+13. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
+14. `switch.fmd_test_user_device_wipe_safety` - Safety switch for device wipe
 
 **Select Entities (4):**
-13. `select.fmd_test_user_location_source` - Location provider selection
-14. `select.fmd_test_user_bluetooth_command` - Bluetooth enable/disable commands
-15. `select.fmd_test_user_do_not_disturb_command` - DND enable/disable commands
-16. `select.fmd_test_user_ringer_mode_command` - Ringer mode commands
+15. `select.fmd_test_user_location_source` - Location provider selection
+16. `select.fmd_test_user_bluetooth_command` - Bluetooth enable/disable commands
+17. `select.fmd_test_user_do_not_disturb_command` - DND enable/disable commands
+18. `select.fmd_test_user_ringer_mode_command` - Ringer mode commands
 
 **Sensor Entities (1):**
-17. `sensor.fmd_test_user_photo_count` - Photo count sensor
+19. `sensor.fmd_test_user_photo_count` - Photo count sensor
 
-**Total: 17 entities per device**
+**Total: 19 entities per device**
 
 _Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
 
@@ -228,6 +247,7 @@ _Note: Hyphens in your FMD account ID will be converted to underscores in entity
 - **Bluetooth control** - Send enable/disable Bluetooth commands to device
 - **Do Not Disturb control** - Send enable/disable DND commands to device
 - **Ringer mode control** - Set device ringer to Normal, Vibrate, or Silent mode
+- **Device wipe** - Factory reset device with safety switch protection (60-second timeout)
 
 ## Photo Workflow
 
@@ -315,15 +335,44 @@ Use the Ringer Mode command select entity to change device ringer:
 - Select "Silent" for silent mode (also enables DND)
 - Requires Do Not Disturb Access permission
 
-**Note:** These are fire-and-forget commands. Home Assistant doesn't track the actual device state, so the select entities always show "Send Command..." as a placeholder.
+### Device Wipe (Factory Reset)
+⚠️ **DANGEROUS COMMAND** - Permanently erases all data on the device!
+
+To protect against accidental wipes, this feature requires a two-step process:
+
+1. **Enable Safety Switch:**
+   - Turn on the "Device Wipe Safety" switch
+   - This allows the wipe button to function
+   - ⏰ **Automatically disables after 60 seconds**
+
+2. **Press Wipe Button:**
+   - While safety switch is enabled, press "Wipe Device" button
+   - Device will be factory reset (all data erased)
+   - Safety switch automatically disables after use
+
+**Use Cases:**
+- Device is lost/stolen and you want to protect your data
+- Device needs to be decommissioned or sold
+- Final resort for security/privacy protection
+
+**Important Notes:**
+- This command **CANNOT BE UNDONE**
+- All apps, files, photos, accounts will be deleted
+- Device will return to factory settings
+- You'll need physical access to set up the device again
+
+**Note:** Bluetooth, DND, and Ringer commands are fire-and-forget. Home Assistant doesn't track the actual device state, so the select entities always show "Send Command..." as a placeholder.
 
 ## TODO & Planned Features
 
 ### To Do
-- [ ] **Device wipe** - Add wipe command support to FMD API and integration
 - [ ] **Account deletion** - Add account deletion endpoint to FMD API and integration button
 - [ ] **Photo cleanup** - Automatic deletion of old photos after X days
 - [ ] **Device stats** - Request network statistics (IP, WiFi SSID, etc.)
+- [ ] **GPS status** - Request GPS and battery status information
+
+### Completed (v0.8.0)
+- [x] **Device wipe** - Factory reset with safety switch and 60-second timeout
 
 ### Completed (v0.7.0)
 - [x] **Location variants** - Configurable location source (All/GPS/Cell/Last Known)

@@ -36,6 +36,7 @@ async def async_setup_entry(
         FmdCaptureFrontCameraButton(hass, entry),
         FmdCaptureRearCameraButton(hass, entry),
         FmdDownloadPhotosButton(hass, entry),
+        FmdWipeDeviceButton(hass, entry),
     ])
 
 
@@ -481,4 +482,74 @@ class FmdDownloadPhotosButton(ButtonEntity):
                 
         except Exception as e:
             _LOGGER.error("Error downloading photos: %s", e, exc_info=True)
+
+
+class FmdWipeDeviceButton(ButtonEntity):
+    """Button entity to perform factory reset / device wipe.
+    
+    ⚠️ DANGEROUS: This will erase ALL data on the device!
+    Requires the Device Wipe Safety switch to be enabled first.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Initialize the button entity."""
+        self.hass = hass
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_wipe_device"
+        self._attr_name = "Wipe device"
+
+    @property
+    def icon(self):
+        """Return the icon for this button."""
+        return "mdi:delete-forever"
+
+    @property
+    def device_info(self):
+        """Return device info."""
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": f"FMD {self._entry.data['id']}",
+            "manufacturer": "FMD",
+            "model": "Device Tracker",
+        }
+
+    async def async_press(self) -> None:
+        """Handle the button press - wipe device if safety switch is enabled."""
+        # Check if safety switch is enabled
+        safety_switch_entity_id = f"switch.fmd_{self._entry.data['id']}_device_wipe_safety"
+        safety_switch_state = self.hass.states.get(safety_switch_entity_id)
+        
+        if not safety_switch_state or safety_switch_state.state != "on":
+            _LOGGER.error("❌ DEVICE WIPE BLOCKED: Safety switch is not enabled. Enable 'Device Wipe Safety' switch first!")
+            return
+        
+        _LOGGER.critical("🚨 DEVICE WIPE COMMAND SENT - This will erase ALL data on the device!")
+        
+        # Get the tracker to access its API
+        tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
+        if not tracker:
+            _LOGGER.error("Could not find tracker to send wipe command")
+            return
+        
+        try:
+            # Send the delete/wipe command
+            success = await tracker.api.send_command("delete")
+            
+            if success:
+                _LOGGER.critical("✅ Device wipe command sent successfully. Device will be factory reset.")
+                
+                # Automatically disable the safety switch after use
+                # This prevents accidental repeated presses
+                safety_switch = self.hass.data[DOMAIN][self._entry.entry_id].get("wipe_safety_switch")
+                if safety_switch:
+                    await safety_switch.async_turn_off()
+                    _LOGGER.info("Safety switch automatically disabled after wipe command")
+            else:
+                _LOGGER.error("Failed to send device wipe command")
+                
+        except Exception as e:
+            _LOGGER.error("Error sending wipe command: %s", e, exc_info=True)
 

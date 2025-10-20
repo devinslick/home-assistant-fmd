@@ -1,6 +1,7 @@
 """Switch entities for FMD integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -14,6 +15,8 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+WIPE_SAFETY_TIMEOUT = 60  # Seconds before safety switch auto-disables
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -24,6 +27,7 @@ async def async_setup_entry(
     async_add_entities([
         FmdHighFrequencyModeSwitch(hass, entry),
         FmdAllowInaccurateSwitch(hass, entry),
+        FmdWipeSafetySwitch(hass, entry),
     ])
 
 
@@ -137,3 +141,73 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
             _LOGGER.info("Location accuracy filtering enabled in tracker")
         else:
             _LOGGER.error("Could not find tracker to update filtering setting")
+
+
+class FmdWipeSafetySwitch(SwitchEntity):
+    """Safety switch that must be enabled before device wipe can be performed.
+    
+    This switch automatically disables itself after 60 seconds for safety.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:alert-octagon"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Initialize the safety switch entity."""
+        self.hass = hass
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_wipe_safety"
+        self._attr_name = "Device wipe safety"
+        self._attr_is_on = False
+        self._auto_disable_task = None
+        
+        # Store reference for the wipe button to access
+        if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
+            hass.data[DOMAIN][entry.entry_id]["wipe_safety_switch"] = self
+
+    @property
+    def device_info(self):
+        """Return device info."""
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": f"FMD {self._entry.data['id']}",
+            "manufacturer": "FMD",
+            "model": "Device Tracker",
+        }
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable device wipe safety (allows wipe button to work)."""
+        _LOGGER.warning("⚠️ DEVICE WIPE SAFETY ENABLED - Wipe button is now active for 60 seconds")
+        self._attr_is_on = True
+        self.async_write_ha_state()
+        
+        # Cancel any existing auto-disable task
+        if self._auto_disable_task:
+            self._auto_disable_task.cancel()
+        
+        # Schedule automatic disable after 60 seconds
+        self._auto_disable_task = asyncio.create_task(self._auto_disable())
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable device wipe safety (blocks wipe button)."""
+        _LOGGER.info("Device wipe safety disabled - Wipe button is now blocked")
+        self._attr_is_on = False
+        self.async_write_ha_state()
+        
+        # Cancel auto-disable task if running
+        if self._auto_disable_task:
+            self._auto_disable_task.cancel()
+            self._auto_disable_task = None
+
+    async def _auto_disable(self) -> None:
+        """Automatically disable the safety switch after timeout."""
+        try:
+            await asyncio.sleep(WIPE_SAFETY_TIMEOUT)
+            _LOGGER.warning("⏰ Device wipe safety auto-disabled after 60 seconds")
+            self._attr_is_on = False
+            self.async_write_ha_state()
+            self._auto_disable_task = None
+        except asyncio.CancelledError:
+            # Task was cancelled, which is fine
+            pass
