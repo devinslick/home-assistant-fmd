@@ -369,31 +369,58 @@ class FmdDownloadPhotosButton(ButtonEntity):
             successful_downloads = 0
             skipped_duplicates = 0
             
+            _LOGGER.info("Processing %s photo(s)...", len(pictures))
+            
             for idx, blob in enumerate(pictures):
                 try:
+                    _LOGGER.debug("Processing photo %s/%s", idx + 1, len(pictures))
+                    
                     # Decrypt the photo
                     decrypted = tracker.api.decrypt_data_blob(blob)
                     image_bytes = base64.b64decode(decrypted)
                     
+                    _LOGGER.debug("Photo %s: Decrypted, size = %s bytes", idx + 1, len(image_bytes))
+                    
                     # Generate content hash for duplicate detection
                     content_hash = hashlib.sha256(image_bytes).hexdigest()[:8]
+                    _LOGGER.debug("Photo %s: Content hash = %s", idx + 1, content_hash)
                     
                     # Try to extract EXIF timestamp
                     timestamp_str = None
                     try:
                         img = Image.open(io.BytesIO(image_bytes))
-                        exif_data = img._getexif()
+                        
+                        # Try to get EXIF data using getexif() (newer method)
+                        exif_data = img.getexif()
                         
                         if exif_data:
-                            # Look for DateTimeOriginal (36867) - when photo was taken
-                            datetime_original = exif_data.get(36867)
-                            if datetime_original:
+                            _LOGGER.debug("Photo %s: EXIF data found with %s tags", idx + 1, len(exif_data))
+                            
+                            # Try multiple timestamp tags in order of preference
+                            # 36867 = DateTimeOriginal (when photo was taken)
+                            # 36868 = DateTimeDigitized (when photo was digitized)
+                            # 306 = DateTime (last modification time)
+                            datetime_value = None
+                            tag_used = None
+                            
+                            for tag_id, tag_name in [(36867, "DateTimeOriginal"), (36868, "DateTimeDigitized"), (306, "DateTime")]:
+                                datetime_value = exif_data.get(tag_id)
+                                if datetime_value:
+                                    tag_used = tag_name
+                                    _LOGGER.debug("Photo %s: Found %s tag with value: %s", idx + 1, tag_name, datetime_value)
+                                    break
+                            
+                            if datetime_value:
                                 # Parse EXIF datetime format: "2025:10:19 15:00:34"
-                                dt = datetime.strptime(datetime_original, "%Y:%m:%d %H:%M:%S")
+                                dt = datetime.strptime(str(datetime_value), "%Y:%m:%d %H:%M:%S")
                                 timestamp_str = dt.strftime("%Y%m%d_%H%M%S")
-                                _LOGGER.debug("Extracted EXIF timestamp: %s", timestamp_str)
+                                _LOGGER.info("Photo %s: Extracted EXIF timestamp from %s: %s", idx + 1, tag_used, timestamp_str)
+                            else:
+                                _LOGGER.warning("Photo %s: No timestamp tags found in EXIF (tried 36867, 36868, 306)", idx + 1)
+                        else:
+                            _LOGGER.warning("Photo %s: No EXIF data found in image", idx + 1)
                     except Exception as e:
-                        _LOGGER.debug("Could not extract EXIF timestamp: %s", e)
+                        _LOGGER.warning("Photo %s: Could not extract EXIF timestamp: %s", idx + 1, e, exc_info=True)
                     
                     # Generate filename with timestamp if available, otherwise hash-only
                     if timestamp_str:
@@ -403,19 +430,21 @@ class FmdDownloadPhotosButton(ButtonEntity):
                     
                     filepath = media_dir / filename
                     
+                    _LOGGER.debug("Photo %s: Generated filename: %s", idx + 1, filename)
+                    
                     # Skip if file already exists (duplicate)
                     if filepath.exists():
-                        _LOGGER.debug("Skipping duplicate photo: %s", filename)
+                        _LOGGER.info("Photo %s: Skipping duplicate (file exists): %s", idx + 1, filename)
                         skipped_duplicates += 1
                         continue
                     
-                    # Save to file
-                    filepath.write_bytes(image_bytes)
+                    # Save to file (use executor to avoid blocking I/O)
+                    await self.hass.async_add_executor_job(filepath.write_bytes, image_bytes)
                     successful_downloads += 1
-                    _LOGGER.debug("Saved photo to %s", filename)
+                    _LOGGER.info("Photo %s: Saved successfully: %s", idx + 1, filename)
                     
                 except Exception as e:
-                    _LOGGER.error("Failed to decrypt/save photo %s: %s", idx, e)
+                    _LOGGER.error("Failed to decrypt/save photo %s: %s", idx + 1, e, exc_info=True)
             
             _LOGGER.info("Successfully downloaded %s new photo(s) to %s (skipped %s duplicate(s))", 
                         successful_downloads, media_dir, skipped_duplicates)
@@ -424,7 +453,7 @@ class FmdDownloadPhotosButton(ButtonEntity):
             photo_sensor = self.hass.data[DOMAIN][self._entry.entry_id].get("photo_count_sensor")
             if photo_sensor:
                 photo_sensor.update_photo_count(len(pictures))
-                await photo_sensor.async_update_ha_state()
+                await photo_sensor.async_write_ha_state()
                 _LOGGER.info("Updated photo count sensor")
             else:
                 _LOGGER.warning("Could not find photo count sensor to update")

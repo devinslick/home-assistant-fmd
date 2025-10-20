@@ -219,10 +219,14 @@ The integration provides complete photo management functionality:
 
 ## TODO & Planned Features
 
-### Advanced Features
+### To Do
 - [ ] **Device wipe** - Add wipe command support to FMD API and integration
 - [ ] **Account deletion** - Add account deletion endpoint to FMD API and integration button
 - [ ] **Photo cleanup** - Automatic deletion of old photos after X days
+- [ ] **Change ringer** - Change device volume ring mode
+- [ ] **Do Not Disturb** - Switch device Do Not Disturb state
+- [ ] **Bluetooth** - Enable/Disable bluetooth
+- [ ] **GPS**  - Enable/Disable GPS
 
 ## Troubleshooting
 
