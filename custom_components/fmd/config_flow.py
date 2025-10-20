@@ -3,7 +3,7 @@ import logging
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from .const import DOMAIN, DEFAULT_POLLING_INTERVAL
+from .const import DOMAIN, DEFAULT_POLLING_INTERVAL, CONF_USE_IMPERIAL
 from .fmd_client.fmd_api import FmdApi
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,6 +41,7 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required("password"): str,
             vol.Optional("polling_interval", default=DEFAULT_POLLING_INTERVAL): int,
             vol.Optional("allow_inaccurate_locations", default=False): bool,
+            vol.Optional(CONF_USE_IMPERIAL, default=False): bool,
         })
 
         return self.async_show_form(

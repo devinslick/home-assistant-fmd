@@ -98,6 +98,7 @@ Before installing this integration, you need:
 4.  Enter your FMD server URL, ID, and password.
 5.  Configure the polling interval (in minutes) and location accuracy filtering.
     - **Allow inaccurate locations** (default: disabled) - When unchecked, filters out low-accuracy location updates from providers like BeaconDB. Only Fused, GPS, and network locations will be accepted.
+    - **Use imperial units** (default: disabled) - When checked, converts metric measurements to imperial (meters → feet, m/s → mph)
 6.  Click **Submit**.
 
 ## Entities Created
@@ -115,9 +116,12 @@ The integration will create the following entities for each configured FMD devic
     - `last_poll_time` - ISO timestamp when Home Assistant last polled the FMD server
     - `device_timestamp` - Human-readable timestamp when the device sent the location to FMD server
     - `device_timestamp_ms` - Unix timestamp (milliseconds) when the device sent the location to FMD server
-    - `gps_accuracy` - GPS accuracy in meters (optional - only when available)
-    - `altitude` - Altitude in meters (optional - only when available)
-    - `speed` - Speed in meters per second (optional - only present when device is moving)
+    - `gps_accuracy` - GPS accuracy in meters (or feet if imperial units enabled)
+    - `gps_accuracy_unit` - Unit of measurement for GPS accuracy ("m" or "ft")
+    - `altitude` - Altitude in meters (or feet if imperial units enabled)
+    - `altitude_unit` - Unit of measurement for altitude ("m" or "ft")
+    - `speed` - Speed in meters per second (or mph if imperial units enabled)
+    - `speed_unit` - Unit of measurement for speed ("m/s" or "mph")
     - `heading` - Direction/bearing in degrees 0-360° (optional - only present when device is moving)
 
 ### Number Entities (Configuration)
@@ -781,6 +785,8 @@ The integration includes multiple safety layers:
 - [ ] **Entity naming consistency** - "High frequency mode" → "Tracking mode"
   - Consider renaming for better clarity
   - Priority: Medium
+- [ ] **EXIF Data** - "Consider ways to make more EXIF data, like geolocation usable from Home Assistant"
+  - Priority: Low
 
 ### Planned Features
 
@@ -808,7 +814,15 @@ The integration includes multiple safety layers:
 
 ### Version History
 
-#### v0.8.1 (Current) - October 20, 2025
+#### v0.8.2 (Current) - October 20, 2025
+**Unit Conversion Feature**
+- ✅ Added imperial units configuration option
+- ✅ Converts speed (m/s → mph), altitude (m → ft), and GPS accuracy (m → ft)
+- ✅ Added unit indicators in device tracker attributes
+- ✅ Configurable during initial setup
+- Total entities: 19 per device
+
+#### v0.8.1 - October 20, 2025
 **UX Improvements: Entity Naming & Organization**
 - ✅ Improved entity naming for better organization
 - ✅ Photo entities grouped with "Photo:" prefix

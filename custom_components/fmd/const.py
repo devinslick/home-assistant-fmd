@@ -16,4 +16,8 @@ CONF_UPDATE_INTERVAL = "update_interval"
 CONF_HIGH_FREQUENCY_INTERVAL = "high_frequency_interval"
 CONF_HIGH_FREQUENCY_MODE = "high_frequency_mode"
 CONF_ALLOW_INACCURATE = "allow_inaccurate"
+CONF_USE_IMPERIAL = "use_imperial"
 
+# Unit conversion constants
+METERS_TO_FEET = 3.28084  # 1 meter = 3.28084 feet
+MPS_TO_MPH = 2.23694  # 1 m/s = 2.23694 mph

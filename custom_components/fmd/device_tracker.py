@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, DEFAULT_POLLING_INTERVAL, DEFAULT_HIGH_FREQUENCY_INTERVAL
+from .const import DOMAIN, DEFAULT_POLLING_INTERVAL, DEFAULT_HIGH_FREQUENCY_INTERVAL, CONF_USE_IMPERIAL, METERS_TO_FEET, MPS_TO_MPH
 from .fmd_client.fmd_api import FmdApi
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,8 +28,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     allow_inaccurate = entry.data.get("allow_inaccurate_locations", 
                                       not entry.data.get("block_inaccurate", True))
     block_inaccurate = not allow_inaccurate  # Internal logic still uses block
+    
+    # Get imperial units setting, defaulting to False (use metric)
+    use_imperial = entry.data.get(CONF_USE_IMPERIAL, False)
 
-    tracker = FmdDeviceTracker(hass, entry, api, polling_interval, block_inaccurate)
+    tracker = FmdDeviceTracker(hass, entry, api, polling_interval, block_inaccurate, use_imperial)
     
     # Store tracker in hass.data for access by other entities
     hass.data[DOMAIN][entry.entry_id]["tracker"] = tracker
@@ -51,7 +54,7 @@ class FmdDeviceTracker(TrackerEntity):
     _attr_has_entity_name = True
     _attr_entity_category = None  # Explicitly set to None to ensure it's a primary entity
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: FmdApi, polling_interval: int, block_inaccurate: bool):
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: FmdApi, polling_interval: int, block_inaccurate: bool, use_imperial: bool):
         """Initialize the device tracker."""
         self.hass = hass
         self._entry = entry
@@ -61,6 +64,7 @@ class FmdDeviceTracker(TrackerEntity):
         self._high_frequency_interval = DEFAULT_HIGH_FREQUENCY_INTERVAL  # High-freq interval
         self._high_frequency_mode = False  # Whether high-freq mode is active
         self._block_inaccurate = block_inaccurate
+        self._use_imperial = use_imperial  # Whether to convert units to imperial
         self._location = None
         self._attr_name = None  # Use device name only, no suffix
         self._battery_level = None
@@ -216,15 +220,33 @@ class FmdDeviceTracker(TrackerEntity):
             
             # GPS accuracy in meters (optional)
             if "accuracy" in self._location:
-                attributes["gps_accuracy"] = self._location["accuracy"]
+                accuracy = self._location["accuracy"]
+                if self._use_imperial:
+                    attributes["gps_accuracy"] = round(accuracy * METERS_TO_FEET, 1)
+                    attributes["gps_accuracy_unit"] = "ft"
+                else:
+                    attributes["gps_accuracy"] = accuracy
+                    attributes["gps_accuracy_unit"] = "m"
             
             # Altitude in meters (optional)
             if "altitude" in self._location:
-                attributes["altitude"] = self._location["altitude"]
+                altitude = self._location["altitude"]
+                if self._use_imperial:
+                    attributes["altitude"] = round(altitude * METERS_TO_FEET, 1)
+                    attributes["altitude_unit"] = "ft"
+                else:
+                    attributes["altitude"] = altitude
+                    attributes["altitude_unit"] = "m"
             
             # Speed in m/s - only present when moving (optional)
             if "speed" in self._location:
-                attributes["speed"] = self._location["speed"]
+                speed = self._location["speed"]
+                if self._use_imperial:
+                    attributes["speed"] = round(speed * MPS_TO_MPH, 1)
+                    attributes["speed_unit"] = "mph"
+                else:
+                    attributes["speed"] = round(speed, 1)
+                    attributes["speed_unit"] = "m/s"
             
             # Heading/direction 0-360° - only present when moving (optional)
             if "heading" in self._location:
