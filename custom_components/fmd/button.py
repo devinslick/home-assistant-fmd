@@ -471,6 +471,15 @@ class FmdDownloadPhotosButton(ButtonEntity):
             _LOGGER.info("Successfully downloaded %s new photo(s) to %s (skipped %s duplicate(s))", 
                         successful_downloads, media_dir, skipped_duplicates)
             
+            # Check if auto-cleanup is enabled
+            auto_cleanup_switch = self.hass.data[DOMAIN][self._entry.entry_id].get("photo_auto_cleanup_switch")
+            if auto_cleanup_switch and auto_cleanup_switch.is_on:
+                # Get max photos to retain setting
+                max_photos_number = self.hass.data[DOMAIN][self._entry.entry_id].get("max_photos_number")
+                if max_photos_number:
+                    max_to_retain = int(max_photos_number.native_value)
+                    await self._cleanup_old_photos(media_dir, max_to_retain)
+            
             # Update photo count sensor
             photo_sensor = self.hass.data[DOMAIN][self._entry.entry_id].get("photo_count_sensor")
             if photo_sensor:
@@ -482,6 +491,47 @@ class FmdDownloadPhotosButton(ButtonEntity):
                 
         except Exception as e:
             _LOGGER.error("Error downloading photos: %s", e, exc_info=True)
+
+    async def _cleanup_old_photos(self, media_dir: Path, max_to_retain: int) -> None:
+        """Delete oldest photos if count exceeds retention limit.
+        
+        Args:
+            media_dir: Directory containing photos
+            max_to_retain: Maximum number of photos to keep
+        """
+        try:
+            # Get all photos in the directory
+            photos = list(media_dir.glob("*.jpg"))
+            photo_count = len(photos)
+            
+            if photo_count <= max_to_retain:
+                _LOGGER.debug("Photo cleanup: %d photos, limit %d - no cleanup needed", 
+                            photo_count, max_to_retain)
+                return
+            
+            photos_to_delete = photo_count - max_to_retain
+            
+            _LOGGER.warning("📸 AUTO-CLEANUP: %d photo(s) exceed retention limit of %d", 
+                          photos_to_delete, max_to_retain)
+            _LOGGER.warning("🗑️ Deleting %d oldest photo(s)...", photos_to_delete)
+            
+            # Sort by file modification time (oldest first)
+            photos_sorted = sorted(photos, key=lambda p: p.stat().st_mtime)
+            
+            deleted_count = 0
+            for photo in photos_sorted[:photos_to_delete]:
+                try:
+                    _LOGGER.info("🗑️ Deleting old photo: %s", photo.name)
+                    await self.hass.async_add_executor_job(photo.unlink)
+                    deleted_count += 1
+                except Exception as e:
+                    _LOGGER.error("Failed to delete photo %s: %s", photo.name, e)
+            
+            _LOGGER.warning("✅ Auto-cleanup complete: Deleted %d photo(s), %d remaining", 
+                          deleted_count, photo_count - deleted_count)
+            
+        except Exception as e:
+            _LOGGER.error("Error during photo cleanup: %s", e, exc_info=True)
 
 
 class FmdWipeDeviceButton(ButtonEntity):

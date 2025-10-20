@@ -59,9 +59,9 @@ class FmdPhotoCountSensor(SensorEntity):
         self._attr_device_info = device_info
         self._attr_unique_id = f"{entry.entry_id}_photo_count"
         
-        self._photo_count = 0
+        self._photos_in_media_folder = 0  # Total photos stored (primary value)
+        self._last_download_count = 0  # Photos from last download
         self._last_download_time = None
-        self._photos_in_media_folder = 0
 
     @property
     def icon(self) -> str:
@@ -70,20 +70,21 @@ class FmdPhotoCountSensor(SensorEntity):
 
     @property
     def native_value(self) -> int:
-        """Return the number of photos available on server."""
-        return self._photo_count
+        """Return the total number of photos stored in media folder."""
+        return self._photos_in_media_folder
 
     @property
     def extra_state_attributes(self) -> dict:
         """Return additional state attributes."""
         return {
+            "last_download_count": self._last_download_count,
             "last_download_time": self._last_download_time.isoformat() if self._last_download_time else None,
-            "photos_in_media_folder": self._photos_in_media_folder,
+            "photos_in_media_folder": self._photos_in_media_folder,  # Keep for backward compatibility
         }
 
-    def update_photo_count(self, count: int) -> None:
+    def update_photo_count(self, download_count: int) -> None:
         """Update the photo count after a download."""
-        self._photo_count = count
+        self._last_download_count = download_count
         self._last_download_time = datetime.now()
         self._update_media_folder_count()
 

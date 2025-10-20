@@ -146,7 +146,7 @@ class FmdMaxPhotosNumber(NumberEntity):
         self.hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_max_photos"
-        self._attr_name = "Max photos to download"
+        self._attr_name = "Photo: Max to retain"
         self._attr_native_value = 10  # Default to 10 photos
 
     @property
@@ -165,8 +165,8 @@ class FmdMaxPhotosNumber(NumberEntity):
         }
 
     async def async_set_native_value(self, value: float) -> None:
-        """Update the max photos value."""
-        _LOGGER.info("Max photos to download changed to %s", value)
+        """Update the max photos to retain value."""
+        _LOGGER.info("Photo: Max to retain changed to %s", value)
         self._attr_native_value = value
         self.async_write_ha_state()
 

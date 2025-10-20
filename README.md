@@ -135,11 +135,12 @@ The integration will create the following entities for each configured FMD devic
   - Controls the polling rate when High Frequency Mode is enabled
   - ✅ **Changes take effect immediately** - If high-frequency mode is active, the new interval is applied right away
 
-- **Max Photos to Download** - Set how many recent photos to download (1-50, default: 10)
+- **Photo: Max to retain** - Set maximum photos to keep in media folder (1-50, default: 10)
   - Entity ID example: `number.fmd_test_user_max_photos`
-  - Controls how many of the most recent photos are fetched when pressing the "Download Photos" button
-  - Larger values = more photos but larger download size (~2-3 MB per photo)
-  - ✅ **Fully implemented** - Configure before downloading photos
+  - Controls retention limit for automatic cleanup
+  - When "Photo: Auto-cleanup" is enabled, oldest photos are deleted after download if total exceeds this limit
+  - Also controls how many photos are fetched from server (downloads N most recent)
+  - ✅ **Fully implemented** - Works with auto-cleanup feature
 
 ### Button Entities (Configuration)
 - **Location Update** - Request a new location from the device
@@ -210,6 +211,14 @@ The integration will create the following entities for each configured FMD devic
   - ✅ **Fully implemented** - Filtering is active and can be toggled at runtime.
   - _Note: You can also configure this during initial setup via the config flow._
 
+- **Photo: Auto-cleanup** - Automatic deletion of old photos
+  - Entity ID example: `switch.fmd_test_user_photo_auto_cleanup`
+  - When **on**: Automatically deletes oldest photos after download if total exceeds "Photo: Max to retain" limit
+  - When **off** (default): Photos are never automatically deleted
+  - Deletion is based on file modification time (oldest first)
+  - ⚠️ **Warning**: Deleted photos cannot be recovered
+  - ✅ **Fully implemented** - Helps manage storage automatically
+
 - **Wipe: ⚠️ Safety switch ⚠️** - Safety switch for device wipe command
   - Entity ID example: `switch.fmd_test_user_device_wipe_safety`
   - Must be enabled before the "Wipe: ⚠️ Execute ⚠️" button will function
@@ -252,13 +261,14 @@ The integration will create the following entities for each configured FMD devic
   - ✅ **Fully implemented** - Commands sent immediately, no state tracking
 
 ### Sensor Entities
-- **Photo Count** - Number of photos available on the server
+- **Photo count** - Total number of photos stored in media folder
   - Entity ID example: `sensor.fmd_test_user_photo_count`
-  - Shows how many photos were retrieved in the last download
+  - Shows total `.jpg` files currently in `/config/media/fmd/`
   - **Attributes:**
+    - `last_download_count` - Number of photos downloaded in the last operation
     - `last_download_time` - ISO timestamp of the last photo download
-    - `photos_in_media_folder` - Count of `.jpg` files in `/config/media/fmd/`
-  - ✅ **Fully implemented** - Updates automatically when photos are downloaded
+    - `photos_in_media_folder` - Same as main value (kept for backward compatibility)
+  - ✅ **Fully implemented** - Updates automatically after photo downloads
 
 **All entities are grouped together under a single FMD device** in Home Assistant (e.g., "FMD test-user").
 
@@ -282,21 +292,22 @@ For a user with FMD account ID `test-user`, the following entities will be creat
 10. `button.fmd_test_user_download_photos` - Download photos from server
 11. `button.fmd_test_user_wipe_device` - ⚠️ Device wipe (factory reset)
 
-**Switch Entities (3):**
+**Switch Entities (4):**
 12. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
 13. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
-14. `switch.fmd_test_user_device_wipe_safety` - Safety switch for device wipe
+14. `switch.fmd_test_user_photo_auto_cleanup` - Photo: Auto-cleanup toggle
+15. `switch.fmd_test_user_device_wipe_safety` - Safety switch for device wipe
 
 **Select Entities (4):**
-15. `select.fmd_test_user_location_source` - Location provider selection
-16. `select.fmd_test_user_bluetooth_command` - Bluetooth enable/disable commands
-17. `select.fmd_test_user_do_not_disturb_command` - DND enable/disable commands
-18. `select.fmd_test_user_ringer_mode_command` - Ringer mode commands
+16. `select.fmd_test_user_location_source` - Location provider selection
+17. `select.fmd_test_user_bluetooth_command` - Bluetooth enable/disable commands
+18. `select.fmd_test_user_do_not_disturb_command` - DND enable/disable commands
+19. `select.fmd_test_user_ringer_mode_command` - Ringer mode commands
 
 **Sensor Entities (1):**
-19. `sensor.fmd_test_user_photo_count` - Photo count sensor
+20. `sensor.fmd_test_user_photo_count` - Total stored photos on server
 
-**Total: 19 entities per device**
+**Total: 20 entities per device**
 
 _Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
 
@@ -790,12 +801,6 @@ The integration includes multiple safety layers:
 
 ### Planned Features
 
-**High Priority:**
-- [ ] **Photo cleanup** - Automatic or manual deletion of old photos
-  - Option 1: Delete after X days
-  - Option 2: "Delete All Photos" button
-  - Priority: High (storage management)
-
 **Medium Priority:**
 - [ ] **Device stats** - Display network information
   - IP address, WiFi SSID, WiFi BSSID
@@ -814,7 +819,18 @@ The integration includes multiple safety layers:
 
 ### Version History
 
-#### v0.8.2 (Current) - October 20, 2025
+#### v0.9.0 (Current) - October 20, 2025
+**Photo Storage Management**
+- ✅ Changed photo count sensor to show total stored photos (was "last download count")
+- ✅ Added `last_download_count` attribute to photo count sensor
+- ✅ Renamed "Max photos to download" → "Photo: Max to retain"
+- ✅ Added "Photo: Auto-cleanup" switch (default OFF)
+- ✅ Automatic deletion of oldest photos when limit exceeded
+- ✅ Age-based cleanup (deletes by modification time)
+- ✅ Comprehensive logging with emoji indicators
+- Total entities: **20 per device** (added photo auto-cleanup switch)
+
+#### v0.8.2 - October 20, 2025
 **Unit Conversion Feature**
 - ✅ Added imperial units configuration option
 - ✅ Converts speed (m/s → mph), altitude (m → ft), and GPS accuracy (m → ft)

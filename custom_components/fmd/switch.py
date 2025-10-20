@@ -24,11 +24,20 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up FMD switch entities."""
-    async_add_entities([
+    switches = [
         FmdHighFrequencyModeSwitch(hass, entry),
         FmdAllowInaccurateSwitch(hass, entry),
+        FmdPhotoAutoCleanupSwitch(hass, entry),
         FmdWipeSafetySwitch(hass, entry),
-    ])
+    ]
+    
+    async_add_entities(switches)
+    
+    # Store photo auto-cleanup switch reference for download button to access
+    for switch in switches:
+        if isinstance(switch, FmdPhotoAutoCleanupSwitch):
+            hass.data[DOMAIN][entry.entry_id]["photo_auto_cleanup_switch"] = switch
+            break
 
 
 class FmdHighFrequencyModeSwitch(SwitchEntity):
@@ -217,3 +226,46 @@ class FmdWipeSafetySwitch(SwitchEntity):
         except asyncio.CancelledError:
             # Task was cancelled, which is fine
             pass
+
+
+class FmdPhotoAutoCleanupSwitch(SwitchEntity):
+    """Switch entity to enable automatic cleanup of old photos.
+    
+    When enabled, automatically deletes oldest photos after download
+    if total count exceeds the "Photo: Max to retain" limit.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:delete-sweep"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Initialize the photo auto-cleanup switch entity."""
+        self.hass = hass
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_photo_auto_cleanup"
+        self._attr_name = "Photo: Auto-cleanup"
+        self._attr_is_on = False  # Default to OFF for safety
+
+    @property
+    def device_info(self):
+        """Return device info."""
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": f"FMD {self._entry.data['id']}",
+            "manufacturer": "FMD",
+            "model": "Device Tracker",
+        }
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable automatic photo cleanup."""
+        _LOGGER.info("Photo auto-cleanup ENABLED - Old photos will be deleted when limit exceeded")
+        _LOGGER.info("Maximum photos retained: Set via 'Photo: Max to retain' number entity")
+        self._attr_is_on = True
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable automatic photo cleanup."""
+        _LOGGER.info("Photo auto-cleanup DISABLED - Photos will not be automatically deleted")
+        self._attr_is_on = False
+        self.async_write_ha_state()
