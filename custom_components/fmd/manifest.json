@@ -13,7 +13,7 @@
     "pillow"
   ],
   "iot_class": "cloud_polling",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "config_flow": true,
   "integration_type": "device",
   "icon": "mdi:cellphone-marker"

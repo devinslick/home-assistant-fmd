@@ -412,7 +412,9 @@ class FmdDownloadPhotosButton(ButtonEntity):
                             
                             if datetime_value:
                                 # Parse EXIF datetime format: "2025:10:19 15:00:34"
-                                dt = datetime.strptime(str(datetime_value), "%Y:%m:%d %H:%M:%S")
+                                # Strip any extra whitespace or null bytes
+                                datetime_clean = str(datetime_value).strip().rstrip('\x00')
+                                dt = datetime.strptime(datetime_clean, "%Y:%m:%d %H:%M:%S")
                                 timestamp_str = dt.strftime("%Y%m%d_%H%M%S")
                                 _LOGGER.info("Photo %s: Extracted EXIF timestamp from %s: %s", idx + 1, tag_used, timestamp_str)
                             else:
@@ -453,7 +455,7 @@ class FmdDownloadPhotosButton(ButtonEntity):
             photo_sensor = self.hass.data[DOMAIN][self._entry.entry_id].get("photo_count_sensor")
             if photo_sensor:
                 photo_sensor.update_photo_count(len(pictures))
-                await photo_sensor.async_write_ha_state()
+                photo_sensor.async_write_ha_state()
                 _LOGGER.info("Updated photo count sensor")
             else:
                 _LOGGER.warning("Could not find photo count sensor to update")
