@@ -144,33 +144,33 @@ The integration will create the following entities for each configured FMD devic
   - Waits 10 seconds for the device to respond, then fetches the updated location from the server
   - ✅ **Fully implemented** - Triggers immediate location update on-demand
 
-- **Ring** - Make the device ring at maximum volume
+- **Ring device** - Make the device ring at maximum volume
   - Entity ID example: `button.fmd_test_user_ring`
   - Sends a ring command to the device, making it play a loud sound
   - Useful for finding a lost device nearby
   - ✅ **Fully implemented** - Triggers ring command immediately
 
-- **Lock** - Lock the device screen
+- **Lock device** - Lock the device screen
   - Entity ID example: `button.fmd_test_user_lock`
   - Sends a lock command to secure the device
   - Useful if device is lost or stolen
   - ✅ **Fully implemented** - Triggers lock command immediately
 
-- **Capture Front Camera** - Take a photo with the front-facing camera
+- **Photo: Capture front** - Take a photo with the front-facing camera
   - Entity ID example: `button.fmd_test_user_capture_front`
   - Sends a "camera front" command to the device
   - Device captures photo and uploads to FMD server (~15-30 seconds)
-  - Press "Download Photos" button afterwards to retrieve the photo
+  - Press "Photo: Download" button afterwards to retrieve the photo
   - ✅ **Fully implemented** - Triggers front camera photo capture
 
-- **Capture Rear Camera** - Take a photo with the rear-facing camera
+- **Photo: Capture rear** - Take a photo with the rear-facing camera
   - Entity ID example: `button.fmd_test_user_capture_rear`
   - Sends a "camera back" command to the device
   - Device captures photo and uploads to FMD server (~15-30 seconds)
-  - Press "Download Photos" button afterwards to retrieve the photo
+  - Press "Photo: Download" button afterwards to retrieve the photo
   - ✅ **Fully implemented** - Triggers rear camera photo capture
 
-- **Download Photos** - Download photos from server to media folder
+- **Photo: Download** - Download photos from server to media folder
   - Entity ID example: `button.fmd_test_user_download_photos`
   - Fetches the N most recent photos from server (N = "Max Photos to Download" setting)
   - Decrypts and saves photos to `/config/media/fmd/` folder
@@ -178,9 +178,9 @@ The integration will create the following entities for each configured FMD devic
   - Updates the "Photo Count" sensor
   - ✅ **Fully implemented** - Downloads photos to media browser
 
-- **Wipe Device** - ⚠️ **DANGEROUS**: Factory reset the device (erases ALL data)
+- **⚠️ Wipe: Execute** - ⚠️ **DANGEROUS**: Factory reset the device (erases ALL data)
   - Entity ID example: `button.fmd_test_user_wipe_device`
-  - **Requires "Device Wipe Safety" switch to be enabled first**
+  - **Requires "⚠️ Wipe: Safety switch" to be enabled first**
   - Sends the "delete" command which performs a factory reset
   - ⚠️ **THIS CANNOT BE UNDONE** - All data on device will be permanently erased
   - Safety switch automatically disables after use to prevent accidental repeated presses
@@ -206,9 +206,9 @@ The integration will create the following entities for each configured FMD devic
   - ✅ **Fully implemented** - Filtering is active and can be toggled at runtime.
   - _Note: You can also configure this during initial setup via the config flow._
 
-- **Device Wipe Safety** - Safety switch for device wipe command
+- **⚠️ Wipe: Safety switch** - Safety switch for device wipe command
   - Entity ID example: `switch.fmd_test_user_device_wipe_safety`
-  - Must be enabled before the "Wipe Device" button will function
+  - Must be enabled before the "⚠️ Wipe: Execute" button will function
   - ⚠️ **Automatically disables after 60 seconds** for safety
   - ⚠️ **DANGEROUS**: Only enable if you intend to wipe the device
   - Icon: `mdi:alert-octagon` to indicate danger
@@ -225,21 +225,21 @@ The integration will create the following entities for each configured FMD devic
   - Selection persists and is used by the Location Update button
   - ✅ **Fully implemented** - Configures location request behavior
 
-- **Bluetooth Command** - Send Bluetooth enable/disable commands
+- **Bluetooth** - Send Bluetooth enable/disable commands
   - Entity ID example: `select.fmd_test_user_bluetooth_command`
   - Options: "Send Command...", "Enable Bluetooth", "Disable Bluetooth"
   - Sends command to device, then resets to "Send Command..." placeholder
   - ⚠️ **Requires Android 12+ BLUETOOTH_CONNECT permission**
   - ✅ **Fully implemented** - Commands sent immediately, no state tracking
 
-- **Do Not Disturb Command** - Send DND enable/disable commands
+- **Do Not Disturb** - Send DND enable/disable commands
   - Entity ID example: `select.fmd_test_user_do_not_disturb_command`
   - Options: "Send Command...", "Enable Do Not Disturb", "Disable Do Not Disturb"
   - Sends command to device, then resets to placeholder
   - ⚠️ **Requires Do Not Disturb Access permission**
   - ✅ **Fully implemented** - Commands sent immediately, no state tracking
 
-- **Ringer Mode Command** - Set device ringer mode
+- **Ringer mode** - Set device ringer mode
   - Entity ID example: `select.fmd_test_user_ringer_mode_command`
   - Options: "Send Command...", "Normal (Sound + Vibrate)", "Vibrate Only", "Silent"
   - Sends command to device, then resets to placeholder
@@ -473,12 +473,12 @@ Use the Ringer Mode command select entity to change device ringer:
 To protect against accidental wipes, this feature requires a two-step process:
 
 1. **Enable Safety Switch:**
-   - Turn on the "Device Wipe Safety" switch
+   - Turn on the "⚠️ Wipe: Safety switch"
    - This allows the wipe button to function
    - ⏰ **Automatically disables after 60 seconds**
 
 2. **Press Wipe Button:**
-   - While safety switch is enabled, press "Wipe Device" button
+   - While safety switch is enabled, press "⚠️ Wipe: Execute" button
    - Device will be factory reset (all data erased)
    - Safety switch automatically disables after use
 
@@ -808,7 +808,16 @@ The integration includes multiple safety layers:
 
 ### Version History
 
-#### v0.8.0 (Current) - October 20, 2025
+#### v0.8.1 (Current) - October 20, 2025
+**UX Improvements: Entity Naming & Organization**
+- ✅ Improved entity naming for better organization
+- ✅ Photo entities grouped with "Photo:" prefix
+- ✅ Wipe entities clearly marked with ⚠️ warning symbol
+- ✅ Simplified select entity names (removed redundant "command")
+- ✅ Device control entities clarified ("Ring device", "Lock device")
+- Total entities: 19 per device
+
+#### v0.8.0 - October 20, 2025
 **Phase 4: Device Wipe with Safety Mechanism**
 - ✅ Added Device Wipe button (factory reset)
 - ✅ Added Device Wipe Safety switch (60-second timeout)

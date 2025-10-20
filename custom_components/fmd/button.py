@@ -135,7 +135,7 @@ class FmdRingButton(ButtonEntity):
         self.hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_ring"
-        self._attr_name = "Ring"
+        self._attr_name = "Ring device"
 
     @property
     def device_info(self):
@@ -183,7 +183,7 @@ class FmdLockButton(ButtonEntity):
         self.hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_lock"
-        self._attr_name = "Lock"
+        self._attr_name = "Lock device"
 
     @property
     def device_info(self):
@@ -230,8 +230,8 @@ class FmdCaptureFrontCameraButton(ButtonEntity):
         """Initialize the button entity."""
         self.hass = hass
         self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_capture_front"
-        self._attr_name = "Capture front camera"
+        self._attr_unique_id = f"{entry.entry_id}_capture_front_camera"
+        self._attr_name = "Photo: Capture front"
 
     @property
     def device_info(self):
@@ -278,8 +278,8 @@ class FmdCaptureRearCameraButton(ButtonEntity):
         """Initialize the button entity."""
         self.hass = hass
         self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_capture_rear"
-        self._attr_name = "Capture rear camera"
+        self._attr_unique_id = f"{entry.entry_id}_capture_rear_camera"
+        self._attr_name = "Photo: Capture rear"
 
     @property
     def device_info(self):
@@ -327,7 +327,7 @@ class FmdDownloadPhotosButton(ButtonEntity):
         self.hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_download_photos"
-        self._attr_name = "Download photos"
+        self._attr_name = "Photo: Download"
 
     @property
     def device_info(self):
@@ -499,7 +499,7 @@ class FmdWipeDeviceButton(ButtonEntity):
         self.hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_wipe_device"
-        self._attr_name = "Wipe device"
+        self._attr_name = "⚠️ Wipe: Execute"
 
     @property
     def icon(self):
