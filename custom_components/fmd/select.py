@@ -162,7 +162,7 @@ class FmdDoNotDisturbSelect(SelectEntity):
         self.hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_dnd_command"
-        self._attr_name = "Do Not Disturb"
+        self._attr_name = "Volume: Do Not Disturb"
         self._attr_current_option = COMMAND_PLACEHOLDER
 
     @property
@@ -227,7 +227,7 @@ class FmdRingerModeSelect(SelectEntity):
         self.hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_ringer_mode_command"
-        self._attr_name = "Ringer mode"
+        self._attr_name = "Volume: Ringer mode"
         self._attr_current_option = COMMAND_PLACEHOLDER
 
     @property

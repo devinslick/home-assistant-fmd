@@ -97,7 +97,7 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
         self.hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_allow_inaccurate"
-        self._attr_name = "Allow inaccurate locations"
+        self._attr_name = "Location: allow inaccurate updates"
         # Get allow_inaccurate setting, defaulting to False (blocking enabled, switch off)
         # For backward compatibility, also check old "block_inaccurate" key
         allow_inaccurate = entry.data.get("allow_inaccurate_locations",

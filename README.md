@@ -148,7 +148,7 @@ The integration will create the following entities for each configured FMD devic
   - Waits 10 seconds for the device to respond, then fetches the updated location from the server
   - ✅ **Fully implemented** - Triggers immediate location update on-demand
 
-- **Ring device** - Make the device ring at maximum volume
+- **Volume: Ring device** - Make the device ring at maximum volume
   - Entity ID example: `button.fmd_test_user_ring`
   - Sends a ring command to the device, making it play a loud sound
   - Useful for finding a lost device nearby
@@ -182,9 +182,9 @@ The integration will create the following entities for each configured FMD devic
   - Updates the "Photo Count" sensor
   - ✅ **Fully implemented** - Downloads photos to media browser
 
-- **⚠️ Wipe: Execute** - ⚠️ **DANGEROUS**: Factory reset the device (erases ALL data)
+- **Wipe: ⚠️ Execute ⚠️** - ⚠️ **DANGEROUS**: Factory reset the device (erases ALL data)
   - Entity ID example: `button.fmd_test_user_wipe_device`
-  - **Requires "⚠️ Wipe: Safety switch" to be enabled first**
+  - **Requires "Wipe: ⚠️ Safety switch ⚠️" to be enabled first**
   - Sends the "delete" command which performs a factory reset
   - ⚠️ **THIS CANNOT BE UNDONE** - All data on device will be permanently erased
   - Safety switch automatically disables after use to prevent accidental repeated presses
@@ -203,16 +203,16 @@ The integration will create the following entities for each configured FMD devic
   - Useful for tracking during active travel, emergencies, or finding lost devices
   - ✅ **Fully implemented** - True active tracking mode
 
-- **Allow Inaccurate Locations** - Toggle location filtering
+- **Location: allow inaccurate updates** - Toggle location filtering
   - Entity ID example: `switch.fmd_test_user_allow_inaccurate`
   - When **off** (default): Blocks location updates from low-accuracy providers (e.g., BeaconDB). Only accepts updates from accurate providers (Fused, GPS, and network).
   - When **on**: Accepts all location updates regardless of provider accuracy.
   - ✅ **Fully implemented** - Filtering is active and can be toggled at runtime.
   - _Note: You can also configure this during initial setup via the config flow._
 
-- **⚠️ Wipe: Safety switch** - Safety switch for device wipe command
+- **Wipe: ⚠️ Safety switch ⚠️** - Safety switch for device wipe command
   - Entity ID example: `switch.fmd_test_user_device_wipe_safety`
-  - Must be enabled before the "⚠️ Wipe: Execute" button will function
+  - Must be enabled before the "Wipe: ⚠️ Execute ⚠️" button will function
   - ⚠️ **Automatically disables after 60 seconds** for safety
   - ⚠️ **DANGEROUS**: Only enable if you intend to wipe the device
   - Icon: `mdi:alert-octagon` to indicate danger
@@ -236,14 +236,14 @@ The integration will create the following entities for each configured FMD devic
   - ⚠️ **Requires Android 12+ BLUETOOTH_CONNECT permission**
   - ✅ **Fully implemented** - Commands sent immediately, no state tracking
 
-- **Do Not Disturb** - Send DND enable/disable commands
+- **Volume: Do Not Disturb** - Send DND enable/disable commands
   - Entity ID example: `select.fmd_test_user_do_not_disturb_command`
   - Options: "Send Command...", "Enable Do Not Disturb", "Disable Do Not Disturb"
   - Sends command to device, then resets to placeholder
   - ⚠️ **Requires Do Not Disturb Access permission**
   - ✅ **Fully implemented** - Commands sent immediately, no state tracking
 
-- **Ringer mode** - Set device ringer mode
+- **Volume: Ringer mode** - Set device ringer mode
   - Entity ID example: `select.fmd_test_user_ringer_mode_command`
   - Options: "Send Command...", "Normal (Sound + Vibrate)", "Vibrate Only", "Silent"
   - Sends command to device, then resets to placeholder
@@ -477,12 +477,12 @@ Use the Ringer Mode command select entity to change device ringer:
 To protect against accidental wipes, this feature requires a two-step process:
 
 1. **Enable Safety Switch:**
-   - Turn on the "⚠️ Wipe: Safety switch"
+   - Turn on the "Wipe: ⚠️ Safety switch ⚠️"
    - This allows the wipe button to function
    - ⏰ **Automatically disables after 60 seconds**
 
 2. **Press Wipe Button:**
-   - While safety switch is enabled, press "⚠️ Wipe: Execute" button
+   - While safety switch is enabled, press "Wipe: ⚠️ Execute ⚠️" button
    - Device will be factory reset (all data erased)
    - Safety switch automatically disables after use
 
