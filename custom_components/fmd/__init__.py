@@ -6,6 +6,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
+from .fmd_client.fmd_api import FmdApi
 
 PLATFORMS: list[Platform] = [
     Platform.DEVICE_TRACKER,
@@ -21,6 +22,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Initialize storage for this entry
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {}
+    
+    # Create API instance and device info that all platforms can use
+    api = await FmdApi.create(entry.data["url"], entry.data["id"], entry.data["password"])
+    hass.data[DOMAIN][entry.entry_id]["api"] = api
+    hass.data[DOMAIN][entry.entry_id]["device_info"] = {
+        "identifiers": {(DOMAIN, entry.entry_id)},
+        "name": f"FMD {entry.data['id']}",
+        "manufacturer": "FMD",
+        "model": "Device Tracker",
+    }
     
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

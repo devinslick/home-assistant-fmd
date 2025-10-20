@@ -18,7 +18,10 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up the FMD device tracker."""
     _LOGGER.info("Setting up FMD device tracker for %s", entry.data["id"])
-    api = await FmdApi.create(entry.data["url"], entry.data["id"], entry.data["password"])
+    
+    # Get the API instance created in __init__.py
+    api = hass.data[DOMAIN][entry.entry_id]["api"]
+    
     polling_interval = entry.data.get("polling_interval", DEFAULT_POLLING_INTERVAL)
     # Get allow_inaccurate setting, defaulting to False (blocking enabled)
     # For backward compatibility, also check old "block_inaccurate" key
@@ -27,15 +30,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     block_inaccurate = not allow_inaccurate  # Internal logic still uses block
 
     tracker = FmdDeviceTracker(hass, entry, api, polling_interval, block_inaccurate)
-    
-    # Store API and device info for other platforms to use
-    hass.data[DOMAIN][entry.entry_id]["api"] = api
-    hass.data[DOMAIN][entry.entry_id]["device_info"] = {
-        "identifiers": {(DOMAIN, entry.entry_id)},
-        "name": f"FMD {entry.data['id']}",
-        "manufacturer": "FMD",
-        "model": "Device Tracker",
-    }
     
     # Store tracker in hass.data for access by other entities
     hass.data[DOMAIN][entry.entry_id]["tracker"] = tracker

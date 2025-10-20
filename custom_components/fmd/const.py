@@ -8,7 +8,8 @@ DEFAULT_HIGH_FREQUENCY_INTERVAL = 5
 
 # Photo settings
 DEFAULT_MAX_PHOTOS_TO_DOWNLOAD = 10
-MEDIA_FOLDER_PATH = "media/fmd"
+MEDIA_FOLDER_BASE = "fmd"  # Base folder under /media/ or /config/media/
+# Photos stored in: /media/fmd/<device-id>/ or /config/media/fmd/<device-id>/
 
 # Configuration keys
 CONF_UPDATE_INTERVAL = "update_interval"

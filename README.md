@@ -196,18 +196,25 @@ The integration provides complete photo management functionality:
 2. **Download Photos:**
    - Set "Max Photos to Download" to desired number (default: 10)
    - Press "Download Photos" button
-   - Photos are fetched, decrypted, and saved to `/config/media/fmd/`
+   - Photos are fetched, decrypted, and saved to `/config/media/fmd/<device-id>/` or `/media/fmd/<device-id>/`
 
 3. **View Photos:**
    - Navigate to **Media** → **FMD** in Home Assistant
+   - Click on your device folder (e.g., `test-user`)
    - Browse photos in grid view
    - Click to view full size
    - Use photos in automations or notifications
 
 **Photo Storage:**
-- Location: `/config/media/fmd/`
-- Format: `photo_YYYYMMDD_HHMMSS_NN.jpg`
+- Location: `/media/fmd/<device-id>/` (Docker/Core/K8s) or `/config/media/fmd/<device-id>/` (HAOS)
+- Format: `photo_YYYYMMDD_HHMMSS_<hash>.jpg` (timestamp from EXIF data + content hash)
+  - Example: `photo_20251019_150034_705a8c9f.jpg`
+  - Timestamp extracted from EXIF `DateTimeOriginal` tag (when photo was captured)
+  - Falls back to `photo_<hash>.jpg` if EXIF data is missing
 - Size: ~2-3 MB per photo
+- Organization: Each device has its own subdirectory
+- Chronological sorting: Photos appear in capture order thanks to timestamp prefix
+- Duplicate prevention: Content hash suffix prevents re-downloading identical photos
 - No automatic polling - photos are downloaded only when requested
 
 ## TODO & Planned Features
@@ -216,7 +223,6 @@ The integration provides complete photo management functionality:
 - [ ] **Device wipe** - Add wipe command support to FMD API and integration
 - [ ] **Account deletion** - Add account deletion endpoint to FMD API and integration button
 - [ ] **Photo cleanup** - Automatic deletion of old photos after X days
-- [ ] **Photo organization** - Organize photos in date-based subfolders
 
 ## Troubleshooting
 

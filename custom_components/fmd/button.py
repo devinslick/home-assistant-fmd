@@ -3,9 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
+import io
 import logging
 from datetime import datetime
 from pathlib import Path
+
+from PIL import Image
+from PIL.ExifTags import TAGS
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
@@ -343,14 +348,17 @@ class FmdDownloadPhotosButton(ButtonEntity):
             
             _LOGGER.info("Retrieved %s photo blob(s) from server. Decrypting and saving...", len(pictures))
             
-            # Create media directory
+            # Create media directory with device-specific subdirectory
             # Use /media for Docker/Core installations, falls back to config/media for HAOS
             try:
                 media_base = Path("/media")
                 if not media_base.exists() or not media_base.is_dir():
                     # Fall back to config/media for Home Assistant OS
                     media_base = Path(self.hass.config.path("media"))
-                media_dir = media_base / "fmd"
+                
+                # Use device ID for subdirectory to separate photos from multiple devices
+                device_id = self._entry.data["id"]
+                media_dir = media_base / "fmd" / device_id
                 media_dir.mkdir(parents=True, exist_ok=True)
                 _LOGGER.info("Saving photos to: %s", media_dir)
             except Exception as e:
@@ -359,16 +367,47 @@ class FmdDownloadPhotosButton(ButtonEntity):
             
             # Download and save each photo
             successful_downloads = 0
+            skipped_duplicates = 0
+            
             for idx, blob in enumerate(pictures):
                 try:
                     # Decrypt the photo
                     decrypted = tracker.api.decrypt_data_blob(blob)
                     image_bytes = base64.b64decode(decrypted)
                     
-                    # Generate filename with timestamp
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"photo_{timestamp}_{idx:02d}.jpg"
+                    # Generate content hash for duplicate detection
+                    content_hash = hashlib.sha256(image_bytes).hexdigest()[:8]
+                    
+                    # Try to extract EXIF timestamp
+                    timestamp_str = None
+                    try:
+                        img = Image.open(io.BytesIO(image_bytes))
+                        exif_data = img._getexif()
+                        
+                        if exif_data:
+                            # Look for DateTimeOriginal (36867) - when photo was taken
+                            datetime_original = exif_data.get(36867)
+                            if datetime_original:
+                                # Parse EXIF datetime format: "2025:10:19 15:00:34"
+                                dt = datetime.strptime(datetime_original, "%Y:%m:%d %H:%M:%S")
+                                timestamp_str = dt.strftime("%Y%m%d_%H%M%S")
+                                _LOGGER.debug("Extracted EXIF timestamp: %s", timestamp_str)
+                    except Exception as e:
+                        _LOGGER.debug("Could not extract EXIF timestamp: %s", e)
+                    
+                    # Generate filename with timestamp if available, otherwise hash-only
+                    if timestamp_str:
+                        filename = f"photo_{timestamp_str}_{content_hash}.jpg"
+                    else:
+                        filename = f"photo_{content_hash}.jpg"
+                    
                     filepath = media_dir / filename
+                    
+                    # Skip if file already exists (duplicate)
+                    if filepath.exists():
+                        _LOGGER.debug("Skipping duplicate photo: %s", filename)
+                        skipped_duplicates += 1
+                        continue
                     
                     # Save to file
                     filepath.write_bytes(image_bytes)
@@ -378,7 +417,8 @@ class FmdDownloadPhotosButton(ButtonEntity):
                 except Exception as e:
                     _LOGGER.error("Failed to decrypt/save photo %s: %s", idx, e)
             
-            _LOGGER.info("Successfully downloaded %s of %s photos to media/fmd/", successful_downloads, len(pictures))
+            _LOGGER.info("Successfully downloaded %s new photo(s) to %s (skipped %s duplicate(s))", 
+                        successful_downloads, media_dir, skipped_duplicates)
             
             # Update photo count sensor
             photo_sensor = self.hass.data[DOMAIN][self._entry.entry_id].get("photo_count_sensor")

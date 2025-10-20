@@ -94,7 +94,10 @@ class FmdPhotoCountSensor(SensorEntity):
             media_base = Path("/media")
             if not media_base.exists() or not media_base.is_dir():
                 media_base = Path(self.hass.config.path("media"))
-            media_dir = media_base / "fmd"
+            
+            # Use device-specific subdirectory
+            device_id = self.entry.data["id"]
+            media_dir = media_base / "fmd" / device_id
             
             if media_dir.exists():
                 self._photos_in_media_folder = len(list(media_dir.glob("*.jpg")))
