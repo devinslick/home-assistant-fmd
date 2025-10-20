@@ -1,6 +1,22 @@
 """
 Core API library for interacting with an FMD server.
 
+This module provides a client that communicates with FMD (Find My Device) servers
+using the FMD API protocol, encryption scheme, and command format.
+
+FMD Project Attribution:
+    - FMD (Find My Device): https://fmd-foss.org
+    - Created by Nulide (http://nulide.de)
+    - Maintained by Thore (https://thore.io) and the FMD-FOSS team
+    - FMD Server: https://gitlab.com/fmd-foss/fmd-server (AGPL-3.0)
+    - FMD Android: https://gitlab.com/fmd-foss/fmd-android (GPL-3.0)
+
+This Client Implementation:
+    - MIT License - Copyright (c) 2025 Devin Slick
+    - Independent client implementation for FMD API
+    - Follows FMD's RSA-3072 + AES-GCM encryption protocol
+    - Compatible with FMD server v012.0 API
+
 This module provides a class that handles authentication, key management,
 and data decryption for FMD clients.
 

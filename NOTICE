@@ -1,0 +1,74 @@
+Home Assistant FMD Integration
+Copyright (c) 2025 Devin Slick
+
+This integration is built to work with the FMD (Find My Device) project.
+
+================================================================================
+
+FMD (Find My Device) Project
+https://fmd-foss.org
+
+The FMD project provides the server and Android app that this integration
+communicates with. FMD was created by Nulide and is maintained by Thore
+and the FMD-FOSS team.
+
+FMD Android App
+https://gitlab.com/fmd-foss/fmd-android
+License: GNU General Public License v3.0 (GPL-3.0)
+
+FMD Server
+https://gitlab.com/fmd-foss/fmd-server
+License: GNU Affero General Public License v3.0 (AGPL-3.0)
+
+FMD Project Maintainers:
+- Nulide (Founder) - http://nulide.de
+- Thore (Maintainer) - https://thore.io
+
+This integration is a separate client that communicates with FMD servers
+over the network. It does not incorporate or redistribute any FMD code.
+This integration is licensed under the MIT License (see LICENSE file).
+
+We are deeply grateful to the FMD team for creating this excellent
+open source, privacy-respecting device tracking solution.
+
+================================================================================
+
+Third-Party Dependencies:
+
+This integration uses the following third-party libraries:
+
+- aiohttp - Apache License 2.0
+- cryptography - Apache License 2.0 / BSD License
+- argon2-cffi - MIT License
+- Pillow (PIL) - Historical Permission Notice and Disclaimer (HPND)
+- requests - Apache License 2.0
+
+See each library's license for full terms.
+
+================================================================================
+
+Encryption Protocol Attribution:
+
+This integration implements the FMD encryption protocol:
+- RSA-3072 key exchange (designed by FMD team)
+- AES-GCM data encryption (designed by FMD team)
+- Argon2id password hashing (designed by FMD team)
+- Command signing format (designed by FMD team)
+
+The protocol design and implementation details are derived from analyzing
+the FMD server source code and web client, which are open source under
+AGPL-3.0 license.
+
+================================================================================
+
+Disclaimer:
+
+This integration is not officially affiliated with, endorsed by, or
+supported by the FMD-FOSS project or its maintainers. It is an independent
+third-party client created to integrate FMD with Home Assistant.
+
+For support with:
+- FMD server or Android app → Contact FMD team
+- This Home Assistant integration → https://github.com/devinslick/home-assistant-fmd/issues
+
+================================================================================

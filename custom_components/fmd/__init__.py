@@ -1,4 +1,19 @@
-"""The FMD integration."""
+"""The FMD integration.
+
+Home Assistant integration for FMD (Find My Device).
+Built to work with the FMD-FOSS project: https://fmd-foss.org
+
+FMD Project Attribution:
+- Created by Nulide (http://nulide.de)
+- Maintained by Thore (https://thore.io) and the FMD-FOSS team
+- FMD Android: https://gitlab.com/fmd-foss/fmd-android
+- FMD Server: https://gitlab.com/fmd-foss/fmd-server
+
+This Integration:
+- MIT License - Copyright (c) 2025 Devin Slick
+- https://github.com/devinslick/home-assistant-fmd
+- A third-party client for FMD servers
+"""
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry

@@ -2,7 +2,77 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
 
-This is a Home Assistant integration for FMD (Find My Device). It allows you to track the location of your devices running the FMD Android app.
+A Home Assistant custom integration for [FMD (Find My Device)](https://fmd-foss.org) that allows you to track and control Android devices running the FMD app through your self-hosted FMD server.
+
+## About FMD
+
+**FMD (Find My Device)** is a free and open source device tracking solution created by [Nulide](http://nulide.de) and maintained by the FMD-FOSS team.
+
+- **FMD Android App**: https://gitlab.com/fmd-foss/fmd-android
+- **FMD Server**: https://gitlab.com/fmd-foss/fmd-server
+- **Website**: https://fmd-foss.org
+
+This integration acts as a **client** for your FMD server, providing seamless integration with Home Assistant. See [CREDITS.md](CREDITS.md) for full attribution.
+
+## Quick Start Overview
+
+This integration provides **19 entities** to control your Android device:
+
+🗺️ **Location Tracking**
+- Real-time device location on Home Assistant map
+- Multiple location providers (GPS, network, fused, cell)
+- Configurable accuracy filtering
+- On-demand location updates
+
+📱 **Remote Commands**
+- Ring device at max volume
+- Lock device remotely
+- Toggle Bluetooth on/off
+- Control Do Not Disturb mode
+- Change ringer mode (Normal/Vibrate/Silent)
+- Factory reset with safety protection
+
+📸 **Photo Capture**
+- Remote camera control (front & rear)
+- Automatic photo download to media library
+- EXIF timestamp extraction
+- Media browser integration
+
+⚙️ **Smart Tracking**
+- Normal polling mode (configurable interval)
+- High-frequency active tracking mode
+- Battery-conscious location source selection
+- GPS only, Cell only, or Last Known options
+
+## Prerequisites
+
+Before installing this integration, you need:
+
+### Required:
+1. ✅ **Home Assistant** (2023.1 or newer recommended)
+2. ✅ **FMD Server** (v012.0 or compatible)
+   - Self-hosted or hosted instance
+   - HTTPS recommended (not HTTP)
+   - Network accessible from Home Assistant
+   - **Compatibility**: This integration is designed to maintain compatibility with fmd-server and has been tested with versions 0.11.0 and 0.12.0. It will seek to maintain compatibility with the latest versions of fmd-server but cannot guarantee backwards compatibility.
+3. ✅ **Android Device** with FMD app installed
+   - Android 8.0 or newer
+   - FMD app from [F-Droid](https://f-droid.org/) or [GitLab](https://gitlab.com/fmd-foss/fmd-android)
+   - Device configured to connect to your FMD server
+4. ✅ **FMD Account Credentials**
+   - Device ID (from FMD app settings)
+   - Password (set when registering device)
+
+### Optional (for specific features):
+- **Bluetooth Control**: Android 12+ with BLUETOOTH_CONNECT permission
+- **DND/Ringer Control**: Do Not Disturb Access permission granted to FMD app
+- **Device Wipe**: Device Admin permission granted to FMD app
+- **Photos**: Camera permissions granted to FMD app
+
+### Not Required:
+- ❌ FMD web interface (integration connects directly to API)
+- ❌ Public IP address (works on local network)
+- ❌ Cloud services (fully self-hosted)
 
 ## Installation
 
@@ -249,6 +319,69 @@ _Note: Hyphens in your FMD account ID will be converted to underscores in entity
 - **Ringer mode control** - Set device ringer to Normal, Vibrate, or Silent mode
 - **Device wipe** - Factory reset device with safety switch protection (60-second timeout)
 
+## Performance & Resource Usage
+
+### Polling Intervals
+
+**Normal Mode** (default: 30 minutes)
+- Minimal battery drain on device
+- Queries FMD server for existing location data
+- Does NOT request new device location
+- Recommended for stationary devices
+
+**High Frequency Mode** (default: 5 minutes)
+- ⚠️ **Higher battery drain** - requests new location each poll
+- Actively asks device for fresh GPS data
+- Best for: lost device tracking, active travel
+- Auto-disable after tracking session
+
+### Battery Impact on Android Device
+
+| Feature | Battery Impact | When to Use |
+|---------|----------------|-------------|
+| Normal polling | ⚡ Minimal | Always |
+| High frequency mode | ⚡⚡⚡ High | Lost device, active tracking |
+| GPS Only location | ⚡⚡⚡ High | Need accuracy |
+| Cell Only location | ⚡ Minimal | Fast/rough location |
+| Last Known location | ⚡ None | No new request needed |
+| Photo capture | ⚡⚡ Medium | As needed |
+
+### Home Assistant Resource Usage
+
+**Storage:**
+- Photos: ~2-3 MB per photo
+- Default 10 photos = ~25 MB per device
+- Max 50 photos = ~125 MB per device
+- Location data: Negligible (<1 MB)
+
+**Network:**
+- Location poll: ~1-5 KB per request
+- Photo download: ~2-3 MB per photo
+- Encrypted data transfer (HTTPS recommended)
+
+**CPU:**
+- Decryption: Minimal (async operations)
+- Photo processing: Medium (EXIF extraction)
+- Normal operation: Low impact
+
+### Optimization Tips
+
+**For Battery Life:**
+- Use "Cell Only (Fast)" when battery < 30%
+- Use "GPS Only (Accurate)" when charging
+- Increase normal polling interval (60+ minutes)
+- Disable high frequency mode when not needed
+
+**For Accuracy:**
+- Location Source: "GPS Only (Accurate)"
+- Allow Inaccurate Locations: OFF
+- High Frequency Mode: ON (when tracking actively)
+
+**For Storage:**
+- Set Max Photos to 5-10 (not 50)
+- Manually delete old photos periodically
+- Consider automation to clean media folder
+
 ## Photo Workflow
 
 The integration provides complete photo management functionality:
@@ -282,7 +415,6 @@ The integration provides complete photo management functionality:
 - No automatic polling - photos are downloaded only when requested
 
 ## Device Control
-
 The integration provides remote control commands for your FMD device:
 
 ### Location Source Selection
@@ -357,30 +489,369 @@ To protect against accidental wipes, this feature requires a two-step process:
 
 **Important Notes:**
 - This command **CANNOT BE UNDONE**
-- All apps, files, photos, accounts will be deleted
+- All data: apps, files, photos, accounts (EVERYTHING!) will be deleted
 - Device will return to factory settings
 - You'll need physical access to set up the device again
 
 **Note:** Bluetooth, DND, and Ringer commands are fire-and-forget. Home Assistant doesn't track the actual device state, so the select entities always show "Send Command..." as a placeholder.
 
+## Automation Examples
+
+### Basic Location Tracking
+
+**Notify when device arrives home:**
+```yaml
+automation:
+  - alias: "FMD: Notify device arrived home"
+    trigger:
+      - platform: zone
+        entity_id: device_tracker.fmd_my_phone
+        zone: zone.home
+        event: enter
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "Device Tracking"
+          message: "My phone arrived home"
+```
+
+**Track device leaving work:**
+```yaml
+automation:
+  - alias: "FMD: Start tracking when leaving work"
+    trigger:
+      - platform: zone
+        entity_id: device_tracker.fmd_my_phone
+        zone: zone.work
+        event: leave
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.fmd_my_phone_high_frequency_mode
+      - delay:
+          minutes: 30
+      - service: switch.turn_off
+        target:
+          entity_id: switch.fmd_my_phone_high_frequency_mode
+```
+
+### Remote Device Control
+
+**Bedtime routine - Enable DND:**
+```yaml
+automation:
+  - alias: "FMD: Bedtime DND"
+    trigger:
+      - platform: time
+        at: "22:00:00"
+    action:
+      - service: select.select_option
+        target:
+          entity_id: select.fmd_my_phone_do_not_disturb_command
+        data:
+          option: "Enable Do Not Disturb"
+```
+
+**Morning routine - Disable DND:**
+```yaml
+automation:
+  - alias: "FMD: Morning wake up"
+    trigger:
+      - platform: time
+        at: "07:00:00"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.workday_sensor
+        state: "on"
+    action:
+      - service: select.select_option
+        target:
+          entity_id: select.fmd_my_phone_do_not_disturb_command
+        data:
+          option: "Disable Do Not Disturb"
+```
+
+**Silent mode during meetings:**
+```yaml
+automation:
+  - alias: "FMD: Silent during calendar events"
+    trigger:
+      - platform: state
+        entity_id: calendar.work_calendar
+        to: "on"
+    action:
+      - service: select.select_option
+        target:
+          entity_id: select.fmd_my_phone_ringer_mode_command
+        data:
+          option: "Silent"
+```
+
+### Lost Device Actions
+
+**Ring when device battery is low and not home:**
+```yaml
+automation:
+  - alias: "FMD: Low battery not home alert"
+    trigger:
+      - platform: numeric_state
+        entity_id: device_tracker.fmd_my_phone
+        attribute: battery_level
+        below: 15
+    condition:
+      - condition: not
+        conditions:
+          - condition: zone
+            entity_id: device_tracker.fmd_my_phone
+            zone: zone.home
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "Low Battery Warning"
+          message: "Phone battery at {{ states.device_tracker.fmd_my_phone.attributes.battery_level }}% and not home!"
+      - service: button.press
+        target:
+          entity_id: button.fmd_my_phone_location_update
+```
+
+**Auto-capture photo when device enters geofence:**
+```yaml
+automation:
+  - alias: "FMD: Capture photo on suspicious movement"
+    trigger:
+      - platform: zone
+        entity_id: device_tracker.fmd_my_phone
+        zone: zone.suspicious_area
+        event: enter
+    action:
+      - service: button.press
+        target:
+          entity_id: button.fmd_my_phone_capture_rear
+      - delay:
+          seconds: 30
+      - service: button.press
+        target:
+          entity_id: button.fmd_my_phone_download_photos
+      - service: notify.mobile_app
+        data:
+          title: "Security Alert"
+          message: "Device entered restricted zone - photo captured"
+```
+
+### Smart Tracking Modes
+
+**Adaptive location precision based on motion:**
+```yaml
+automation:
+  - alias: "FMD: Adaptive location precision"
+    trigger:
+      - platform: state
+        entity_id: device_tracker.fmd_my_phone
+        attribute: speed
+    action:
+      - choose:
+          # Moving fast (vehicle) - use GPS only
+          - conditions:
+              - condition: template
+                value_template: "{{ state_attr('device_tracker.fmd_my_phone', 'speed') | float(0) > 5 }}"
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.fmd_my_phone_location_source
+                data:
+                  option: "GPS Only (Accurate)"
+          # Stationary - use last known (save battery)
+          - conditions:
+              - condition: template
+                value_template: "{{ state_attr('device_tracker.fmd_my_phone', 'speed') | float(0) == 0 }}"
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.fmd_my_phone_location_source
+                data:
+                  option: "Last Known (No Request)"
+        # Default - use all providers
+        default:
+          - service: select.select_option
+            target:
+              entity_id: select.fmd_my_phone_location_source
+            data:
+              option: "All Providers (Default)"
+```
+
+### Photo Management
+
+**Daily photo capture and download:**
+```yaml
+automation:
+  - alias: "FMD: Daily surveillance photo"
+    trigger:
+      - platform: time
+        at: "12:00:00"
+    action:
+      - service: button.press
+        target:
+          entity_id: button.fmd_my_phone_capture_front
+      - delay:
+          seconds: 30
+      - service: button.press
+        target:
+          entity_id: button.fmd_my_phone_download_photos
+```
+
+**Notify when new photos downloaded:**
+```yaml
+automation:
+  - alias: "FMD: Photo download notification"
+    trigger:
+      - platform: state
+        entity_id: sensor.fmd_my_phone_photo_count
+    condition:
+      - condition: template
+        value_template: "{{ trigger.to_state.state | int(0) > trigger.from_state.state | int(0) }}"
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "FMD Photos"
+          message: "Downloaded {{ trigger.to_state.state }} new photo(s) from device"
+```
+
+## Security & Privacy
+
+### Best Practices
+
+**🔐 Secure Your FMD Server**
+- Use HTTPS (not HTTP) for your FMD server URL
+- Use strong, unique passwords (20+ characters recommended)
+- Run FMD server on a private network or VPN
+- Keep FMD server software updated
+- Use firewall rules to restrict access
+
+**🔑 Home Assistant Security**
+- Enable authentication on Home Assistant
+- Use strong passwords or API tokens
+- Consider network isolation for device tracking
+- Regularly review Home Assistant logs
+- Keep Home Assistant updated
+
+**📱 Android App Permissions**
+
+The FMD Android app requires these permissions:
+- ✅ Location (always) - For tracking
+- ✅ Camera - For photo capture
+- ✅ Device Admin - For lock/wipe commands
+- ⚠️ Bluetooth (Android 12+) - For Bluetooth control
+- ⚠️ Do Not Disturb Access - For DND/ringer commands
+
+**Grant permissions cautiously** - only enable what you need.
+
+**🚨 Device Wipe Protection**
+
+The integration includes multiple safety layers:
+1. **Safety switch required** - Must enable before wipe works
+2. **60-second timeout** - Safety auto-disables after 1 minute
+3. **Extensive logging** - CRITICAL warnings in logs
+4. **Auto-disable after use** - Prevents repeated presses
+5. **Cannot be undone** - Final warning in documentation
+
+**⚠️ Privacy Considerations**
+- Location data is encrypted in transit (RSA + AES-GCM)
+- Photos are encrypted on FMD server
+- Data is decrypted only on Home Assistant
+- Photos stored locally on Home Assistant
+- Review Home Assistant's `media/fmd/` permissions
+- Consider who has access to your Home Assistant instance
+
+**💡 Recommendations**
+- Use this integration only on devices you own
+- Inform device users they are being tracked
+- Comply with local laws regarding tracking/surveillance
+- Use device wipe only as last resort
+- Test features in safe environment first
+- Keep backups of important device data
+
 ## TODO & Planned Features
 
-### To Do
-- [ ] **Account deletion** - Add account deletion endpoint to FMD API and integration button
-- [ ] **Photo cleanup** - Automatic deletion of old photos after X days
-- [ ] **Device stats** - Request network statistics (IP, WiFi SSID, etc.)
-- [ ] **GPS status** - Request GPS and battery status information
+### Known Issues
+- [ ] **BUG: Entity icons** - Integration icon and 2 entity icons not displaying
+  - Affected: integration, `high_frequency_interval`, `location_update`
+  - Priority: Low (cosmetic)
 
-### Completed (v0.8.0)
-- [x] **Device wipe** - Factory reset with safety switch and 60-second timeout
+### UX Improvements
+- [ ] **Entity naming consistency** - "High frequency mode" → "Tracking mode"
+  - Consider renaming for better clarity
+  - Priority: Medium
 
-### Completed (v0.7.0)
-- [x] **Location variants** - Configurable location source (All/GPS/Cell/Last Known)
+### Planned Features
 
-### Completed (v0.6.0)
-- [x] **Do Not Disturb** - Send DND enable/disable commands
-- [x] **Bluetooth** - Send Bluetooth enable/disable commands
-- [x] **Ringer mode** - Set device ringer mode (Normal/Vibrate/Silent)
+**High Priority:**
+- [ ] **Photo cleanup** - Automatic or manual deletion of old photos
+  - Option 1: Delete after X days
+  - Option 2: "Delete All Photos" button
+  - Priority: High (storage management)
+
+**Medium Priority:**
+- [ ] **Device stats** - Display network information
+  - IP address, WiFi SSID, WiFi BSSID
+  - Requires FMD "stats" command parsing
+  - Priority: Medium
+
+- [ ] **GPS status** - Display GPS and battery status
+  - GPS state (on/off), battery level
+  - Requires FMD "gps" command parsing
+  - Priority: Medium
+
+**Low Priority:**
+- [ ] **Account deletion** - FMD account management
+  - Requires FMD server API addition
+  - Low priority (can do manually on server)
+
+### Version History
+
+#### v0.8.0 (Current) - October 20, 2025
+**Phase 4: Device Wipe with Safety Mechanism**
+- ✅ Added Device Wipe button (factory reset)
+- ✅ Added Device Wipe Safety switch (60-second timeout)
+- ✅ Enhanced logging for wipe operations
+- ✅ Two-step safety process to prevent accidents
+- ✅ MIT License added
+- ✅ Comprehensive FMD team attribution (CREDITS.md, NOTICE)
+- Total entities: 19 per device
+
+#### v0.7.0 - October 20, 2025
+**Phase 2: Configurable Location Source**
+- ✅ Added Location Source select entity
+- ✅ Four location modes: All/GPS/Cell/Last Known
+- ✅ Battery-conscious tracking support
+- ✅ Dynamic location provider selection
+- Total entities: 17 per device
+
+#### v0.6.0 - October 2025
+**Phase 1: Device Control Commands**
+- ✅ Added Bluetooth control select entity
+- ✅ Added Do Not Disturb control select entity
+- ✅ Added Ringer Mode control select entity
+- ✅ Select entity placeholder pattern (resets after command)
+- Total entities: 16 per device
+
+#### v0.5.0-0.5.6 - October 2025
+**Photo Capture & Download**
+- ✅ Front & rear camera capture buttons
+- ✅ Photo download button
+- ✅ Media browser integration
+- ✅ EXIF timestamp extraction
+- ✅ Photo Count sensor
+- ✅ Max Photos configurable (1-50)
+- ✅ Duplicate prevention via content hash
+
+#### Earlier Versions
+**Core Functionality**
+- ✅ Device tracker entity
+- ✅ Location polling (normal & high-frequency modes)
+- ✅ Ring & Lock buttons
+- ✅ Update interval configuration
+- ✅ Location accuracy filtering
+- ✅ Smart location selection (5 most recent)
 
 ## Troubleshooting
 
@@ -395,9 +866,105 @@ To protect against accidental wipes, this feature requires a two-step process:
 - Check for errors in Home Assistant logs during startup
 - Try removing and re-adding the integration
 
+### Known Limitations
+
+**Location Updates:**
+- ⏱️ Location polling is not real-time (minimum 1-minute interval)
+- 🌍 Requires device to have internet connectivity
+- 📡 GPS accuracy depends on device location (outdoors vs. indoors)
+- ⚡ High frequency mode drains device battery faster
+
+**Commands:**
+- 📬 Commands are fire-and-forget (no confirmation from device)
+- 🔄 Device must be online to receive commands
+- ⏰ Command execution depends on device connectivity
+- 🚫 No state feedback (can't query if Bluetooth is on/off)
+
+**Photos:**
+- 📸 Photo capture takes 15-30 seconds
+- 💾 Photos remain on FMD server until manually deleted
+- 📁 No automatic photo cleanup (must delete manually)
+- 🖼️ EXIF timestamps may be missing from some photos
+
+**Permissions:**
+- ⚠️ Bluetooth control requires Android 12+ BLUETOOTH_CONNECT permission
+- ⚠️ DND/Ringer control requires Do Not Disturb Access permission
+- ⚠️ Some features may not work on all Android versions
+
+**Device Wipe:**
+- 🚨 Cannot be undone once device receives command
+- ⏱️ Execution time depends on device (immediate to minutes)
+- 📱 Requires device to be online to receive command
+- 🔒 Device must have Device Admin permission granted to FMD app
+
+## Frequently Asked Questions (FAQ)
+
+**Q: Do I need to run my own FMD server?**  
+A: Yes, this integration requires a self-hosted or hosted FMD server. The integration connects to YOUR server, not a centralized service. See [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
+
+**Q: Does this work without the FMD Android app?**  
+A: No, you must install the FMD Android app on the device you want to track. The app communicates with the FMD server.
+
+**Q: Can I track multiple devices?**  
+A: Yes! Add a new integration instance for each device. Each device gets its own set of 19 entities.
+
+**Q: Why is my location not updating?**  
+A: Check: 1) Device has internet, 2) FMD app is running, 3) Location permissions granted, 4) Device is sending data to server (check FMD server logs).
+
+**Q: How do I know if a command was received?**  
+A: Commands are fire-and-forget. Check device physically or use another method to confirm. There's no acknowledgment from the device.
+
+**Q: Can I see Bluetooth/DND state in Home Assistant?**  
+A: No, FMD doesn't support querying device state. Commands are one-way only.
+
+**Q: How much battery does this use?**  
+A: Normal mode: minimal (just checks server). High frequency mode: significant (actively requests GPS). See [Performance](#performance--resource-usage).
+
+**Q: Where are photos stored?**  
+A: `/media/fmd/<device-id>/` (Docker/Core) or `/config/media/fmd/<device-id>/` (HAOS). Photos appear in Media Browser automatically.
+
+**Q: Can I download photos older than the configured max?**  
+A: No, increase "Max Photos to Download" setting before pressing "Download Photos" to get more history.
+
+**Q: Is my data encrypted?**  
+A: Yes! Location and photos are encrypted end-to-end using RSA-3072 + AES-GCM. Only your Home Assistant instance can decrypt.
+
+**Q: What happens if I accidentally press the wipe button?**  
+A: Nothing! The safety switch must be enabled first. The wipe button is blocked by default.
+
+**Q: Can I undo a device wipe?**  
+A: No, device wipe is permanent. All data is erased. This is an FMD feature, not controllable by this integration.
+
+**Q: Does this work on iOS/iPhone?**  
+A: No, FMD is Android-only. This integration only works with Android devices running the FMD app.
+
+**Q: Can I use this for fleet/business tracking?**  
+A: Yes, the MIT License allows commercial use. Add one integration instance per device.
+
+## Credits and Attribution
+
+This integration would not exist without the excellent work of the **FMD-FOSS team**:
+
+- **FMD Project**: https://fmd-foss.org
+- **Created by**: [Nulide](http://nulide.de) (Founder)
+- **Maintained by**: [Thore](https://thore.io) and the FMD-FOSS team
+- **FMD Android App**: https://gitlab.com/fmd-foss/fmd-android
+- **FMD Server**: https://gitlab.com/fmd-foss/fmd-server
+
+**Thank you** to Nulide, Thore, and all FMD contributors for creating this privacy-respecting, open source device tracking solution!
+
+This integration is a third-party client that communicates with FMD servers. It is not affiliated with or endorsed by the FMD-FOSS project. For full attribution details, see [CREDITS.md](CREDITS.md).
+
+### Supporting FMD
+
+If you find this integration useful, please support the FMD project:
+- ⭐ Star the [FMD repositories](https://gitlab.com/fmd-foss) on GitLab
+- 📝 Contribute to the FMD project
+- 📢 Spread the word about FMD
+
 ## Contributions
 
-Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request.
+Contributions to this Home Assistant integration are welcome! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request.
 
 ### Development
 This integration uses:
@@ -409,4 +976,13 @@ This integration uses:
 
 ## License
 
-This project is open source. See the repository for license details.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+This integration is completely free and open source. You are free to use, modify, and distribute it according to the terms of the MIT License.
+
+### What this means:
+- ✅ **Free to use** for personal or commercial purposes
+- ✅ **Free to modify** and create derivative works
+- ✅ **Free to distribute** original or modified versions
+- ✅ **No warranty** - provided "as is"
+- ✅ **Attribution appreciated** but not legally required
