@@ -140,17 +140,144 @@ async def main():
     speed = location.get('speed')      # Optional, only when moving
     heading = location.get('heading')  # Optional, only when moving
     
-    # Send other commands
+    # Send commands (see Available Commands section below)
     await api.send_command('ring')           # Make device ring
+    await api.send_command('bluetooth on')   # Enable Bluetooth
     await api.send_command('camera front')   # Take picture with front camera
 
 asyncio.run(main())
 ```
-asyncio.run(main())
+
+### Available Commands
+
+The FMD Android app supports a comprehensive set of commands. You can send them using `api.send_command(command)` or use the convenience methods and constants:
+
+#### Location Requests
+```python
+# Using convenience method
+await api.request_location('gps')    # GPS only
+await api.request_location('all')    # All providers (default)
+await api.request_location('cell')   # Cellular network only
+
+# Using send_command directly
+await api.send_command('locate gps')
+await api.send_command('locate')
+await api.send_command('locate cell')
+await api.send_command('locate last')  # Last known, no new request
+
+# Using constants
+from fmd_api import FmdCommands
+await api.send_command(FmdCommands.LOCATE_GPS)
 ```
-# Decrypt a location blob
-decrypted_data = api.decrypt_data_blob(locations[0])
-location_json = json.loads(decrypted_data)
+
+#### Device Control
+```python
+# Ring device
+await api.send_command('ring')
+await api.send_command(FmdCommands.RING)
+
+# Lock device screen
+await api.send_command('lock')
+await api.send_command(FmdCommands.LOCK)
+
+# ⚠️ Delete/wipe device (DESTRUCTIVE - factory reset!)
+await api.send_command('delete')
+await api.send_command(FmdCommands.DELETE)
+```
+
+#### Camera
+```python
+# Using convenience method
+await api.take_picture('back')   # Rear camera (default)
+await api.take_picture('front')  # Front camera (selfie)
+
+# Using send_command
+await api.send_command('camera back')
+await api.send_command('camera front')
+
+# Using constants
+await api.send_command(FmdCommands.CAMERA_BACK)
+await api.send_command(FmdCommands.CAMERA_FRONT)
+```
+
+#### Bluetooth
+```python
+# Using convenience method
+await api.toggle_bluetooth(True)   # Enable
+await api.toggle_bluetooth(False)  # Disable
+
+# Using send_command
+await api.send_command('bluetooth on')
+await api.send_command('bluetooth off')
+
+# Using constants
+await api.send_command(FmdCommands.BLUETOOTH_ON)
+await api.send_command(FmdCommands.BLUETOOTH_OFF)
+```
+
+**Note:** Android 12+ requires BLUETOOTH_CONNECT permission.
+
+#### Do Not Disturb Mode
+```python
+# Using convenience method
+await api.toggle_do_not_disturb(True)   # Enable DND
+await api.toggle_do_not_disturb(False)  # Disable DND
+
+# Using send_command
+await api.send_command('nodisturb on')
+await api.send_command('nodisturb off')
+
+# Using constants
+await api.send_command(FmdCommands.NODISTURB_ON)
+await api.send_command(FmdCommands.NODISTURB_OFF)
+```
+
+**Note:** Requires Do Not Disturb Access permission.
+
+#### Ringer Mode
+```python
+# Using convenience method
+await api.set_ringer_mode('normal')   # Sound + vibrate
+await api.set_ringer_mode('vibrate')  # Vibrate only
+await api.set_ringer_mode('silent')   # Silent (also enables DND)
+
+# Using send_command
+await api.send_command('ringermode normal')
+await api.send_command('ringermode vibrate')
+await api.send_command('ringermode silent')
+
+# Using constants
+await api.send_command(FmdCommands.RINGERMODE_NORMAL)
+await api.send_command(FmdCommands.RINGERMODE_VIBRATE)
+await api.send_command(FmdCommands.RINGERMODE_SILENT)
+```
+
+**Note:** Setting to "silent" also enables Do Not Disturb (Android behavior). Requires Do Not Disturb Access permission.
+
+#### Device Information
+```python
+# Get network statistics (IP addresses, WiFi SSID/BSSID)
+await api.get_device_stats()
+await api.send_command('stats')
+await api.send_command(FmdCommands.STATS)
+
+# Get battery and GPS status
+await api.send_command('gps')
+await api.send_command(FmdCommands.GPS)
+```
+
+**Note:** `stats` command requires Location permission to access WiFi information.
+
+#### Command Testing Script
+Test any command easily:
+```bash
+cd debugging
+python test_command.py <command> --url <server_url> --id <fmd_id> --password <password>
+
+# Examples
+python test_command.py "ring" --url https://fmd.example.com --id alice --password secret
+python test_command.py "bluetooth on" --url https://fmd.example.com --id alice --password secret
+python test_command.py "ringermode vibrate" --url https://fmd.example.com --id alice --password secret
 ```
 
 ## Troubleshooting

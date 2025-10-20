@@ -10,7 +10,6 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
-fmd-server/
 develop-eggs/
 dist/
 downloads/
@@ -37,3 +36,7 @@ env/
 # IDE / Editor folders
 .vscode/
 .idea/
+
+# FMD Server and android app files
+fmd-server/
+fmd-android/

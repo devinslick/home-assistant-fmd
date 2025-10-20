@@ -4,7 +4,7 @@
   "name": "FMD",
   "documentation": "https://github.com/devinslick/home-assistant-fmd",
   "issue_tracker": "https://github.com/devinslick/home-assistant-fmd/issues",
-  "codeowners": [],
+  "codeowners": ["@devinslick"],
   "requirements": [
     "requests",
     "argon2-cffi",
@@ -13,7 +13,7 @@
     "pillow"
   ],
   "iot_class": "cloud_polling",
-  "version": "0.5.6",
+  "version": "0.6.0",
   "config_flow": true,
   "integration_type": "device",
   "icon": "mdi:cellphone-marker"

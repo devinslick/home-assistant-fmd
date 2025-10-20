@@ -127,6 +127,29 @@ The integration will create the following entities for each configured FMD devic
   - ✅ **Fully implemented** - Filtering is active and can be toggled at runtime.
   - _Note: You can also configure this during initial setup via the config flow._
 
+### Select Entities (Configuration)
+- **Bluetooth Command** - Send Bluetooth enable/disable commands
+  - Entity ID example: `select.fmd_test_user_bluetooth_command`
+  - Options: "Send Command...", "Enable Bluetooth", "Disable Bluetooth"
+  - Sends command to device, then resets to "Send Command..." placeholder
+  - ⚠️ **Requires Android 12+ BLUETOOTH_CONNECT permission**
+  - ✅ **Fully implemented** - Commands sent immediately, no state tracking
+
+- **Do Not Disturb Command** - Send DND enable/disable commands
+  - Entity ID example: `select.fmd_test_user_do_not_disturb_command`
+  - Options: "Send Command...", "Enable Do Not Disturb", "Disable Do Not Disturb"
+  - Sends command to device, then resets to placeholder
+  - ⚠️ **Requires Do Not Disturb Access permission**
+  - ✅ **Fully implemented** - Commands sent immediately, no state tracking
+
+- **Ringer Mode Command** - Set device ringer mode
+  - Entity ID example: `select.fmd_test_user_ringer_mode_command`
+  - Options: "Send Command...", "Normal (Sound + Vibrate)", "Vibrate Only", "Silent"
+  - Sends command to device, then resets to placeholder
+  - ⚠️ **Requires Do Not Disturb Access permission**
+  - ⚠️ **Note**: Silent mode also enables Do Not Disturb (Android behavior)
+  - ✅ **Fully implemented** - Commands sent immediately, no state tracking
+
 ### Sensor Entities
 - **Photo Count** - Number of photos available on the server
   - Entity ID example: `sensor.fmd_test_user_photo_count`
@@ -161,10 +184,15 @@ For a user with FMD account ID `test-user`, the following entities will be creat
 11. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
 12. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
 
-**Sensor Entities (1):**
-13. `sensor.fmd_test_user_photo_count` - Photo count sensor
+**Select Entities (3):**
+13. `select.fmd_test_user_bluetooth_command` - Bluetooth enable/disable commands
+14. `select.fmd_test_user_do_not_disturb_command` - DND enable/disable commands
+15. `select.fmd_test_user_ringer_mode_command` - Ringer mode commands
 
-**Total: 13 entities per device**
+**Sensor Entities (1):**
+16. `sensor.fmd_test_user_photo_count` - Photo count sensor
+
+**Total: 16 entities per device**
 
 _Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
 

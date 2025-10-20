@@ -88,6 +88,78 @@ class FmdApiException(Exception):
     """Base exception for FMD API errors."""
     pass
 
+class FmdCommands:
+    """
+    Constants for available FMD device commands.
+    
+    These commands are supported by the FMD Android app and can be sent
+    via the send_command() method. Using these constants helps prevent typos
+    and improves code discoverability.
+    
+    Command Categories:
+        Location Requests:
+            LOCATE_ALL, LOCATE_GPS, LOCATE_CELL, LOCATE_LAST
+        
+        Device Control:
+            RING, LOCK, DELETE
+        
+        Camera:
+            CAMERA_FRONT, CAMERA_BACK
+        
+        Audio/Notifications:
+            BLUETOOTH_ON, BLUETOOTH_OFF
+            NODISTURB_ON, NODISTURB_OFF
+            RINGERMODE_NORMAL, RINGERMODE_VIBRATE, RINGERMODE_SILENT
+        
+        Information:
+            STATS, GPS (battery/GPS status)
+    
+    Example:
+        from fmd_api import FmdApi, FmdCommands
+        
+        api = await FmdApi.create('https://fmd.example.com', 'device-id', 'password')
+        
+        # Ring the device
+        await api.send_command(FmdCommands.RING)
+        
+        # Request GPS location
+        await api.send_command(FmdCommands.LOCATE_GPS)
+        
+        # Enable Do Not Disturb
+        await api.send_command(FmdCommands.NODISTURB_ON)
+    """
+    # Location requests
+    LOCATE_ALL = "locate"
+    LOCATE_GPS = "locate gps"
+    LOCATE_CELL = "locate cell"
+    LOCATE_LAST = "locate last"
+    
+    # Device control
+    RING = "ring"
+    LOCK = "lock"
+    DELETE = "delete"  # Wipes device data (destructive!)
+    
+    # Camera
+    CAMERA_FRONT = "camera front"
+    CAMERA_BACK = "camera back"
+    
+    # Bluetooth
+    BLUETOOTH_ON = "bluetooth on"
+    BLUETOOTH_OFF = "bluetooth off"
+    
+    # Do Not Disturb
+    NODISTURB_ON = "nodisturb on"
+    NODISTURB_OFF = "nodisturb off"
+    
+    # Ringer Mode
+    RINGERMODE_NORMAL = "ringermode normal"
+    RINGERMODE_VIBRATE = "ringermode vibrate"
+    RINGERMODE_SILENT = "ringermode silent"
+    
+    # Information/Status
+    STATS = "stats"  # Network info (IP addresses, WiFi networks)
+    GPS = "gps"      # Battery and GPS status
+
 def _pad_base64(s):
     return s + '=' * (-len(s) % 4)
 
@@ -366,34 +438,65 @@ class FmdApi:
     async def send_command(self, command: str) -> bool:
         """Sends a command to the device.
         
-        Available commands:
-            - "locate" or "locate all": Request location using all providers
-            - "locate gps": Request GPS-only location
-            - "locate cell": Request cellular network location
-            - "locate last": Get last known location (no new request)
-            - "ring": Make device ring
-            - "lock": Lock the device
-            - "camera front": Take picture with front camera
-            - "camera back": Take picture with rear camera
-            
+        Complete list of available commands (or use FmdCommands constants):
+        
+        Location Requests:
+            - "locate" - Request location using all available providers (GPS, network, fused)
+            - "locate gps" - GPS-only location (most accurate, requires clear sky view)
+            - "locate cell" - Cellular network location (fast, less accurate)
+            - "locate last" - Return last known location without new request
+        
+        Device Control:
+            - "ring" - Make device ring at full volume (ignores silent/DND mode)
+            - "lock" - Lock the device screen
+            - "delete" - ⚠️ DESTRUCTIVE: Wipes all device data (factory reset)
+        
+        Camera:
+            - "camera front" - Take photo with front-facing camera
+            - "camera back" - Take photo with rear-facing camera
+        
+        Audio & Notifications:
+            - "bluetooth on" - Enable Bluetooth (Android 12+ requires permission)
+            - "bluetooth off" - Disable Bluetooth
+            - "nodisturb on" - Enable Do Not Disturb mode (requires permission)
+            - "nodisturb off" - Disable Do Not Disturb mode
+            - "ringermode normal" - Set ringer to normal (sound + vibrate)
+            - "ringermode vibrate" - Set ringer to vibrate only
+            - "ringermode silent" - Set ringer to silent (also enables DND)
+        
+        Information/Status:
+            - "stats" - Get network info (IP addresses, WiFi SSID/BSSID)
+            - "gps" - Get battery level and GPS status
+        
         Args:
-            command: The command string to send to the device
+            command: The command string to send (see list above or use FmdCommands constants)
             
         Returns:
-            bool: True if command was sent successfully
+            bool: True if command was sent successfully to the server
             
         Raises:
             FmdApiException: If command sending fails
             
-        Example:
-            # Request a new GPS location
-            await api.send_command("locate gps")
+        Note:
+            Commands are sent to the server immediately, but execution on the device
+            depends on the device being online and the FMD app having necessary permissions.
+            Some commands (bluetooth, nodisturb, ringermode) require special Android permissions.
             
-            # Request location with all providers
-            await api.send_command("locate")
-            
-            # Make the device ring
+        Examples:
+            # Using string commands
             await api.send_command("ring")
+            await api.send_command("locate gps")
+            await api.send_command("bluetooth on")
+            await api.send_command("nodisturb on")
+            await api.send_command("ringermode vibrate")
+            
+            # Using constants (recommended to prevent typos)
+            from fmd_api import FmdCommands
+            await api.send_command(FmdCommands.RING)
+            await api.send_command(FmdCommands.LOCATE_GPS)
+            await api.send_command(FmdCommands.BLUETOOTH_ON)
+            await api.send_command(FmdCommands.NODISTURB_ON)
+            await api.send_command(FmdCommands.RINGERMODE_VIBRATE)
         """
         log.info(f"Sending command to device: {command}")
         
@@ -477,3 +580,157 @@ class FmdApi:
         command = provider_map.get(provider.lower(), "locate")
         log.info(f"Requesting location update with provider: {provider} (command: {command})")
         return await self.send_command(command)
+
+    async def toggle_bluetooth(self, enable: bool) -> bool:
+        """Enable or disable Bluetooth on the device.
+        
+        Args:
+            enable: True to enable Bluetooth, False to disable
+            
+        Returns:
+            bool: True if command was sent successfully
+            
+        Raises:
+            FmdApiException: If command sending fails
+            
+        Note:
+            On Android 12+, the FMD app requires BLUETOOTH_CONNECT permission.
+            
+        Example:
+            # Enable Bluetooth
+            await api.toggle_bluetooth(True)
+            
+            # Disable Bluetooth
+            await api.toggle_bluetooth(False)
+        """
+        command = FmdCommands.BLUETOOTH_ON if enable else FmdCommands.BLUETOOTH_OFF
+        log.info(f"{'Enabling' if enable else 'Disabling'} Bluetooth")
+        return await self.send_command(command)
+
+    async def toggle_do_not_disturb(self, enable: bool) -> bool:
+        """Enable or disable Do Not Disturb mode on the device.
+        
+        Args:
+            enable: True to enable DND mode, False to disable
+            
+        Returns:
+            bool: True if command was sent successfully
+            
+        Raises:
+            FmdApiException: If command sending fails
+            
+        Note:
+            Requires Do Not Disturb Access permission on the device.
+            
+        Example:
+            # Enable Do Not Disturb
+            await api.toggle_do_not_disturb(True)
+            
+            # Disable Do Not Disturb
+            await api.toggle_do_not_disturb(False)
+        """
+        command = FmdCommands.NODISTURB_ON if enable else FmdCommands.NODISTURB_OFF
+        log.info(f"{'Enabling' if enable else 'Disabling'} Do Not Disturb mode")
+        return await self.send_command(command)
+
+    async def set_ringer_mode(self, mode: str) -> bool:
+        """Set the device ringer mode.
+        
+        Args:
+            mode: Ringer mode to set:
+                - "normal": Sound + vibrate enabled
+                - "vibrate": Vibrate only, no sound
+                - "silent": Silent mode (also enables Do Not Disturb)
+                
+        Returns:
+            bool: True if command was sent successfully
+            
+        Raises:
+            FmdApiException: If command sending fails or invalid mode
+            ValueError: If mode is not one of the valid options
+            
+        Note:
+            - Setting to "silent" also enables Do Not Disturb mode (Android behavior)
+            - Requires Do Not Disturb Access permission on the device
+            
+        Example:
+            # Set to vibrate only
+            await api.set_ringer_mode("vibrate")
+            
+            # Set to normal (sound + vibrate)
+            await api.set_ringer_mode("normal")
+            
+            # Set to silent (also enables DND)
+            await api.set_ringer_mode("silent")
+        """
+        mode = mode.lower()
+        mode_map = {
+            "normal": FmdCommands.RINGERMODE_NORMAL,
+            "vibrate": FmdCommands.RINGERMODE_VIBRATE,
+            "silent": FmdCommands.RINGERMODE_SILENT
+        }
+        
+        if mode not in mode_map:
+            raise ValueError(f"Invalid ringer mode '{mode}'. Must be 'normal', 'vibrate', or 'silent'")
+        
+        command = mode_map[mode]
+        log.info(f"Setting ringer mode to: {mode}")
+        return await self.send_command(command)
+
+    async def get_device_stats(self) -> bool:
+        """Request device network statistics (IP addresses, WiFi info).
+        
+        The device will respond with information about:
+        - IP addresses (IPv4 and IPv6)
+        - Connected WiFi networks (SSID and BSSID)
+        
+        Returns:
+            bool: True if command was sent successfully
+            
+        Raises:
+            FmdApiException: If command sending fails
+            
+        Note:
+            Requires Location permission on the device (needed to access WiFi info).
+            The response is sent back to the device via the transport mechanism
+            (e.g., SMS, push notification) rather than stored on the server.
+            
+        Example:
+            # Request device statistics
+            await api.get_device_stats()
+        """
+        log.info("Requesting device network statistics")
+        return await self.send_command(FmdCommands.STATS)
+
+    async def take_picture(self, camera: str = "back") -> bool:
+        """Request the device to take a picture.
+        
+        Args:
+            camera: Which camera to use - "front" or "back" (default: "back")
+                
+        Returns:
+            bool: True if command was sent successfully
+            
+        Raises:
+            FmdApiException: If command sending fails
+            ValueError: If camera is not "front" or "back"
+            
+        Note:
+            Pictures are uploaded to the server and can be retrieved using
+            get_all_pictures() and decrypt_data_blob().
+            
+        Example:
+            # Take picture with rear camera
+            await api.take_picture("back")
+            
+            # Take picture with front camera (selfie)
+            await api.take_picture("front")
+        """
+        camera = camera.lower()
+        if camera not in ["front", "back"]:
+            raise ValueError(f"Invalid camera '{camera}'. Must be 'front' or 'back'")
+        
+        command = FmdCommands.CAMERA_FRONT if camera == "front" else FmdCommands.CAMERA_BACK
+        log.info(f"Requesting picture from {camera} camera")
+        return await self.send_command(command)
+

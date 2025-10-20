@@ -234,9 +234,9 @@ class FmdCaptureFrontCameraButton(ButtonEntity):
             return
         
         try:
-            # Send camera front command to device
-            _LOGGER.info("Sending 'camera front' command to device...")
-            success = await tracker.api.send_command("camera front")
+            # Send camera front command to device using convenience method
+            _LOGGER.info("Sending front camera capture command to device...")
+            success = await tracker.api.take_picture("front")
             
             if success:
                 _LOGGER.info("Front camera command sent successfully. Device will capture and upload photo in ~15 seconds.")
@@ -282,9 +282,9 @@ class FmdCaptureRearCameraButton(ButtonEntity):
             return
         
         try:
-            # Send camera back command to device
-            _LOGGER.info("Sending 'camera back' command to device...")
-            success = await tracker.api.send_command("camera back")
+            # Send camera back command to device using convenience method
+            _LOGGER.info("Sending rear camera capture command to device...")
+            success = await tracker.api.take_picture("back")
             
             if success:
                 _LOGGER.info("Rear camera command sent successfully. Device will capture and upload photo in ~15 seconds.")
