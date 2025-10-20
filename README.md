@@ -128,6 +128,16 @@ The integration will create the following entities for each configured FMD devic
   - _Note: You can also configure this during initial setup via the config flow._
 
 ### Select Entities (Configuration)
+- **Location Source** - Choose which location provider the Location Update button uses
+  - Entity ID example: `select.fmd_test_user_location_source`
+  - Options: "All Providers (Default)", "GPS Only (Accurate)", "Cell Only (Fast)", "Last Known (No Request)"
+  - **All Providers**: Uses GPS, network, and fused location (most reliable)
+  - **GPS Only**: Best accuracy but slower, requires clear sky view
+  - **Cell Only**: Fast but less accurate, uses cellular towers
+  - **Last Known**: Returns cached location without new GPS request (instant, no battery use)
+  - Selection persists and is used by the Location Update button
+  - ✅ **Fully implemented** - Configures location request behavior
+
 - **Bluetooth Command** - Send Bluetooth enable/disable commands
   - Entity ID example: `select.fmd_test_user_bluetooth_command`
   - Options: "Send Command...", "Enable Bluetooth", "Disable Bluetooth"
@@ -184,15 +194,16 @@ For a user with FMD account ID `test-user`, the following entities will be creat
 11. `switch.fmd_test_user_high_frequency_mode` - High-frequency mode toggle
 12. `switch.fmd_test_user_allow_inaccurate` - Location accuracy filter toggle
 
-**Select Entities (3):**
-13. `select.fmd_test_user_bluetooth_command` - Bluetooth enable/disable commands
-14. `select.fmd_test_user_do_not_disturb_command` - DND enable/disable commands
-15. `select.fmd_test_user_ringer_mode_command` - Ringer mode commands
+**Select Entities (4):**
+13. `select.fmd_test_user_location_source` - Location provider selection
+14. `select.fmd_test_user_bluetooth_command` - Bluetooth enable/disable commands
+15. `select.fmd_test_user_do_not_disturb_command` - DND enable/disable commands
+16. `select.fmd_test_user_ringer_mode_command` - Ringer mode commands
 
 **Sensor Entities (1):**
-16. `sensor.fmd_test_user_photo_count` - Photo count sensor
+17. `sensor.fmd_test_user_photo_count` - Photo count sensor
 
-**Total: 16 entities per device**
+**Total: 17 entities per device**
 
 _Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
 
@@ -202,6 +213,7 @@ _Note: Hyphens in your FMD account ID will be converted to underscores in entity
 - **Dynamic polling interval updates** - Changes take effect immediately without restart
 - **High-frequency active-tracking mode** - Requests fresh device location at faster intervals (battery intensive)
 - **Location update button** - Triggers immediate on-demand location update from device
+- **Configurable location source** - Choose between All Providers, GPS Only, Cell Only, or Last Known location
 - **Location accuracy filtering** - Filters inaccurate providers (BeaconDB) while accepting accurate ones (Fused, GPS, network)
 - **Location metadata attributes** - Tracks GPS accuracy, altitude, speed, and heading
 - **Ring button** - Makes device play loud sound at maximum volume
@@ -212,6 +224,10 @@ _Note: Hyphens in your FMD account ID will be converted to underscores in entity
 - **Photo download** - Download and decrypt photos from FMD server
 - **Media browser integration** - Photos automatically appear in Home Assistant's media browser
 - **Configurable photo downloads** - Set how many recent photos to download (1-50)
+- **EXIF timestamp extraction** - Photos named with capture date/time for chronological sorting
+- **Bluetooth control** - Send enable/disable Bluetooth commands to device
+- **Do Not Disturb control** - Send enable/disable DND commands to device
+- **Ringer mode control** - Set device ringer to Normal, Vibrate, or Silent mode
 
 ## Photo Workflow
 
@@ -245,16 +261,77 @@ The integration provides complete photo management functionality:
 - Duplicate prevention: Content hash suffix prevents re-downloading identical photos
 - No automatic polling - photos are downloaded only when requested
 
+## Device Control
+
+The integration provides remote control commands for your FMD device:
+
+### Location Source Selection
+Configure which location provider the Location Update button uses:
+- **All Providers (Default)**: Uses GPS, network, and fused location for best reliability
+- **GPS Only (Accurate)**: Most accurate but slower, requires clear sky view, uses more battery
+- **Cell Only (Fast)**: Fast but less accurate, uses cellular tower triangulation
+- **Last Known (No Request)**: Returns cached location without new GPS request (instant, no battery use)
+
+Use the Location Source select entity to change the provider. The setting persists and will be used by the Location Update button.
+
+**Example automation for battery-conscious tracking:**
+```yaml
+automation:
+  - alias: "FMD: Use GPS when charging, Cell when on battery"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.my_phone_is_charging
+    action:
+      - service: select.select_option
+        target:
+          entity_id: select.fmd_test_user_location_source
+        data:
+          option: >
+            {% if trigger.to_state.state == 'on' %}
+              GPS Only (Accurate)
+            {% else %}
+              Cell Only (Fast)
+            {% endif %}
+```
+
+### Bluetooth Control
+Use the Bluetooth command select entity to enable or disable Bluetooth:
+- Select "Enable Bluetooth" to turn on Bluetooth
+- Select "Disable Bluetooth" to turn off Bluetooth
+- Requires Android 12+ BLUETOOTH_CONNECT permission
+- Entity resets to "Send Command..." after sending
+
+### Do Not Disturb Control
+Use the DND command select entity to control Do Not Disturb mode:
+- Select "Enable Do Not Disturb" to enable DND
+- Select "Disable Do Not Disturb" to disable DND
+- Requires Do Not Disturb Access permission
+- Useful for bedtime automations or meeting mode
+
+### Ringer Mode Control
+Use the Ringer Mode command select entity to change device ringer:
+- Select "Normal (Sound + Vibrate)" for full sound
+- Select "Vibrate Only" for vibrate-only mode
+- Select "Silent" for silent mode (also enables DND)
+- Requires Do Not Disturb Access permission
+
+**Note:** These are fire-and-forget commands. Home Assistant doesn't track the actual device state, so the select entities always show "Send Command..." as a placeholder.
+
 ## TODO & Planned Features
 
 ### To Do
 - [ ] **Device wipe** - Add wipe command support to FMD API and integration
 - [ ] **Account deletion** - Add account deletion endpoint to FMD API and integration button
 - [ ] **Photo cleanup** - Automatic deletion of old photos after X days
-- [ ] **Change ringer** - Change device volume ring mode
-- [ ] **Do Not Disturb** - Switch device Do Not Disturb state
-- [ ] **Bluetooth** - Enable/Disable bluetooth
-- [ ] **GPS**  - Enable/Disable GPS
+- [ ] **Device stats** - Request network statistics (IP, WiFi SSID, etc.)
+
+### Completed (v0.7.0)
+- [x] **Location variants** - Configurable location source (All/GPS/Cell/Last Known)
+
+### Completed (v0.6.0)
+- [x] **Do Not Disturb** - Send DND enable/disable commands
+- [x] **Bluetooth** - Send Bluetooth enable/disable commands
+- [x] **Ringer mode** - Set device ringer mode (Normal/Vibrate/Silent)
 
 ## Troubleshooting
 

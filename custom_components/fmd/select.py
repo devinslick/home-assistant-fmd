@@ -18,6 +18,59 @@ COMMAND_PLACEHOLDER = "Send Command..."
 RESET_DELAY = 1.5  # Seconds to show selection before resetting
 
 
+class FmdLocationSourceSelect(SelectEntity):
+    """Select entity for choosing location source provider."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:map-marker-multiple"
+    _attr_options = [
+        "All Providers (Default)",
+        "GPS Only (Accurate)",
+        "Cell Only (Fast)",
+        "Last Known (No Request)"
+    ]
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Initialize the select entity."""
+        self.hass = hass
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_location_source"
+        self._attr_name = "Location source"
+        # Default to "All Providers"
+        self._attr_current_option = "All Providers (Default)"
+
+    @property
+    def device_info(self):
+        """Return device info."""
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": f"FMD {self._entry.data['id']}",
+            "manufacturer": "FMD",
+            "model": "Device Tracker",
+        }
+
+    async def async_select_option(self, option: str) -> None:
+        """Handle location source selection."""
+        _LOGGER.info(f"Location source changed to: {option}")
+        self._attr_current_option = option
+        self.async_write_ha_state()
+
+    def get_provider_value(self) -> str:
+        """Convert the selected option to the API provider parameter.
+        
+        Returns:
+            str: Provider value for request_location() - "all", "gps", "cell", or "last"
+        """
+        provider_map = {
+            "All Providers (Default)": "all",
+            "GPS Only (Accurate)": "gps",
+            "Cell Only (Fast)": "cell",
+            "Last Known (No Request)": "last"
+        }
+        return provider_map.get(self._attr_current_option, "all")
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -25,6 +78,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up FMD select entities."""
     async_add_entities([
+        FmdLocationSourceSelect(hass, entry),
         FmdBluetoothSelect(hass, entry),
         FmdDoNotDisturbSelect(hass, entry),
         FmdRingerModeSelect(hass, entry),

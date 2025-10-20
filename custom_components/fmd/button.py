@@ -77,10 +77,29 @@ class FmdLocationUpdateButton(ButtonEntity):
             _LOGGER.error("Could not find tracker to request location update")
             return
         
+        # Get the location source select entity to determine which provider to use
+        location_source_entity_id = f"select.fmd_{self._entry.data['id']}_location_source"
+        location_source_state = self.hass.states.get(location_source_entity_id)
+        
+        # Determine provider based on selected option
+        provider = "all"  # Default
+        if location_source_state:
+            selected_option = location_source_state.state
+            provider_map = {
+                "All Providers (Default)": "all",
+                "GPS Only (Accurate)": "gps",
+                "Cell Only (Fast)": "cell",
+                "Last Known (No Request)": "last"
+            }
+            provider = provider_map.get(selected_option, "all")
+            _LOGGER.info(f"Using location source: {selected_option} (provider={provider})")
+        else:
+            _LOGGER.warning(f"Location source select entity not found: {location_source_entity_id}, using default 'all'")
+        
         try:
             # Send command to device to request a new location update
-            _LOGGER.info("Sending location request command to device...")
-            success = await tracker.api.request_location(provider="all")
+            _LOGGER.info(f"Sending location request command to device (provider={provider})...")
+            success = await tracker.api.request_location(provider=provider)
             
             if success:
                 _LOGGER.info("Location request sent successfully. Waiting 10 seconds for device to respond...")
