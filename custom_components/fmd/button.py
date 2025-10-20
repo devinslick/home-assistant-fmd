@@ -523,10 +523,16 @@ class FmdWipeDeviceButton(ButtonEntity):
         safety_switch_state = self.hass.states.get(safety_switch_entity_id)
         
         if not safety_switch_state or safety_switch_state.state != "on":
-            _LOGGER.error("❌ DEVICE WIPE BLOCKED: Safety switch is not enabled. Enable 'Device Wipe Safety' switch first!")
+            _LOGGER.error("❌❌❌ DEVICE WIPE BLOCKED ❌❌❌")
+            _LOGGER.error("⚠️ The 'Device Wipe Safety' switch is NOT enabled!")
+            _LOGGER.error("⚠️ You must turn ON the safety switch before the wipe button will work")
+            _LOGGER.error("⚠️ This is a safety feature to prevent accidental data loss")
+            _LOGGER.error("💡 Steps: 1) Enable 'Device Wipe Safety' switch  2) Press this button within 60 seconds")
             return
         
-        _LOGGER.critical("🚨 DEVICE WIPE COMMAND SENT - This will erase ALL data on the device!")
+        _LOGGER.critical("🚨🚨🚨 DEVICE WIPE COMMAND EXECUTING 🚨🚨🚨")
+        _LOGGER.critical("⚠️ This will PERMANENTLY ERASE ALL DATA on the device!")
+        _LOGGER.critical("⚠️ This action CANNOT be undone!")
         
         # Get the tracker to access its API
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
@@ -539,16 +545,20 @@ class FmdWipeDeviceButton(ButtonEntity):
             success = await tracker.api.send_command("delete")
             
             if success:
-                _LOGGER.critical("✅ Device wipe command sent successfully. Device will be factory reset.")
+                _LOGGER.critical("✅ DEVICE WIPE COMMAND SENT TO SERVER")
+                _LOGGER.critical("📱 The device will receive the wipe command and factory reset")
+                _LOGGER.critical("🔄 All data on the device will be permanently erased")
+                _LOGGER.critical("⚠️ This cannot be undone or cancelled once the device receives it")
                 
                 # Automatically disable the safety switch after use
                 # This prevents accidental repeated presses
                 safety_switch = self.hass.data[DOMAIN][self._entry.entry_id].get("wipe_safety_switch")
                 if safety_switch:
                     await safety_switch.async_turn_off()
-                    _LOGGER.info("Safety switch automatically disabled after wipe command")
+                    _LOGGER.warning("Safety switch automatically disabled to prevent repeated wipe commands")
             else:
-                _LOGGER.error("Failed to send device wipe command")
+                _LOGGER.error("❌ FAILED to send device wipe command to server")
+                _LOGGER.error("The device was NOT wiped - check server connectivity and try again")
                 
         except Exception as e:
             _LOGGER.error("Error sending wipe command: %s", e, exc_info=True)

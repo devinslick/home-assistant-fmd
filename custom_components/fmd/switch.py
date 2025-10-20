@@ -178,7 +178,11 @@ class FmdWipeSafetySwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Enable device wipe safety (allows wipe button to work)."""
-        _LOGGER.warning("⚠️ DEVICE WIPE SAFETY ENABLED - Wipe button is now active for 60 seconds")
+        _LOGGER.critical("🚨🚨🚨 DEVICE WIPE SAFETY ENABLED 🚨🚨🚨")
+        _LOGGER.critical("⚠️ The 'Wipe Device' button is now ACTIVE for the next 60 seconds!")
+        _LOGGER.critical("⚠️ Pressing the wipe button will PERMANENTLY ERASE ALL DATA on your device!")
+        _LOGGER.critical("⚠️ To CANCEL: Turn this safety switch OFF immediately!")
+        _LOGGER.critical("⏰ This safety will AUTO-DISABLE in 60 seconds")
         self._attr_is_on = True
         self.async_write_ha_state()
         
@@ -191,7 +195,8 @@ class FmdWipeSafetySwitch(SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable device wipe safety (blocks wipe button)."""
-        _LOGGER.info("Device wipe safety disabled - Wipe button is now blocked")
+        _LOGGER.warning("✅ DEVICE WIPE SAFETY DISABLED - Wipe button is now BLOCKED")
+        _LOGGER.info("Device wipe command is no longer available until safety is re-enabled")
         self._attr_is_on = False
         self.async_write_ha_state()
         
@@ -204,7 +209,8 @@ class FmdWipeSafetySwitch(SwitchEntity):
         """Automatically disable the safety switch after timeout."""
         try:
             await asyncio.sleep(WIPE_SAFETY_TIMEOUT)
-            _LOGGER.warning("⏰ Device wipe safety auto-disabled after 60 seconds")
+            _LOGGER.warning("⏰ DEVICE WIPE SAFETY AUTO-DISABLED after 60 seconds")
+            _LOGGER.info("Wipe button is now blocked - safety timeout expired")
             self._attr_is_on = False
             self.async_write_ha_state()
             self._auto_disable_task = None
