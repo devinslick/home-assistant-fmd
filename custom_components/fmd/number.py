@@ -91,7 +91,7 @@ class FmdHighFrequencyIntervalNumber(NumberEntity):
     _attr_native_max_value = 60
     _attr_native_step = 1
     _attr_native_unit_of_measurement = "min"
-    _attr_icon = "mdi:timer-fast-outline"
+    _attr_icon = "mdi:map-clock"
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the number entity."""

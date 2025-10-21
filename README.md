@@ -788,8 +788,10 @@ The integration includes multiple safety layers:
 ## TODO & Planned Features
 
 ### Known Issues
-- [ ] **BUG: Entity icons** - Integration icon and 2 entity icons not displaying
-  - Affected: integration, `high_frequency_interval`, `location_update`
+- [ ] **Integration branding** - Submit official FMD icon to Home Assistant brands repository
+  - Need to submit PR to: https://github.com/home-assistant/brands
+  - Add FMD SVG icon as PNG (256x256 and 512x512)
+  - Path: `custom_integrations/fmd/`
   - Priority: Low (cosmetic)
 
 ### UX Improvements
