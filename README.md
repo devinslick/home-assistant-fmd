@@ -785,13 +785,71 @@ The integration includes multiple safety layers:
 - Test features in safe environment first
 - Keep backups of important device data
 
+## Home Assistant Core Inclusion
+
+### Requirements for Core Integration
+
+To be included in Home Assistant Core, the following items must be completed:
+
+**Code Quality & Standards:**
+- [ ] **Code review** - Pass Home Assistant core team code review
+- [ ] **Type hints** - Add complete type hints to all functions and methods
+- [ ] **Async best practices** - Ensure all I/O operations are properly async
+- [ ] **Error handling** - Comprehensive error handling and user-friendly error messages
+- [ ] **Code coverage** - Achieve minimum 90% test coverage
+
+**Testing:**
+- [ ] **Unit tests** - Write comprehensive unit tests for all components
+- [ ] **Integration tests** - Test config flow, entities, and device tracker
+- [ ] **Mock FMD server** - Create test fixtures for API responses
+- [ ] **Test coverage reports** - Set up pytest-cov and coverage reporting
+
+**Documentation:**
+- [ ] **Component documentation** - Create Home Assistant documentation page
+- [ ] **Translation strings** - Add translation support for all UI strings
+- [ ] **Configuration examples** - Provide YAML examples (if applicable)
+- [ ] **Architecture documentation** - Document component architecture and design decisions
+
+**Dependencies:**
+- [ ] **FMD client library** - Publish `fmd_client` as separate PyPI package
+  - Currently embedded, must be extracted and published
+  - Follow semantic versioning
+  - Include proper documentation
+- [ ] **Dependency review** - All dependencies must be approved by HA core team
+
+**Quality Assurance:**
+- [ ] **Pylint/Flake8** - Pass all linting checks with HA configuration
+- [ ] **MyPy** - Pass static type checking
+- [ ] **hassfest** - Pass Home Assistant validation tool
+- [ ] **Quality scale** - Achieve Bronze quality scale minimum (Silver preferred)
+
+**Legal & Licensing:**
+- [ ] **Code ownership** - Verify all code is original or properly attributed
+- [ ] **CLA** - Sign Home Assistant Contributor License Agreement
+- [ ] **License compatibility** - Verify FMD GPL/AGPL compatibility with Apache 2.0
+
+**Additional Requirements:**
+- [ ] **Branding** - Merge brands repository PR (in progress)
+- [ ] **IoT class** - Verify "cloud_polling" classification is appropriate
+- [ ] **Breaking changes** - Document any breaking changes for migration
+- [ ] **Performance** - Ensure efficient polling and minimal resource usage
+
+### Estimated Timeline
+
+- **Phase 1** (1-2 months): Extract FMD client library, add type hints, write tests
+- **Phase 2** (1 month): Documentation, translations, quality improvements
+- **Phase 3** (1-2 months): Code review, revisions, final approval
+
+**Total estimated effort:** 3-5 months of active development
+
 ## TODO & Planned Features
 
 ### Known Issues
-- [ ] **Integration branding** - Submit official FMD icon to Home Assistant brands repository
-  - Need to submit PR to: https://github.com/home-assistant/brands
-  - Add FMD SVG icon as PNG (256x256 and 512x512)
-  - Path: `custom_integrations/fmd/`
+- [ ] **Integration branding** - Pending MR to Home Assistant brands repository
+  - PR submitted to: https://github.com/home-assistant/brands
+  - Official FMD icon (256x256 and 512x512 PNG)
+  - Path: `custom_integrations/fmd/icon.png` and `icon@2x.png`
+  - Status: Awaiting merge
   - Priority: Low (cosmetic)
 
 ### UX Improvements
