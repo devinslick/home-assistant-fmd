@@ -26,27 +26,26 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 @pytest.fixture
 def mock_fmd_api():
     """Mock FmdApi for testing."""
-    with patch("custom_components.fmd.config_flow.FmdApi") as mock_api:
-        api_instance = AsyncMock()
-        api_instance.get_all_locations = AsyncMock(return_value=[
-            {
-                "lat": 37.7749,
-                "lon": -122.4194,
-                "time": "2025-10-23T12:00:00Z",
-                "provider": "gps",
-                "bat": 85,
-            }
-        ])
-        api_instance.request_location = AsyncMock(return_value=True)
-        api_instance.send_command = AsyncMock(return_value=True)
-        api_instance.toggle_bluetooth = AsyncMock(return_value=True)
-        api_instance.toggle_do_not_disturb = AsyncMock(return_value=True)
-        api_instance.set_ringer_mode = AsyncMock(return_value=True)
-        api_instance.take_picture = AsyncMock(return_value=True)
-        api_instance.get_pictures = AsyncMock(return_value=[])
-        
-        mock_api.create = AsyncMock(return_value=api_instance)
-        yield mock_api
+    api_instance = AsyncMock()
+    api_instance.get_all_locations = AsyncMock(return_value=[
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "gps",
+            "bat": 85,
+        }
+    ])
+    api_instance.request_location = AsyncMock(return_value=True)
+    api_instance.send_command = AsyncMock(return_value=True)
+    api_instance.toggle_bluetooth = AsyncMock(return_value=True)
+    api_instance.toggle_do_not_disturb = AsyncMock(return_value=True)
+    api_instance.set_ringer_mode = AsyncMock(return_value=True)
+    api_instance.take_picture = AsyncMock(return_value=True)
+    api_instance.get_pictures = AsyncMock(return_value=[])
+    
+    with patch("fmd_api.FmdApi.create", return_value=api_instance):
+        yield api_instance
 
 
 @pytest.fixture
@@ -74,7 +73,7 @@ def mock_config_entry():
 @pytest.fixture
 async def setup_integration(
     hass: HomeAssistant,
-    mock_fmd_api: MagicMock,
+    mock_fmd_api: AsyncMock,
 ) -> None:
     """Set up the FMD integration."""
     from homeassistant.const import CONF_URL, CONF_ID
@@ -97,7 +96,5 @@ async def setup_integration(
     )
     
     config_entry.add_to_hass(hass)
-    
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
-        await hass.config_entries.async_setup(config_entry.entry_id)
-        await hass.async_block_till_done()
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
