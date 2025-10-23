@@ -12,6 +12,10 @@ from homeassistant.core import HomeAssistant
 from custom_components.fmd.const import DOMAIN
 
 
+# Load pytest-homeassistant-custom-component plugins
+pytest_plugins = "pytest_homeassistant_custom_component"
+
+
 @pytest.fixture
 def mock_fmd_api():
     """Mock FmdApi for testing."""
