@@ -1,0 +1,186 @@
+"""Test FMD switch entities."""
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from homeassistant.core import HomeAssistant
+from homeassistant.const import STATE_ON, STATE_OFF
+
+from custom_components.fmd.const import DOMAIN
+
+
+async def test_high_frequency_mode_switch(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test high frequency mode switch."""
+    await setup_integration(hass, mock_fmd_api)
+    
+    entity_id = "switch.fmd_test_user_high_frequency_mode"
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_OFF
+    
+    # Turn on
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_ON
+    
+    # Turn off
+    await hass.services.async_call(
+        "switch",
+        "turn_off",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_OFF
+
+
+async def test_allow_inaccurate_switch(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test allow inaccurate locations switch."""
+    await setup_integration(hass, mock_fmd_api)
+    
+    entity_id = "switch.fmd_test_user_allow_inaccurate_locations"
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_OFF
+    
+    # Turn on
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_ON
+
+
+async def test_photo_auto_cleanup_switch(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test photo auto-cleanup switch."""
+    await setup_integration(hass, mock_fmd_api)
+    
+    entity_id = "switch.fmd_test_user_photo_auto_cleanup"
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_OFF
+    
+    # Turn on
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_ON
+
+
+async def test_wipe_safety_switch(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test wipe safety switch."""
+    await setup_integration(hass, mock_fmd_api)
+    
+    entity_id = "switch.fmd_test_user_wipe_safety_switch"
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_OFF
+    
+    # Turn on
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_ON
+    
+    # Turn off manually
+    await hass.services.async_call(
+        "switch",
+        "turn_off",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_OFF
+
+
+async def test_wipe_safety_auto_timeout(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test wipe safety switch auto-timeout after wipe."""
+    await setup_integration(hass, mock_fmd_api)
+    
+    # Enable safety switch
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+    
+    # Wipe device
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_wipe_device"},
+        blocking=True,
+    )
+    
+    # Safety switch should turn off after wipe
+    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
+    assert state.state == STATE_OFF
+
+
+def get_mock_config_entry():
+    """Create a mock config entry."""
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_ID
+    
+    return ConfigEntry(
+        version=1,
+        domain=DOMAIN,
+        title="test_user",
+        data={
+            CONF_URL: "https://fmd.example.com",
+            CONF_ID: "test_user",
+            CONF_PASSWORD: "test_password",
+            "polling_interval": 30,
+            "allow_inaccurate_locations": False,
+            "use_imperial": False,
+        },
+        source="user",
+        entry_id="test_entry_id",
+        unique_id="test_user",
+    )
+
+
+async def setup_integration(hass: HomeAssistant, mock_fmd_api: AsyncMock) -> None:
+    """Set up integration for testing."""
+    config_entry = get_mock_config_entry()
+    config_entry.add_to_hass(hass)
+    
+    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()

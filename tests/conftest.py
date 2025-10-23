@@ -1,0 +1,93 @@
+"""Fixtures for FMD integration tests."""
+from __future__ import annotations
+
+from collections.abc import Generator
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from homeassistant.const import CONF_PASSWORD
+from homeassistant.core import HomeAssistant
+
+from custom_components.fmd.const import DOMAIN
+
+
+@pytest.fixture
+def mock_fmd_api():
+    """Mock FmdApi for testing."""
+    with patch("custom_components.fmd.config_flow.FmdApi") as mock_api:
+        api_instance = AsyncMock()
+        api_instance.get_all_locations = AsyncMock(return_value=[
+            {
+                "lat": 37.7749,
+                "lon": -122.4194,
+                "time": "2025-10-23T12:00:00Z",
+                "provider": "gps",
+                "bat": 85,
+            }
+        ])
+        api_instance.request_location = AsyncMock(return_value=True)
+        api_instance.send_command = AsyncMock(return_value=True)
+        api_instance.toggle_bluetooth = AsyncMock(return_value=True)
+        api_instance.toggle_do_not_disturb = AsyncMock(return_value=True)
+        api_instance.set_ringer_mode = AsyncMock(return_value=True)
+        api_instance.take_picture = AsyncMock(return_value=True)
+        api_instance.get_pictures = AsyncMock(return_value=[])
+        
+        mock_api.create = AsyncMock(return_value=api_instance)
+        yield mock_api
+
+
+@pytest.fixture
+def mock_setup_entry() -> Generator[AsyncMock, None, None]:
+    """Override async_setup_entry."""
+    with patch(
+        "custom_components.fmd.async_setup_entry", return_value=True
+    ) as mock_setup:
+        yield mock_setup
+
+
+@pytest.fixture
+def mock_config_entry():
+    """Return a mock config entry."""
+    return {
+        "url": "https://fmd.example.com",
+        "id": "test_user",
+        "password": "test_password",
+        "polling_interval": 30,
+        "allow_inaccurate_locations": False,
+        "use_imperial": False,
+    }
+
+
+@pytest.fixture
+async def setup_integration(
+    hass: HomeAssistant,
+    mock_fmd_api: MagicMock,
+) -> None:
+    """Set up the FMD integration."""
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.const import CONF_URL, CONF_ID
+    
+    config_entry = ConfigEntry(
+        version=1,
+        domain=DOMAIN,
+        title="test_user",
+        data={
+            CONF_URL: "https://fmd.example.com",
+            CONF_ID: "test_user",
+            CONF_PASSWORD: "test_password",
+            "polling_interval": 30,
+            "allow_inaccurate_locations": False,
+            "use_imperial": False,
+        },
+        source="user",
+        entry_id="test_entry_id",
+        unique_id="test_user",
+    )
+    
+    config_entry.add_to_hass(hass)
+    
+    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
