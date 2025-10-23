@@ -32,6 +32,10 @@ jobs:
           pip install pytest-homeassistant-custom-component>=0.13.200
           pip install fmd-api==0.1.0
       
+      - name: Add custom_components to Python path
+        run: |
+          echo "PYTHONPATH=$PYTHONPATH:$PWD" >> $GITHUB_ENV
+      
       - name: Run tests with coverage
         run: |
           pytest --cov=custom_components.fmd --cov-report=xml --cov-report=term-missing
