@@ -4,6 +4,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.core import HomeAssistant
 from homeassistant.const import STATE_ON, STATE_OFF
@@ -155,10 +156,9 @@ async def test_wipe_safety_auto_timeout(
 
 def get_mock_config_entry():
     """Create a mock config entry."""
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_ID
     
-    return ConfigEntry(
+    return MockConfigEntry(
         version=1,
         minor_version=1,
         domain=DOMAIN,

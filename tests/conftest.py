@@ -5,6 +5,7 @@ from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
@@ -70,10 +71,9 @@ async def setup_integration(
     mock_fmd_api: MagicMock,
 ) -> None:
     """Set up the FMD integration."""
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.const import CONF_URL, CONF_ID
     
-    config_entry = ConfigEntry(
+    config_entry = MockConfigEntry(
         version=1,
         minor_version=1,
         domain=DOMAIN,
@@ -86,11 +86,8 @@ async def setup_integration(
             "allow_inaccurate_locations": False,
             "use_imperial": False,
         },
-        source="user",
         entry_id="test_entry_id",
         unique_id="test_user",
-        options={},
-        discovery_keys={},
     )
     
     config_entry.add_to_hass(hass)

@@ -5,6 +5,7 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.components.device_tracker import SourceType
 from homeassistant.const import STATE_HOME, STATE_NOT_HOME
@@ -130,10 +131,9 @@ async def test_device_tracker_location_filtering(
 
 def get_mock_config_entry():
     """Create a mock config entry."""
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_ID
     
-    return ConfigEntry(
+    return MockConfigEntry(
         version=1,
         minor_version=1,
         domain=DOMAIN,

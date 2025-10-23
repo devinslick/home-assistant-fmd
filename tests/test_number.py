@@ -143,10 +143,9 @@ async def test_max_photos_min_max(
 
 def get_mock_config_entry():
     """Create a mock config entry."""
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_ID
     
-    return ConfigEntry(
+    return MockConfigEntry(
         version=1,
         minor_version=1,
         domain=DOMAIN,

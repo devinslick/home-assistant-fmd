@@ -4,8 +4,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_ID
 from homeassistant.core import HomeAssistant
 
@@ -17,7 +18,7 @@ async def test_setup_entry(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test setting up the integration."""
-    config_entry = ConfigEntry(
+    config_entry = MockConfigEntry(
         version=1,
         minor_version=1,
         domain=DOMAIN,
@@ -30,11 +31,8 @@ async def test_setup_entry(
             "allow_inaccurate_locations": False,
             "use_imperial": False,
         },
-        source="user",
         entry_id="test_entry_id",
         unique_id="test_user",
-        options={},
-        discovery_keys={},
     )
     config_entry.add_to_hass(hass)
 
@@ -54,7 +52,7 @@ async def test_unload_entry(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test unloading the integration."""
-    config_entry = ConfigEntry(
+    config_entry = MockConfigEntry(
         version=1,
         minor_version=1,
         domain=DOMAIN,
@@ -65,11 +63,8 @@ async def test_unload_entry(
             CONF_PASSWORD: "test_password",
             "polling_interval": 30,
         },
-        source="user",
         entry_id="test_entry_id",
         unique_id="test_user",
-        options={},
-        discovery_keys={},
     )
     config_entry.add_to_hass(hass)
 
@@ -87,7 +82,7 @@ async def test_setup_entry_api_failure(
     hass: HomeAssistant,
 ) -> None:
     """Test setup fails when API creation fails."""
-    config_entry = ConfigEntry(
+    config_entry = MockConfigEntry(
         version=1,
         minor_version=1,
         domain=DOMAIN,
@@ -98,11 +93,8 @@ async def test_setup_entry_api_failure(
             CONF_PASSWORD: "wrong_password",
             "polling_interval": 30,
         },
-        source="user",
         entry_id="test_entry_id",
         unique_id="test_user",
-        options={},
-        discovery_keys={},
     )
     config_entry.add_to_hass(hass)
 
