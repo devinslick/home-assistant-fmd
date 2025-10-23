@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
@@ -41,7 +42,7 @@ class FmdLocationSourceSelect(SelectEntity):
         self._attr_current_option = "All Providers (Default)"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -102,7 +103,7 @@ class FmdBluetoothSelect(SelectEntity):
         self._attr_current_option = COMMAND_PLACEHOLDER
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -166,7 +167,7 @@ class FmdDoNotDisturbSelect(SelectEntity):
         self._attr_current_option = COMMAND_PLACEHOLDER
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -231,7 +232,7 @@ class FmdRingerModeSelect(SelectEntity):
         self._attr_current_option = COMMAND_PLACEHOLDER
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},

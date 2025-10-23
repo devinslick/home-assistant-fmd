@@ -1,12 +1,16 @@
 """Device tracker for FMD integration."""
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 import json
 import logging
+from typing import Any
 
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
 from homeassistant.components.device_tracker.const import SourceType
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, CALLBACK_TYPE
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
@@ -15,7 +19,12 @@ from .const import DOMAIN, DEFAULT_POLLING_INTERVAL, DEFAULT_HIGH_FREQUENCY_INTE
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up the FMD device tracker."""
     _LOGGER.info("Setting up FMD device tracker for %s", entry.data["id"])
     
@@ -72,16 +81,16 @@ class FmdDeviceTracker(TrackerEntity):
         self._remove_timer = None
 
     @property
-    def polling_interval(self):
+    def polling_interval(self) -> int:
         """Return the polling interval."""
         return self._polling_interval
 
-    def start_polling(self):
+    def start_polling(self) -> None:
         """Start the polling timer."""
         if self._remove_timer:
             self._remove_timer()
         
-        async def update_locations(now=None):
+        async def update_locations(now: datetime | None = None) -> None:
             """Update device locations."""
             # If in high-frequency mode, request fresh location from device
             if self._high_frequency_mode:
@@ -108,7 +117,7 @@ class FmdDeviceTracker(TrackerEntity):
             timedelta(minutes=self._polling_interval)
         )
 
-    def set_polling_interval(self, interval_minutes: int):
+    def set_polling_interval(self, interval_minutes: int) -> None:
         """Update the polling interval and restart the timer."""
         _LOGGER.info("Updating polling interval from %s to %s minutes", self._polling_interval, interval_minutes)
         self._polling_interval = interval_minutes
@@ -117,7 +126,7 @@ class FmdDeviceTracker(TrackerEntity):
             self._normal_interval = interval_minutes
         self.start_polling()
 
-    def set_high_frequency_interval(self, interval_minutes: int):
+    def set_high_frequency_interval(self, interval_minutes: int) -> None:
         """Update the high-frequency interval value."""
         _LOGGER.info("Setting high-frequency interval to %s minutes", interval_minutes)
         self._high_frequency_interval = interval_minutes
@@ -126,7 +135,7 @@ class FmdDeviceTracker(TrackerEntity):
             _LOGGER.info("High-frequency mode is active, applying new interval immediately")
             self.set_polling_interval(interval_minutes)
 
-    async def set_high_frequency_mode(self, enabled: bool):
+    async def set_high_frequency_mode(self, enabled: bool) -> None:
         """Enable or disable high-frequency mode."""
         _LOGGER.info("High-frequency mode %s", "enabled" if enabled else "disabled")
         self._high_frequency_mode = enabled
@@ -163,12 +172,12 @@ class FmdDeviceTracker(TrackerEntity):
             self._remove_timer = None
 
     @property
-    def unique_id(self):
+    def unique_id(self) -> str:
         """Return a unique ID."""
         return f"{self._entry.entry_id}_tracker"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info to link entities together."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -178,12 +187,12 @@ class FmdDeviceTracker(TrackerEntity):
         }
 
     @property
-    def latitude(self):
+    def latitude(self) -> float | None:
         """Return latitude value of the device."""
         return self._location.get("lat") if self._location else None
 
     @property
-    def longitude(self):
+    def longitude(self) -> float | None:
         """Return longitude value of the device."""
         return self._location.get("lon") if self._location else None
 
@@ -193,7 +202,7 @@ class FmdDeviceTracker(TrackerEntity):
         return SourceType.GPS
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return entity specific state attributes."""
         attributes = {}
         
@@ -280,7 +289,7 @@ class FmdDeviceTracker(TrackerEntity):
         _LOGGER.warning("Unknown location provider '%s', treating as inaccurate", provider)
         return False
 
-    async def async_update(self):
+    async def async_update(self) -> None:
         """Update the device location."""
         try:
             _LOGGER.info("=== Starting location update ===")

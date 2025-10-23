@@ -6,6 +6,7 @@ import base64
 import hashlib
 import io
 import logging
+from typing import Any
 from datetime import datetime
 from pathlib import Path
 
@@ -55,7 +56,7 @@ class FmdLocationUpdateButton(ButtonEntity):
         self._attr_name = "Location update"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -134,7 +135,7 @@ class FmdRingButton(ButtonEntity):
         self._attr_name = "Volume: Ring device"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -182,7 +183,7 @@ class FmdLockButton(ButtonEntity):
         self._attr_name = "Lock device"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -230,7 +231,7 @@ class FmdCaptureFrontCameraButton(ButtonEntity):
         self._attr_name = "Photo: Capture front"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -278,7 +279,7 @@ class FmdCaptureRearCameraButton(ButtonEntity):
         self._attr_name = "Photo: Capture rear"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -326,7 +327,7 @@ class FmdDownloadPhotosButton(ButtonEntity):
         self._attr_name = "Photo: Download"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -553,7 +554,7 @@ class FmdWipeDeviceButton(ButtonEntity):
         return "mdi:delete-forever"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},

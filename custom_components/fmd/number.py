@@ -1,6 +1,8 @@
 """Number entities for FMD integration."""
 from __future__ import annotations
 
+from typing import Any
+
 import logging
 
 from homeassistant.components.number import NumberEntity, NumberMode
@@ -57,7 +59,7 @@ class FmdUpdateIntervalNumber(NumberEntity):
         self._attr_icon = "mdi:timer-outline"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -102,7 +104,7 @@ class FmdHighFrequencyIntervalNumber(NumberEntity):
         self._attr_native_value = DEFAULT_HIGH_FREQUENCY_INTERVAL
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -151,7 +153,7 @@ class FmdMaxPhotosNumber(NumberEntity):
         return "mdi:image-multiple"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},

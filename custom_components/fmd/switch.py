@@ -56,7 +56,7 @@ class FmdHighFrequencyModeSwitch(SwitchEntity):
         self._attr_icon = "mdi:run-fast"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -114,7 +114,7 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
         self._attr_is_on = allow_inaccurate
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -176,7 +176,7 @@ class FmdWipeSafetySwitch(SwitchEntity):
             hass.data[DOMAIN][entry.entry_id]["wipe_safety_switch"] = self
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
@@ -248,7 +248,7 @@ class FmdPhotoAutoCleanupSwitch(SwitchEntity):
         self._attr_is_on = False  # Default to OFF for safety
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict[str, Any]:
         """Return device info."""
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},

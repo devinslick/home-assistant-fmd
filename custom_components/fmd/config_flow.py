@@ -1,14 +1,22 @@
 """Config flow for FMD integration."""
+from __future__ import annotations
+
 import logging
+from typing import Any
+
 import voluptuous as vol
+
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import FlowResult
+
 from fmd_api import FmdApi
 from .const import DOMAIN, DEFAULT_POLLING_INTERVAL, CONF_USE_IMPERIAL
 
 _LOGGER = logging.getLogger(__name__)
 
-async def authenticate_and_get_locations(url, fmd_id, password):
+
+async def authenticate_and_get_locations(url: str, fmd_id: str, password: str) -> list[dict[str, Any]]:
     """Create FMD API instance and validate connection."""
     api = await FmdApi.create(url, fmd_id, password)
     locations = await api.get_all_locations(num_to_get=1, skip_empty=True)
@@ -20,9 +28,9 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle the initial step."""
-        errors = {}
+        errors: dict[str, str] = {}
         if user_input is not None:
             try:
                 await authenticate_and_get_locations(
