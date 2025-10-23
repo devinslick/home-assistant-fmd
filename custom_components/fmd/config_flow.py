@@ -3,8 +3,8 @@ import logging
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
+from fmd_api import FmdApi
 from .const import DOMAIN, DEFAULT_POLLING_INTERVAL, CONF_USE_IMPERIAL
-from .fmd_client.fmd_api import FmdApi
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -811,10 +811,10 @@ To be included in Home Assistant Core, the following items must be completed:
 - [ ] **Architecture documentation** - Document component architecture and design decisions
 
 **Dependencies:**
-- [ ] **FMD client library** - Publish `fmd_client` as separate PyPI package
-  - Currently embedded, must be extracted and published
-  - Follow semantic versioning
-  - Include proper documentation
+- [x] **FMD client library** - Published as `fmd_api` PyPI package
+  - ✅ Published at: https://pypi.org/project/fmd-api/
+  - ✅ Follows semantic versioning (v0.1.0)
+  - ✅ Separate repository with documentation
 - [ ] **Dependency review** - All dependencies must be approved by HA core team
 
 **Quality Assurance:**
@@ -836,8 +836,9 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ### Estimated Timeline
 
-- **Phase 1** (1-2 months): Extract FMD client library, add type hints, write tests
-- **Phase 2** (1 month): Documentation, translations, quality improvements
+- **Phase 1** ~~(1-2 months)~~ ✅ COMPLETE: Extract FMD client library, refactor to use PyPI package
+- **Phase 2** (1-2 months): Add type hints, write comprehensive tests, improve code quality
+- **Phase 3** (1 month): Documentation, translations, quality improvements
 - **Phase 3** (1-2 months): Code review, revisions, final approval
 
 **Total estimated effort:** 3-5 months of active development
@@ -920,6 +921,74 @@ To be included in Home Assistant Core, the following items must be completed:
 - ⏱️ Execution time depends on device (immediate to minutes)
 - 📱 Requires device to be online to receive command
 - 🔒 Device must have Device Admin permission granted to FMD app
+
+## Version History
+
+### v0.9.0 (Current) - October 22, 2025
+**Major Refactor: PyPI Package Migration**
+- ✅ Migrated from embedded `fmd_client` to PyPI package `fmd-api`
+- ✅ Simplified dependencies and improved maintainability
+- ✅ Separate versioning for API client library
+- ✅ Photo storage management improvements
+  - Changed photo count sensor to show total stored photos
+  - Added `last_download_count` attribute
+  - Renamed "Max photos to download" → "Photo: Max to retain"
+  - Added "Photo: Auto-cleanup" switch (default OFF)
+  - Automatic deletion of oldest photos when limit exceeded
+- ✅ Fixed entity icons for location update and high-frequency interval
+- Total entities: **20 per device**
+
+### v0.8.3 - October 22, 2025
+**Icon Improvements**
+- ✅ Submitted integration branding to Home Assistant brands repository
+- ✅ Improved entity icon definitions
+- Total entities: 19 per device
+
+### v0.8.2 - October 20, 2025
+**Unit Conversion Feature**
+- ✅ Added imperial units configuration option
+- ✅ Converts speed (m/s → mph), altitude (m → ft), and GPS accuracy (m → ft)
+- ✅ Added unit indicators in device tracker attributes
+- ✅ Configurable during initial setup
+- Total entities: 19 per device
+
+### v0.8.1 - October 20, 2025
+**UX Improvements: Entity Naming & Organization**
+- ✅ Improved entity naming for better organization
+- ✅ Photo entities grouped with "Photo:" prefix
+- ✅ Wipe entities clearly marked with ⚠️ warning symbol
+- ✅ Simplified select entity names
+- Total entities: 19 per device
+
+### v0.8.0 - October 20, 2025
+**Phase 4: Device Wipe with Safety Mechanism**
+- ✅ Added Device Wipe button (factory reset)
+- ✅ Added Device Wipe Safety switch (60-second timeout)
+- ✅ Enhanced logging for wipe operations
+- ✅ Two-step safety process to prevent accidents
+- ✅ MIT License added
+- ✅ Comprehensive FMD team attribution
+- Total entities: 19 per device
+
+### v0.7.0 - October 20, 2025
+**Phase 2: Configurable Location Source**
+- ✅ Added Location Source select entity
+- ✅ Four location modes: All/GPS/Cell/Last Known
+- ✅ Battery-conscious tracking support
+- Total entities: 17 per device
+
+### v0.6.0 - October 2025
+**Phase 1: Device Control Commands**
+- ✅ Added Bluetooth, DND, and Ringer Mode control
+- ✅ Select entity placeholder pattern
+- Total entities: 16 per device
+
+### v0.5.0 - October 2025
+**Photo Capture & Download**
+- ✅ Front & rear camera capture
+- ✅ Photo download with encryption
+- ✅ Media browser integration
+- ✅ EXIF timestamp extraction
 
 ## Frequently Asked Questions (FAQ)
 

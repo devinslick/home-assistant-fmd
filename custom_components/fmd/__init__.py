@@ -20,8 +20,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
+from fmd_api import FmdApi
 from .const import DOMAIN
-from .fmd_client.fmd_api import FmdApi
 
 PLATFORMS: list[Platform] = [
     Platform.DEVICE_TRACKER,

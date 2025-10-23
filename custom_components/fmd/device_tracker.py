@@ -10,8 +10,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
+from fmd_api import FmdApi
 from .const import DOMAIN, DEFAULT_POLLING_INTERVAL, DEFAULT_HIGH_FREQUENCY_INTERVAL, CONF_USE_IMPERIAL, METERS_TO_FEET, MPS_TO_MPH
-from .fmd_client.fmd_api import FmdApi
 
 _LOGGER = logging.getLogger(__name__)
 
