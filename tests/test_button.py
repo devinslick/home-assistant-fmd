@@ -211,6 +211,7 @@ def get_mock_config_entry():
     
     return ConfigEntry(
         version=1,
+        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -224,6 +225,8 @@ def get_mock_config_entry():
         source="user",
         entry_id="test_entry_id",
         unique_id="test_user",
+        options={},
+        discovery_keys={},
     )
 
 

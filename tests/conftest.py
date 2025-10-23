@@ -75,6 +75,7 @@ async def setup_integration(
     
     config_entry = ConfigEntry(
         version=1,
+        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -88,6 +89,8 @@ async def setup_integration(
         source="user",
         entry_id="test_entry_id",
         unique_id="test_user",
+        options={},
+        discovery_keys={},
     )
     
     config_entry.add_to_hass(hass)

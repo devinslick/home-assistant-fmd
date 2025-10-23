@@ -19,6 +19,7 @@ async def test_setup_entry(
     """Test setting up the integration."""
     config_entry = ConfigEntry(
         version=1,
+        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -32,6 +33,8 @@ async def test_setup_entry(
         source="user",
         entry_id="test_entry_id",
         unique_id="test_user",
+        options={},
+        discovery_keys={},
     )
     config_entry.add_to_hass(hass)
 
@@ -53,6 +56,7 @@ async def test_unload_entry(
     """Test unloading the integration."""
     config_entry = ConfigEntry(
         version=1,
+        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -64,6 +68,8 @@ async def test_unload_entry(
         source="user",
         entry_id="test_entry_id",
         unique_id="test_user",
+        options={},
+        discovery_keys={},
     )
     config_entry.add_to_hass(hass)
 
@@ -83,6 +89,7 @@ async def test_setup_entry_api_failure(
     """Test setup fails when API creation fails."""
     config_entry = ConfigEntry(
         version=1,
+        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -94,6 +101,8 @@ async def test_setup_entry_api_failure(
         source="user",
         entry_id="test_entry_id",
         unique_id="test_user",
+        options={},
+        discovery_keys={},
     )
     config_entry.add_to_hass(hass)
 
