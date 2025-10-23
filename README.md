@@ -829,7 +829,9 @@ To be included in Home Assistant Core, the following items must be completed:
 - [ ] **License compatibility** - Verify FMD GPL/AGPL compatibility with Apache 2.0
 
 **Additional Requirements:**
-- [ ] **Branding** - Merge brands repository PR (in progress)
+- [x] **Branding** - ✅ Merged to Home Assistant brands repository
+  - Official FMD icon now available globally
+  - Path: `custom_integrations/fmd/`
 - [ ] **IoT class** - Verify "cloud_polling" classification is appropriate
 - [ ] **Breaking changes** - Document any breaking changes for migration
 - [ ] **Performance** - Ensure efficient polling and minimal resource usage
@@ -846,12 +848,7 @@ To be included in Home Assistant Core, the following items must be completed:
 ## TODO & Planned Features
 
 ### Known Issues
-- [ ] **Integration branding** - Pending MR to Home Assistant brands repository
-  - PR submitted to: https://github.com/home-assistant/brands
-  - Official FMD icon (256x256 and 512x512 PNG)
-  - Path: `custom_integrations/fmd/icon.png` and `icon@2x.png`
-  - Status: Awaiting merge
-  - Priority: Low (cosmetic)
+- None currently
 
 ### UX Improvements
 - [ ] **Entity naming consistency** - "High frequency mode" → "Tracking mode"
@@ -936,6 +933,9 @@ To be included in Home Assistant Core, the following items must be completed:
   - Added "Photo: Auto-cleanup" switch (default OFF)
   - Automatic deletion of oldest photos when limit exceeded
 - ✅ Fixed entity icons for location update and high-frequency interval
+- ✅ **Official branding merged to Home Assistant brands repository**
+  - Integration now displays official FMD icon globally
+  - Available at: `custom_integrations/fmd/`
 - Total entities: **20 per device**
 
 ### v0.8.3 - October 22, 2025
