@@ -785,6 +785,58 @@ The integration includes multiple safety layers:
 - Test features in safe environment first
 - Keep backups of important device data
 
+## Testing
+
+This integration includes comprehensive test coverage for Home Assistant Core submission requirements.
+
+### Running Tests
+
+**Install test dependencies:**
+```bash
+pip install -r requirements_test.txt
+```
+
+**Run all tests:**
+```bash
+pytest
+```
+
+**Run tests with coverage:**
+```bash
+pytest --cov=custom_components.fmd --cov-report=html --cov-report=term-missing
+```
+
+**View coverage report:**
+```bash
+# Open htmlcov/index.html in your browser
+```
+
+### Test Structure
+
+The test suite includes:
+- **Unit tests** - All platform entities (device_tracker, button, switch, select, number, sensor)
+- **Integration tests** - Setup, unload, and error handling
+- **Config flow tests** - User configuration, validation, and error scenarios
+- **Fixtures** - Mock FMD API with realistic responses
+
+**Test files:**
+- `tests/conftest.py` - Shared fixtures and test helpers
+- `tests/test_init.py` - Integration lifecycle tests
+- `tests/test_config_flow.py` - Configuration flow tests
+- `tests/test_device_tracker.py` - Device tracker entity tests
+- `tests/test_button.py` - Button entity tests (7 buttons)
+- `tests/test_switch.py` - Switch entity tests (4 switches)
+- `tests/test_select.py` - Select entity tests (4 selects)
+- `tests/test_number.py` - Number entity tests (3 numbers)
+- `tests/test_sensor.py` - Sensor entity tests (photo count)
+
+### Continuous Integration
+
+Tests run automatically on every push and pull request via GitHub Actions:
+- Python 3.11 and 3.12
+- Coverage reporting to Codecov
+- Automated test result checks
+
 ## Home Assistant Core Inclusion
 
 ### Requirements for Core Integration
@@ -793,16 +845,16 @@ To be included in Home Assistant Core, the following items must be completed:
 
 **Code Quality & Standards:**
 - [ ] **Code review** - Pass Home Assistant core team code review
-- [ ] **Type hints** - Add complete type hints to all functions and methods
+- [x] **Type hints** - ✅ Add complete type hints to all functions and methods
 - [ ] **Async best practices** - Ensure all I/O operations are properly async
 - [ ] **Error handling** - Comprehensive error handling and user-friendly error messages
-- [ ] **Code coverage** - Achieve minimum 90% test coverage
+- [x] **Code coverage** - ✅ Achieve minimum 90% test coverage
 
 **Testing:**
-- [ ] **Unit tests** - Write comprehensive unit tests for all components
-- [ ] **Integration tests** - Test config flow, entities, and device tracker
-- [ ] **Mock FMD server** - Create test fixtures for API responses
-- [ ] **Test coverage reports** - Set up pytest-cov and coverage reporting
+- [x] **Unit tests** - ✅ Write comprehensive unit tests for all components
+- [x] **Integration tests** - ✅ Test config flow, entities, and device tracker
+- [x] **Mock FMD server** - ✅ Create test fixtures for API responses
+- [x] **Test coverage reports** - ✅ Set up pytest-cov and coverage reporting
 
 **Documentation:**
 - [ ] **Component documentation** - Create Home Assistant documentation page
