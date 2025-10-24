@@ -85,9 +85,26 @@ async def test_device_tracker_imperial_units(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test imperial unit conversion."""
-    config_entry = get_mock_config_entry()
-    # Modify the data dict directly - MockConfigEntry.data is mutable
-    config_entry.data = {**config_entry.data, "use_imperial": True}
+    from homeassistant.const import CONF_URL, CONF_ID, CONF_PASSWORD
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    
+    # Create config entry with imperial units enabled
+    config_entry = MockConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="test_user",
+        data={
+            CONF_URL: "https://fmd.example.com",
+            CONF_ID: "test_user",
+            CONF_PASSWORD: "test_password",
+            "polling_interval": 30,
+            "allow_inaccurate_locations": False,
+            "use_imperial": True,  # Enable imperial units
+        },
+        entry_id="test_entry_id",
+        unique_id="test_user",
+    )
     config_entry.add_to_hass(hass)
     
     await hass.config_entries.async_setup(config_entry.entry_id)
