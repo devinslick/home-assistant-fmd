@@ -326,6 +326,20 @@ class FmdDownloadPhotosButton(ButtonEntity):
         self._attr_unique_id = f"{entry.entry_id}_download_photos"
         self._attr_name = "Photo: Download"
 
+    async def _async_decrypt_data_blob(self, api: Any, blob: str) -> bytes:
+        """Decrypt a data blob in an executor to avoid blocking the event loop.
+        
+        Args:
+            api: The FmdApi instance
+            blob: Base64-encoded encrypted blob from the server
+            
+        Returns:
+            Decrypted bytes
+        """
+        return await self.hass.async_add_executor_job(
+            api.decrypt_data_blob, blob
+        )
+
     @property
     def device_info(self) -> dict[str, Any]:
         """Return device info."""
@@ -392,8 +406,8 @@ class FmdDownloadPhotosButton(ButtonEntity):
                 try:
                     _LOGGER.debug("Processing photo %s/%s", idx + 1, len(pictures))
                     
-                    # Decrypt the photo
-                    decrypted = tracker.api.decrypt_data_blob(blob)
+                    # Decrypt the photo (run in executor to avoid blocking event loop)
+                    decrypted = await self._async_decrypt_data_blob(tracker.api, blob)
                     image_bytes = base64.b64decode(decrypted)
                     
                     _LOGGER.debug("Photo %s: Decrypted, size = %s bytes", idx + 1, len(image_bytes))

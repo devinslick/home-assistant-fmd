@@ -263,6 +263,19 @@ class FmdDeviceTracker(TrackerEntity):
         
         return attributes
 
+    async def _async_decrypt_data_blob(self, blob: str) -> bytes:
+        """Decrypt a data blob in an executor to avoid blocking the event loop.
+        
+        Args:
+            blob: Base64-encoded encrypted blob from the server
+            
+        Returns:
+            Decrypted bytes
+        """
+        return await self.hass.async_add_executor_job(
+            self.api.decrypt_data_blob, blob
+        )
+
     def _is_location_accurate(self, location_data: dict) -> bool:
         """
         Determine if a location is accurate based on the provider.
@@ -321,9 +334,9 @@ class FmdDeviceTracker(TrackerEntity):
                         _LOGGER.warning("Empty blob at index %d", idx)
                         continue
                     
-                    # Decrypt and parse the location blob (synchronous call)
+                    # Decrypt and parse the location blob (run in executor to avoid blocking)
                     _LOGGER.debug("Decrypting location blob %d...", idx)
-                    decrypted_bytes = self.api.decrypt_data_blob(blob)
+                    decrypted_bytes = await self._async_decrypt_data_blob(blob)
                     location_data = json.loads(decrypted_bytes)
                     
                     provider = location_data.get("provider", "unknown")
