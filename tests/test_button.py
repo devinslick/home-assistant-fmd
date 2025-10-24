@@ -174,7 +174,7 @@ async def test_download_photos_with_cleanup(
     await hass.services.async_call(
         "number",
         "set_value",
-        {"entity_id": "number.fmd_test_user_max_photos", "value": 3},
+        {"entity_id": "number.fmd_test_user_photo_max_to_retain", "value": 3},
         blocking=True,
     )
     
