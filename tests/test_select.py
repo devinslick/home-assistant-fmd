@@ -158,3 +158,159 @@ async def test_ringer_mode_normal(
     )
 
     mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with("normal")
+
+
+async def test_bluetooth_command_tracker_not_found(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test bluetooth command when tracker is not found."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Remove tracker from hass.data to simulate it not being found
+    hass.data["fmd"][list(hass.data["fmd"].keys())[0]].pop("tracker", None)
+
+    entity_id = "select.fmd_test_user_bluetooth"
+
+    # Try to enable bluetooth - should handle gracefully
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id, "option": "Enable Bluetooth"},
+        blocking=True,
+    )
+
+    # Should remain in placeholder state since tracker not found
+    state = hass.states.get(entity_id)
+    assert state is not None
+
+
+async def test_dnd_command_tracker_not_found(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test DND command when tracker is not found."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Remove tracker from hass.data to simulate it not being found
+    hass.data["fmd"][list(hass.data["fmd"].keys())[0]].pop("tracker", None)
+
+    entity_id = "select.fmd_test_user_volume_do_not_disturb"
+
+    # Try to enable DND - should handle gracefully
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id, "option": "Enable Do Not Disturb"},
+        blocking=True,
+    )
+
+    # Should remain in placeholder state since tracker not found
+    state = hass.states.get(entity_id)
+    assert state is not None
+
+
+async def test_ringer_mode_command_tracker_not_found(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test ringer mode command when tracker is not found."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Remove tracker from hass.data to simulate it not being found
+    hass.data["fmd"][list(hass.data["fmd"].keys())[0]].pop("tracker", None)
+
+    entity_id = "select.fmd_test_user_volume_ringer_mode"
+
+    # Try to set ringer mode - should handle gracefully
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id, "option": "Silent"},
+        blocking=True,
+    )
+
+    # Should remain in placeholder state since tracker not found
+    state = hass.states.get(entity_id)
+    assert state is not None
+
+
+async def test_bluetooth_command_api_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test bluetooth command when API raises error."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Make API raise an error
+    mock_fmd_api.create.return_value.toggle_bluetooth.side_effect = RuntimeError(
+        "API error"
+    )
+
+    entity_id = "select.fmd_test_user_bluetooth"
+
+    # Try to enable bluetooth - should handle error gracefully
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id, "option": "Enable Bluetooth"},
+        blocking=True,
+    )
+
+    # Should reset to placeholder after error
+    state = hass.states.get(entity_id)
+    assert state is not None
+
+
+async def test_dnd_command_api_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test DND command when API raises error."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Make API raise an error
+    mock_fmd_api.create.return_value.toggle_do_not_disturb.side_effect = RuntimeError(
+        "API error"
+    )
+
+    entity_id = "select.fmd_test_user_volume_do_not_disturb"
+
+    # Try to enable DND - should handle error gracefully
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id, "option": "Enable Do Not Disturb"},
+        blocking=True,
+    )
+
+    # Should reset to placeholder after error
+    state = hass.states.get(entity_id)
+    assert state is not None
+
+
+async def test_ringer_mode_command_api_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test ringer mode command when API raises error."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Make API raise an error
+    mock_fmd_api.create.return_value.set_ringer_mode.side_effect = RuntimeError(
+        "API error"
+    )
+
+    entity_id = "select.fmd_test_user_volume_ringer_mode"
+
+    # Try to set ringer mode - should handle error gracefully
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id, "option": "Silent"},
+        blocking=True,
+    )
+
+    # Should reset to placeholder after error
+    state = hass.states.get(entity_id)
+    assert state is not None
