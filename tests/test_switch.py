@@ -214,12 +214,16 @@ async def test_high_frequency_mode_api_error(
 
     # Try to turn on - will update state even if API fails
     # The implementation writes state before calling the tracker method
-    await hass.services.async_call(
-        "switch",
-        "turn_on",
-        {"entity_id": entity_id},
-        blocking=True,
-    )
+    try:
+        await hass.services.async_call(
+            "switch",
+            "turn_on",
+            {"entity_id": entity_id},
+            blocking=True,
+        )
+    except RuntimeError:
+        # Expected - API error is raised but state was already updated
+        pass
 
     # State should be updated (set before API call)
     state = hass.states.get(entity_id)
