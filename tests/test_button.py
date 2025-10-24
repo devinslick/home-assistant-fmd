@@ -159,6 +159,7 @@ async def test_download_photos_with_cleanup(
     """Test download photos with auto-cleanup enabled."""
     import base64
     from datetime import datetime, timedelta
+    from unittest.mock import MagicMock
     
     # Return encrypted blob
     mock_fmd_api.create.return_value.get_pictures.return_value = ["encrypted_blob_1"]
@@ -187,7 +188,6 @@ async def test_download_photos_with_cleanup(
     )
     
     # Create mock old photos (4 old photos + will add 1 new = 5 total, limit is 3, so 2 should be deleted)
-    from unittest.mock import MagicMock
     old_photos = []
     for i in range(4):
         photo = MagicMock()
@@ -203,6 +203,17 @@ async def test_download_photos_with_cleanup(
     # Use a callable for exists() that returns True for directories, False for photo files
     def exists_side_effect(self):
         return "photo_" not in str(self)
+    
+    # Track which photos were deleted
+    deleted_photos = []
+    
+    def unlink_side_effect():
+        """Track unlink calls."""
+        deleted_photos.append(True)
+    
+    # Attach unlink side effects to old photos
+    for photo in old_photos:
+        photo.unlink.side_effect = unlink_side_effect
     
     # Now patch only for the photo download operation
     with patch("pathlib.Path.mkdir"), \
@@ -225,6 +236,9 @@ async def test_download_photos_with_cleanup(
         # The photos are sorted by timestamp, so photos[0] and photos[1] are oldest
         old_photos[0].unlink.assert_called_once()
         old_photos[1].unlink.assert_called_once()
+        # Ensure photos 2 and 3 were NOT deleted
+        old_photos[2].unlink.assert_not_called()
+        old_photos[3].unlink.assert_not_called()
 async def test_wipe_device_button_blocked(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
