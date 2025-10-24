@@ -24,8 +24,6 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 @pytest.fixture
 def mock_fmd_api():
     """Mock FmdApi for testing."""
-    import json
-
     api_instance = AsyncMock()
 
     # Mock async methods - these should match the actual fmd-api methods
@@ -54,18 +52,27 @@ def mock_fmd_api():
 
     # Mock synchronous decrypt_data_blob method
     # It should return JSON bytes that can be parsed
-    mock_location_data = {
-        "lat": 37.7749,
-        "lon": -122.4194,
-        "time": "2025-10-23T12:00:00Z",
-        "provider": "gps",
-        "bat": 85,
-        "accuracy": 10.5,  # GPS accuracy in meters
-        "speed": 0.0,
-    }
-    api_instance.decrypt_data_blob = MagicMock(
-        return_value=json.dumps(mock_location_data).encode("utf-8")
-    )
+    # Use side_effect to handle both the test dict inputs and default behavior
+    def decrypt_blob_side_effect(blob_input):
+        """Decrypt blob - if it's a dict (from test), return it as JSON bytes."""
+        import json
+
+        if isinstance(blob_input, dict):
+            # Test is passing a dict directly, convert it to JSON bytes
+            return json.dumps(blob_input).encode("utf-8")
+        # Otherwise return the default mock location data
+        mock_location_data = {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "gps",
+            "bat": 85,
+            "accuracy": 10.5,  # GPS accuracy in meters
+            "speed": 0.0,
+        }
+        return json.dumps(mock_location_data).encode("utf-8")
+
+    api_instance.decrypt_data_blob = MagicMock(side_effect=decrypt_blob_side_effect)
 
     # Create a mock for FmdApi.create that returns api_instance
     create_mock = AsyncMock(return_value=api_instance)
