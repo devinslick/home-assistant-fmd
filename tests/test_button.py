@@ -126,24 +126,22 @@ async def test_download_photos_button(
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
     
+    # Use a callable for exists() to handle any number of calls
+    # Returns True for directories, False for photo files
+    def exists_side_effect(self):
+        return "photo_" not in str(self)
+    
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.is_dir", return_value=True), \
+         patch("pathlib.Path.exists", exists_side_effect), \
          patch("pathlib.Path.write_bytes") as mock_write:
         
-        # Use a callable for exists() to handle any number of calls
-        # First call returns True (media_base exists), rest return False (photos don't exist)
-        call_count = {"count": 0}
-        def exists_side_effect(*args, **kwargs):
-            call_count["count"] += 1
-            return call_count["count"] == 1  # First call True, rest False
-        
-        with patch("pathlib.Path.exists", side_effect=exists_side_effect):
-            await hass.services.async_call(
-                "button",
-                "press",
-                {"entity_id": "button.fmd_test_user_photo_download"},
-                blocking=True,
-            )
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
         
         mock_fmd_api.create.return_value.get_pictures.assert_called_once()
         # Verify 2 photos were written
@@ -198,30 +196,27 @@ async def test_download_photos_with_cleanup(
     new_photo.stat.return_value.st_mtime = datetime.now().timestamp()
     new_photo.name = "new_photo.jpg"
     
+    # Use a callable for exists() that returns True for directories, False for photo files
+    def exists_side_effect(self):
+        return "photo_" not in str(self)
+    
     # Now patch only for the photo download operation
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
          patch("pathlib.Path.is_dir", return_value=True), \
+         patch("pathlib.Path.exists", exists_side_effect), \
          patch("pathlib.Path.glob") as mock_glob:
     
-        # Use a callable for exists() to handle any number of calls
-        # First call returns True (media_base exists), rest return False (photos don't exist)
-        call_count = {"count": 0}
-        def exists_side_effect(*args, **kwargs):
-            call_count["count"] += 1
-            return call_count["count"] == 1  # First call True, rest False
-        
-        with patch("pathlib.Path.exists", side_effect=exists_side_effect):
-            # glob returns all photos (4 old + 1 new = 5) when cleanup runs
-            mock_glob.return_value = old_photos + [new_photo]
-        
-            await hass.services.async_call(
-                "button",
-                "press",
-                {"entity_id": "button.fmd_test_user_photo_download"},
-                blocking=True,
-            )
-        
+        # glob returns all photos (4 old + 1 new = 5) when cleanup runs
+        mock_glob.return_value = old_photos + [new_photo]
+    
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
+    
         # Verify the 2 oldest photos were deleted (5 photos - 3 limit = 2 to delete)
         # The photos are sorted by timestamp, so photos[0] and photos[1] are oldest
         old_photos[0].unlink.assert_called_once()
