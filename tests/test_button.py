@@ -111,9 +111,10 @@ async def test_download_photos_button(
         {"filename": "photo2.jpg", "content": b"photo_data_2"},
     ]
     
+    # Setup integration BEFORE patching Path methods
+    await setup_integration(hass, mock_fmd_api)
+    
     with patch("pathlib.Path.mkdir"), patch("pathlib.Path.open") as mock_open:
-        await setup_integration(hass, mock_fmd_api)
-        
         await hass.services.async_call(
             "button",
             "press",
@@ -148,13 +149,13 @@ async def test_download_photos_with_cleanup(
     # Now patch only for the photo download operation
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.open"), \
-         patch("pathlib.Path.glob") as mock_glob, \
-         patch("pathlib.Path.unlink") as mock_unlink:
+         patch("pathlib.Path.glob") as mock_glob:
         
         # Simulate old photos
         from unittest.mock import MagicMock
         old_photo = MagicMock()
         old_photo.stat.return_value.st_mtime = 0  # Very old timestamp
+        old_photo.name = "old_photo.jpg"
         mock_glob.return_value = [old_photo]
         
         await hass.services.async_call(
@@ -164,7 +165,8 @@ async def test_download_photos_with_cleanup(
             blocking=True,
         )
         
-        mock_unlink.assert_called_once()
+        # Verify photo.unlink() was called on the old photo
+        old_photo.unlink.assert_called_once()
 
 
 async def test_wipe_device_button_blocked(

@@ -35,11 +35,12 @@ async def test_photo_count_after_download(
         {"filename": "photo3.jpg", "content": b"photo_data_3"},
     ]
     
+    # Setup integration BEFORE patching Path methods
+    await setup_integration(hass, mock_fmd_api)
+    
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.open"), \
          patch("pathlib.Path.glob") as mock_glob:
-        
-        await setup_integration(hass, mock_fmd_api)
         
         # Download photos
         await hass.services.async_call(
@@ -72,11 +73,12 @@ async def test_photo_count_attributes(
         {"filename": "photo2.jpg", "content": b"photo_data_2"},
     ]
     
+    # Setup integration BEFORE patching Path methods
+    await setup_integration(hass, mock_fmd_api)
+    
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.open"), \
          patch("pathlib.Path.glob") as mock_glob:
-        
-        await setup_integration(hass, mock_fmd_api)
         
         # Download photos
         await hass.services.async_call(
@@ -123,10 +125,17 @@ async def test_photo_count_after_cleanup(
          patch("pathlib.Path.glob") as mock_glob, \
          patch("pathlib.Path.unlink"):
         
-        # Simulate old photos exist
+        # Simulate old photos exist, then after cleanup only new photo
         old_photo = MagicMock()
         old_photo.stat.return_value.st_mtime = 0  # Very old
-        mock_glob.return_value = [old_photo]
+        new_photo = MagicMock()
+        new_photo.stat.return_value.st_mtime = 9999999999  # New
+        
+        # glob called multiple times: once to find photos to delete, once to count after
+        mock_glob.side_effect = [
+            [old_photo],  # First call - finds old photo to delete
+            [new_photo],  # Second call - count after cleanup
+        ]
         
         # Download photos (will trigger cleanup)
         await hass.services.async_call(
@@ -135,9 +144,6 @@ async def test_photo_count_after_cleanup(
             {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
-        
-        # After cleanup, only new photo remains
-        mock_glob.return_value = [MagicMock()]
         await hass.async_block_till_done()
         
         state = hass.states.get("sensor.fmd_test_user_photo_count")
