@@ -47,7 +47,11 @@ def mock_fmd_api():
     api_instance.set_ringer_mode = AsyncMock(return_value=True)
     api_instance.take_picture = AsyncMock(return_value=True)
     api_instance.get_pictures = AsyncMock(return_value=[])
+    api_instance.get_photos = AsyncMock(return_value=[])  # Alias for get_pictures
     api_instance.wipe_device = AsyncMock(return_value=True)
+    api_instance.ring = AsyncMock(return_value=True)
+    api_instance.lock = AsyncMock(return_value=True)
+    api_instance.capture_photo = AsyncMock(return_value=True)
     
     # Mock synchronous decrypt_data_blob method
     # It should return JSON bytes that can be parsed
@@ -62,8 +66,17 @@ def mock_fmd_api():
     }
     api_instance.decrypt_data_blob = MagicMock(return_value=json.dumps(mock_location_data).encode('utf-8'))
     
-    with patch("fmd_api.FmdApi.create", return_value=api_instance):
-        yield api_instance
+    # Create a mock for FmdApi.create that returns api_instance
+    create_mock = AsyncMock(return_value=api_instance)
+    
+    # Store api_instance on create_mock.return_value for tests that access it that way
+    create_mock.return_value = api_instance
+    
+    with patch("fmd_api.FmdApi.create", create_mock):
+        # Yield a mock that has .create attribute for test assertions
+        mock_api_class = MagicMock()
+        mock_api_class.create = create_mock
+        yield mock_api_class
 
 
 @pytest.fixture
