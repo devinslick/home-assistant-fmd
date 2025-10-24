@@ -227,12 +227,18 @@ async def test_download_photos_with_cleanup(
             )
         
             # Verify the 2 oldest photos were deleted (5 photos - 3 limit = 2 to delete)
-            # The photos are sorted by timestamp, so photos[0] and photos[1] are oldest
-            old_photos[0].unlink.assert_called_once()
-            old_photos[1].unlink.assert_called_once()
-            # Ensure photos 2 and 3 were NOT deleted
-            old_photos[2].unlink.assert_not_called()
-            old_photos[3].unlink.assert_not_called()
+            # Photos are created with timestamps: old_photo_0 is 4 days old, old_photo_1 is 3 days old, etc.
+            # When sorted by mtime (oldest first), they delete the 2 oldest: old_photo_3 (1 day) and old_photo_2 (2 days)
+            # WAIT - actually looking at the loop: for i in range(4): mtime = now - (i+1) days
+            # So: old_photo_0 = now-1, old_photo_1 = now-2, old_photo_2 = now-3, old_photo_3 = now-4
+            # Sorted oldest first: old_photo_3 (now-4), old_photo_2 (now-3), old_photo_1 (now-2), old_photo_0 (now-1)
+            # With 5 total (4 old + 1 new) and limit 3, we delete 2 oldest = old_photo_3 and old_photo_2
+            # Which corresponds to indices 3 and 2
+            old_photos[3].unlink.assert_called_once()
+            old_photos[2].unlink.assert_called_once()
+            # Ensure photos 0 and 1 were NOT deleted (they are newer)
+            old_photos[0].unlink.assert_not_called()
+            old_photos[1].unlink.assert_not_called()
 async def test_wipe_device_button_blocked(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
