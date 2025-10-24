@@ -106,21 +106,22 @@ async def test_photo_count_after_cleanup(
         {"filename": "photo1.jpg", "content": b"photo_data_1"},
     ]
     
+    # Setup integration BEFORE patching Path methods
+    await setup_integration(hass, mock_fmd_api)
+    
+    # Enable auto-cleanup
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_photo_auto_cleanup"},
+        blocking=True,
+    )
+    
+    # Now patch for photo download operation
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.open"), \
          patch("pathlib.Path.glob") as mock_glob, \
-         patch("pathlib.Path.stat") as mock_stat, \
          patch("pathlib.Path.unlink"):
-        
-        await setup_integration(hass, mock_fmd_api)
-        
-        # Enable auto-cleanup
-        await hass.services.async_call(
-            "switch",
-            "turn_on",
-            {"entity_id": "switch.fmd_test_user_photo_auto_cleanup"},
-            blocking=True,
-        )
         
         # Simulate old photos exist
         old_photo = MagicMock()
