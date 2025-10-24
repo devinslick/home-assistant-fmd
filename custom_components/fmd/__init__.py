@@ -16,11 +16,11 @@ This Integration:
 """
 from __future__ import annotations
 
-from homeassistant.config_entries import ConfigEntry
+from fmd_api import FmdApi
+from homeassistant.config_entries import ConfigEntry, ConfigEntryNotReady
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
-from fmd_api import FmdApi
 from .const import DOMAIN
 
 PLATFORMS: list[Platform] = [
@@ -34,13 +34,28 @@ PLATFORMS: list[Platform] = [
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up FMD from a config entry."""
+    """Set up FMD from a config entry.
+
+    Raises ConfigEntryNotReady if the device/service is unreachable during setup,
+    allowing Home Assistant to retry with exponential backoff.
+    """
     # Initialize storage for this entry
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {}
-    
-    # Create API instance and device info that all platforms can use
-    api = await FmdApi.create(entry.data["url"], entry.data["id"], entry.data["password"])
+
+    try:
+        # Create API instance and device info that all platforms can use
+        api = await FmdApi.create(
+            entry.data["url"], entry.data["id"], entry.data["password"]
+        )
+    except Exception as err:
+        # Raise ConfigEntryNotReady for any connection/authentication issues
+        # This allows Home Assistant to retry with exponential backoff instead of
+        # failing the entire entry setup permanently
+        raise ConfigEntryNotReady(
+            f"Failed to connect to FMD server at {entry.data['url']}: {err}"
+        ) from err
+
     hass.data[DOMAIN][entry.entry_id]["api"] = api
     hass.data[DOMAIN][entry.entry_id]["device_info"] = {
         "identifiers": {(DOMAIN, entry.entry_id)},
@@ -48,7 +63,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "manufacturer": "FMD",
         "model": "Device Tracker",
     }
-    
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -56,8 +71,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    
+
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
-    
+
     return unload_ok

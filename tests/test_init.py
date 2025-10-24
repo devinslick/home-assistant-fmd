@@ -3,12 +3,10 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
-import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_ID
+from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
 from homeassistant.core import HomeAssistant
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fmd.const import DOMAIN
 
@@ -105,4 +103,37 @@ async def test_setup_entry_api_failure(
         assert not await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
 
+    assert config_entry.state == ConfigEntryState.SETUP_ERROR
+
+
+async def test_setup_entry_network_error_raises_config_entry_not_ready(
+    hass: HomeAssistant,
+) -> None:
+    """Test that network errors during API creation raise ConfigEntryNotReady."""
+    config_entry = MockConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="test_user",
+        data={
+            CONF_URL: "https://fmd.example.com",
+            CONF_ID: "test_user",
+            CONF_PASSWORD: "test_password",
+            "polling_interval": 30,
+        },
+        entry_id="test_entry_id",
+        unique_id="test_user",
+    )
+    config_entry.add_to_hass(hass)
+
+    # Simulate network timeout
+    with patch(
+        "custom_components.fmd.__init__.FmdApi.create",
+        side_effect=TimeoutError("Connection timeout"),
+    ):
+        result = await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    # ConfigEntryNotReady results in SETUP_ERROR state with automatic retry
+    assert not result
     assert config_entry.state == ConfigEntryState.SETUP_ERROR
