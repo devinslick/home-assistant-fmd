@@ -136,3 +136,53 @@ async def test_max_photos_min_max(
     # Check min/max attributes
     assert state.attributes["min"] == 1
     assert state.attributes["max"] == 50
+
+
+async def test_update_interval_set_value_tracker_not_found(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test update interval when tracker is not found."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Simulate tracker being removed from hass.data
+    hass.data["fmd"][list(hass.data["fmd"].keys())[0]].pop("tracker", None)
+
+    entity_id = "number.fmd_test_user_update_interval"
+
+    # Try to set value - should handle gracefully without crashing
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": entity_id, "value": 60},
+        blocking=True,
+    )
+
+    # State should still exist even if tracker wasn't found
+    state = hass.states.get(entity_id)
+    assert state is not None
+
+
+async def test_high_frequency_interval_set_value_tracker_not_found(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test high frequency interval when tracker is not found."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Simulate tracker being removed from hass.data
+    hass.data["fmd"][list(hass.data["fmd"].keys())[0]].pop("tracker", None)
+
+    entity_id = "number.fmd_test_user_high_frequency_interval"
+
+    # Try to set value - should handle gracefully without crashing
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": entity_id, "value": 10},
+        blocking=True,
+    )
+
+    # State should still exist even if tracker wasn't found
+    state = hass.states.get(entity_id)
+    assert state is not None

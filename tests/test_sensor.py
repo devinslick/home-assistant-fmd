@@ -219,3 +219,60 @@ async def test_photo_count_icon(
     entity_id = "sensor.fmd_test_user_photo_count"
     state = hass.states.get(entity_id)
     assert state.attributes["icon"] == "mdi:image-multiple"
+
+
+async def test_photo_count_sensor_media_folder_not_found(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test photo count sensor when media folder is not found."""
+    await setup_integration(hass, mock_fmd_api)
+
+    entity_id = "sensor.fmd_test_user_photo_count"
+
+    # Mock Path.glob to raise FileNotFoundError
+    with patch("pathlib.Path.glob", side_effect=FileNotFoundError("Folder not found")):
+        await hass.services.async_call("homeassistant", "update_entity", {})
+        await hass.async_block_till_done()
+
+    # Sensor should still have a valid state despite error
+    state = hass.states.get(entity_id)
+    assert state is not None
+
+
+async def test_photo_count_sensor_media_folder_permission_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test photo count sensor when media folder access is denied."""
+    await setup_integration(hass, mock_fmd_api)
+
+    entity_id = "sensor.fmd_test_user_photo_count"
+
+    # Mock Path.glob to raise PermissionError
+    with patch("pathlib.Path.glob", side_effect=PermissionError("Access denied")):
+        await hass.services.async_call("homeassistant", "update_entity", {})
+        await hass.async_block_till_done()
+
+    # Sensor should still have a valid state despite error
+    state = hass.states.get(entity_id)
+    assert state is not None
+
+
+async def test_photo_count_sensor_media_folder_oserror(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test photo count sensor when media folder access raises OSError."""
+    await setup_integration(hass, mock_fmd_api)
+
+    entity_id = "sensor.fmd_test_user_photo_count"
+
+    # Mock Path.glob to raise OSError
+    with patch("pathlib.Path.glob", side_effect=OSError("Drive not ready")):
+        await hass.services.async_call("homeassistant", "update_entity", {})
+        await hass.async_block_till_done()
+
+    # Sensor should still have a valid state despite error
+    state = hass.states.get(entity_id)
+    assert state is not None

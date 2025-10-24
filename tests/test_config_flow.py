@@ -120,3 +120,27 @@ async def test_form_default_values(
     assert result2["data"]["polling_interval"] == DEFAULT_POLLING_INTERVAL
     assert result2["data"]["allow_inaccurate_locations"] is False
     assert result2["data"]["use_imperial"] is False
+
+
+async def test_authenticate_api_error(hass: HomeAssistant) -> None:
+    """Test authenticate_and_get_locations with API error."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+
+    with patch(
+        "custom_components.fmd.config_flow.authenticate_and_get_locations",
+        side_effect=TimeoutError("API timeout"),
+    ):
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                CONF_URL: "https://fmd.example.com",
+                CONF_ID: "test_user",
+                CONF_PASSWORD: "test_password",
+                "polling_interval": 30,
+            },
+        )
+
+    assert result2["type"] == data_entry_flow.FlowResultType.FORM
+    assert result2["errors"] == {"base": "cannot_connect"}
