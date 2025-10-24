@@ -61,33 +61,30 @@ async def test_photo_count_after_download(
     
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
-         patch("pathlib.Path.exists") as mock_exists, \
          patch("pathlib.Path.is_dir", return_value=True), \
          patch("pathlib.Path.glob") as mock_glob:
         
-        # exists() calls:
-        # 1. Button: media_base.exists() check
-        # 2-4. Button: filepath.exists() for each of 3 photos
-        # 5. Sensor: media_base.exists() check
-        # 6. Sensor: media_dir.exists() check
-        mock_exists.side_effect = [True, False, False, False, True, True]
+        # Use a callable for exists() that returns True for directories, False for photo files
+        def exists_side_effect(self):
+            return "photo_" not in str(self)
         
-        # glob is called by sensor's _update_media_folder_count after download
-        mock_glob.return_value = [mock_photo1, mock_photo2, mock_photo3]
-        
-        # Download photos
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_photo_download"},
-            blocking=True,
-        )
-        
-        # Trigger sensor update
-        await hass.async_block_till_done()
-        
-        state = hass.states.get("sensor.fmd_test_user_photo_count")
-        assert state.state == "3"
+        with patch("pathlib.Path.exists", exists_side_effect):
+            # glob is called by sensor's _update_media_folder_count after download
+            mock_glob.return_value = [mock_photo1, mock_photo2, mock_photo3]
+            
+            # Download photos
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+            
+            # Trigger sensor update
+            await hass.async_block_till_done()
+            
+            state = hass.states.get("sensor.fmd_test_user_photo_count")
+            assert state.state == "3"
 
 
 async def test_photo_count_attributes(
@@ -120,34 +117,31 @@ async def test_photo_count_attributes(
     
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
-         patch("pathlib.Path.exists") as mock_exists, \
          patch("pathlib.Path.is_dir", return_value=True), \
          patch("pathlib.Path.glob") as mock_glob:
         
-        # exists() called for:
-        # 1. Button: media_base.exists() check
-        # 2-3. Button: filepath.exists() for each of 2 photos
-        # 4. Sensor: media_base.exists()
-        # 5. Sensor: media_dir.exists()
-        mock_exists.side_effect = [True, False, False, True, True]
+        # Use a callable for exists() that returns True for directories, False for photo files
+        def exists_side_effect(self):
+            return "photo_" not in str(self)
         
-        # glob returns our mock photos when sensor counts
-        mock_glob.return_value = [mock_photo1, mock_photo2]
-        
-        # Download photos
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_photo_download"},
-            blocking=True,
-        )
-        
-        await hass.async_block_till_done()
-        
-        state = hass.states.get("sensor.fmd_test_user_photo_count")
-        assert "last_download_count" in state.attributes
-        assert "last_download_time" in state.attributes
-        assert state.attributes["last_download_count"] == 2
+        with patch("pathlib.Path.exists", exists_side_effect):
+            # glob returns our mock photos when sensor counts
+            mock_glob.return_value = [mock_photo1, mock_photo2]
+            
+            # Download photos
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+            
+            await hass.async_block_till_done()
+            
+            state = hass.states.get("sensor.fmd_test_user_photo_count")
+            assert "last_download_count" in state.attributes
+            assert "last_download_time" in state.attributes
+            assert state.attributes["last_download_count"] == 2
 
 
 async def test_photo_count_after_cleanup(
@@ -186,36 +180,32 @@ async def test_photo_count_after_cleanup(
     # Now patch for photo download operation
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
-         patch("pathlib.Path.exists") as mock_exists, \
          patch("pathlib.Path.is_dir", return_value=True), \
          patch("pathlib.Path.glob") as mock_glob, \
          patch("pathlib.Path.unlink"):
         
-        # exists() calls:
-        # 1. Button: media_base.exists()
-        # 2. Button: new photo filepath.exists()
-        # 3. Cleanup: glob returns photos, sorted, oldest checked
-        # 4. Sensor: media_base.exists()
-        # 5. Sensor: media_dir.exists()
-        mock_exists.side_effect = [True, False, True, True]
+        # Use a callable for exists() that returns True for directories, False for photo files
+        def exists_side_effect(self):
+            return "photo_" not in str(self)
         
-        # glob called multiple times: once to find photos to delete, once to count after
-        mock_glob.side_effect = [
-            [old_photo],  # First call - finds old photo to delete
-            [new_photo],  # Second call - count after cleanup
-        ]
-        
-        # Download photos (will trigger cleanup)
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_photo_download"},
-            blocking=True,
-        )
-        await hass.async_block_till_done()
-        
-        state = hass.states.get("sensor.fmd_test_user_photo_count")
-        assert state.state == "1"
+        with patch("pathlib.Path.exists", exists_side_effect):
+            # glob called multiple times: once to find photos to delete, once to count after
+            mock_glob.side_effect = [
+                [old_photo],  # First call - finds old photo to delete
+                [new_photo],  # Second call - count after cleanup
+            ]
+            
+            # Download photos (will trigger cleanup)
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+            await hass.async_block_till_done()
+            
+            state = hass.states.get("sensor.fmd_test_user_photo_count")
+            assert state.state == "1"
 
 
 async def test_photo_count_icon(
