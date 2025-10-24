@@ -72,7 +72,8 @@ def mock_fmd_api():
     # Store api_instance on create_mock.return_value for tests that access it that way
     create_mock.return_value = api_instance
     
-    with patch("fmd_api.FmdApi.create", create_mock):
+    # Patch where FmdApi is USED (custom_components.fmd), not where it's defined (fmd_api)
+    with patch("custom_components.fmd.FmdApi.create", create_mock):
         # Yield a mock that has .create attribute for test assertions
         mock_api_class = MagicMock()
         mock_api_class.create = create_mock

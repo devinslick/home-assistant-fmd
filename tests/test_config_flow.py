@@ -21,8 +21,8 @@ async def test_form(hass: HomeAssistant, mock_fmd_api: AsyncMock) -> None:
     assert result["errors"] == {}
 
     with patch(
-        "custom_components.fmd.config_flow.FmdApi",
-        return_value=mock_fmd_api,
+        "custom_components.fmd.config_flow.authenticate_and_get_locations",
+        return_value=[{"lat": 37.7749, "lon": -122.4194}],
     ):
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
@@ -104,8 +104,8 @@ async def test_form_default_values(hass: HomeAssistant, mock_fmd_api: AsyncMock)
     )
 
     with patch(
-        "custom_components.fmd.config_flow.FmdApi",
-        return_value=mock_fmd_api,
+        "custom_components.fmd.config_flow.authenticate_and_get_locations",
+        return_value=[{"lat": 37.7749, "lon": -122.4194}],
     ):
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
