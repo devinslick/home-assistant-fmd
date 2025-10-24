@@ -540,5 +540,5 @@ async def test_wipe_button_blocked_by_safety(
     )
     await hass.async_block_till_done()
 
-    # Now wipe command should be called since safety is enabled
-    mock_fmd_api.create.return_value.send_command.assert_called_once_with("wipe")
+    # Now delete command should be called since safety is enabled
+    mock_fmd_api.create.return_value.send_command.assert_called_once_with("delete")
