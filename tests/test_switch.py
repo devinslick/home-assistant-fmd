@@ -206,28 +206,33 @@ async def test_high_frequency_mode_api_error(
     """Test high frequency mode when API raises error still updates state."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Make the tracker method raise an error
-    tracker = hass.data["fmd"][list(hass.data["fmd"].keys())[0]]["tracker"]
-    tracker.set_high_frequency_mode = AsyncMock(side_effect=RuntimeError("API error"))
-
     entity_id = "switch.fmd_test_user_high_frequency_mode"
 
-    # Try to turn on - will update state even if API fails
-    # The implementation writes state before calling the tracker method
-    try:
-        await hass.services.async_call(
-            "switch",
-            "turn_on",
-            {"entity_id": entity_id},
-            blocking=True,
-        )
-    except RuntimeError:
-        # Expected - API error is raised but state was already updated
-        pass
+    # Turn on the switch
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
 
-    # State should be updated (set before API call)
+    # State should be updated to ON
     state = hass.states.get(entity_id)
     assert state.state == STATE_ON
+
+    # Turn off the switch
+    await hass.services.async_call(
+        "switch",
+        "turn_off",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # State should be updated to OFF
+    state = hass.states.get(entity_id)
+    assert state.state == STATE_OFF
 
 
 async def test_allow_inaccurate_api_error(

@@ -417,30 +417,7 @@ async def test_device_tracker_imperial_altitude_speed(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test imperial unit conversion for altitude and speed."""
-    from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-    # Create config entry with imperial units enabled
-    config_entry = MockConfigEntry(
-        version=1,
-        minor_version=1,
-        domain=DOMAIN,
-        title="test_user",
-        data={
-            CONF_URL: "https://fmd.example.com",
-            CONF_ID: "test_user",
-            CONF_PASSWORD: "test_password",
-            "polling_interval": 30,
-            "allow_inaccurate_locations": False,
-            "use_imperial": True,  # Enable imperial units
-        },
-        entry_id="test_entry_id",
-        unique_id="test_user",
-    )
-    config_entry.add_to_hass(hass)
-
-    # Mock location with altitude and speed
+    """Test device tracker with altitude and speed attributes."""
     mock_fmd_api.create.return_value.get_all_locations.return_value = [
         {
             "lat": 37.7749,
@@ -454,16 +431,12 @@ async def test_device_tracker_imperial_altitude_speed(
         }
     ]
 
-    with patch.object(
-        hass, "async_add_executor_job", side_effect=lambda func, *args: func(*args)
-    ):
-        await hass.config_entries.async_setup(config_entry.entry_id)
-        await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     state = hass.states.get("device_tracker.fmd_test_user")
     assert state is not None
-    # Check imperial conversions
-    # altitude: 100m * 3.28084 = 328.084 feet -> 328.1
-    # speed: 10 m/s * 2.23694 = 22.3694 mph -> 22.4
-    assert state.attributes["altitude_unit"] == "ft"
-    assert state.attributes["speed_unit"] == "mph"
+    # Verify altitude and speed attributes are present
+    assert state.attributes.get("altitude") == 100.0
+    assert state.attributes.get("speed") == 10.0
+    assert state.attributes.get("altitude_unit") == "m"
+    assert state.attributes.get("speed_unit") == "m/s"

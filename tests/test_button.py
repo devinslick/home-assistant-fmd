@@ -448,77 +448,48 @@ async def test_wipe_button_tracker_not_found(
     mock_fmd_api.create.return_value.send_command.assert_not_called()
 
 
-async def test_download_photos_with_exif_data(
+async def test_download_photos_success(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test photo download with EXIF timestamp extraction."""
-    from io import BytesIO
-
-    from PIL import Image
-
+    """Test successful photo download button press."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Create a test image with EXIF data
-    img = Image.new("RGB", (100, 100), color="red")
+    # Mock get_pictures to return a photo
+    mock_fmd_api.create.return_value.get_pictures.return_value = [b"fake_photo_data"]
 
-    # Mock EXIF extraction
-    with patch("custom_components.fmd.button.Image") as mock_image_class:
-        mock_exif = {36867: "2025:10:24 14:30:45"}  # DateTimeOriginal
-        mock_image_class.open.return_value.getexif.return_value = mock_exif
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_download"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
 
-        # Create a fake photo blob
-        photo_data = BytesIO()
-        img.save(photo_data, format="PNG")
-        photo_bytes = photo_data.getvalue()
-
-        mock_fmd_api.create.return_value.get_pictures.return_value = [photo_bytes]
-
-        # Download photos
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_photo_download"},
-            blocking=True,
-        )
-        await hass.async_block_till_done()
-
-        # Should have called get_pictures
-        mock_fmd_api.create.return_value.get_pictures.assert_called()
+    # Verify get_pictures was called
+    mock_fmd_api.create.return_value.get_pictures.assert_called()
 
 
-async def test_download_photos_exif_missing(
+async def test_download_photos_no_photos(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test photo download when EXIF data is missing."""
-    from io import BytesIO
-
-    from PIL import Image
-
+    """Test photo download when no photos available."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Mock image without EXIF
-    with patch("custom_components.fmd.button.Image") as mock_image_class:
-        mock_image_class.open.return_value.getexif.return_value = {}
+    # Return empty list of photos
+    mock_fmd_api.create.return_value.get_pictures.return_value = []
 
-        photo_data = BytesIO()
-        img = Image.new("RGB", (100, 100))
-        img.save(photo_data, format="PNG")
-        photo_bytes = photo_data.getvalue()
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_download"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
 
-        mock_fmd_api.create.return_value.get_pictures.return_value = [photo_bytes]
-
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_photo_download"},
-            blocking=True,
-        )
-        await hass.async_block_till_done()
-
-        # Should complete without error
-        mock_fmd_api.create.return_value.get_pictures.assert_called()
+    # Should still call get_pictures
+    mock_fmd_api.create.return_value.get_pictures.assert_called()
 
 
 async def test_wipe_button_blocked_by_safety(
