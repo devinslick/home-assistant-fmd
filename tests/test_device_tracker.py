@@ -122,22 +122,43 @@ async def test_device_tracker_location_filtering(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test location accuracy filtering."""
+    import json
+    
+    # Create mock encrypted blobs for two locations
+    beacondb_data = {
+        "lat": 37.7749,
+        "lon": -122.4194,
+        "time": "2025-10-23T12:00:00Z",
+        "provider": "beacondb",  # Inaccurate provider
+        "bat": 85,
+        "accuracy": 10.5,
+        "speed": 0.0,
+    }
+    gps_data = {
+        "lat": 37.7750,
+        "lon": -122.4195,
+        "time": "2025-10-23T11:59:00Z",
+        "provider": "gps",  # Accurate provider
+        "bat": 85,
+        "accuracy": 10.5,
+        "speed": 0.0,
+    }
+    
+    # Mock returns "encrypted" blobs (we'll mock decrypt to handle both)
     mock_fmd_api.create.return_value.get_all_locations.return_value = [
-        {
-            "lat": 37.7749,
-            "lon": -122.4194,
-            "time": "2025-10-23T12:00:00Z",
-            "provider": "beacondb",  # Inaccurate provider
-            "bat": 85,
-        },
-        {
-            "lat": 37.7750,
-            "lon": -122.4195,
-            "time": "2025-10-23T11:59:00Z",
-            "provider": "gps",  # Accurate provider
-            "bat": 85,
-        },
+        "encrypted_beacondb_blob",
+        "encrypted_gps_blob",
     ]
+    
+    # Mock decrypt to return appropriate data based on blob
+    def decrypt_side_effect(blob):
+        if blob == "encrypted_beacondb_blob":
+            return json.dumps(beacondb_data).encode('utf-8')
+        elif blob == "encrypted_gps_blob":
+            return json.dumps(gps_data).encode('utf-8')
+        return b'{}'
+    
+    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = decrypt_side_effect
     
     await setup_integration(hass, mock_fmd_api)
     

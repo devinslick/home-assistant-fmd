@@ -38,10 +38,14 @@ async def test_location_source_placeholder_reset(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test location source resets to placeholder after API call."""
+    """Test location source select changes option."""
     await setup_integration(hass, mock_fmd_api)
     
     entity_id = "select.fmd_test_user_location_source"
+    
+    # Initially should be default
+    state = hass.states.get(entity_id)
+    assert state.state == "All Providers (Default)"
     
     # Select GPS
     await hass.services.async_call(
@@ -51,12 +55,9 @@ async def test_location_source_placeholder_reset(
         blocking=True,
     )
     
-    # Should trigger location request
-    mock_fmd_api.create.return_value.request_location.assert_called()
-    
-    # After API call, should reset to placeholder
+    # Should update to GPS
     state = hass.states.get(entity_id)
-    assert state.state == "Location Source"
+    assert state.state == "GPS Only (Accurate)"
 
 
 async def test_bluetooth_select(

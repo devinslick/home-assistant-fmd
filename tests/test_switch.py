@@ -146,9 +146,10 @@ async def test_wipe_safety_auto_timeout(
     await hass.services.async_call(
         "button",
         "press",
-        {"entity_id": "button.fmd_test_user_wipe_device"},
+        {"entity_id": "button.fmd_test_user_wipe_execute"},
         blocking=True,
     )
+    await hass.async_block_till_done()
     
     # Safety switch should turn off after wipe
     state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")

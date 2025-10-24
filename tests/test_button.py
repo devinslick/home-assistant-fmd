@@ -117,7 +117,7 @@ async def test_download_photos_button(
         await hass.services.async_call(
             "button",
             "press",
-            {"entity_id": "button.fmd_test_user_download_photos"},
+            {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
         
@@ -154,13 +154,13 @@ async def test_download_photos_with_cleanup(
         # Simulate old photos
         from unittest.mock import MagicMock
         old_photo = MagicMock()
+        old_photo.stat.return_value.st_mtime = 0  # Very old timestamp
         mock_glob.return_value = [old_photo]
-        mock_stat.return_value.st_mtime = 0  # Very old timestamp
         
         await hass.services.async_call(
             "button",
             "press",
-            {"entity_id": "button.fmd_test_user_download_photos"},
+            {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
         

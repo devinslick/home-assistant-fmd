@@ -45,7 +45,7 @@ async def test_photo_count_after_download(
         await hass.services.async_call(
             "button",
             "press",
-            {"entity_id": "button.fmd_test_user_download_photos"},
+            {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
         
@@ -82,7 +82,7 @@ async def test_photo_count_attributes(
         await hass.services.async_call(
             "button",
             "press",
-            {"entity_id": "button.fmd_test_user_download_photos"},
+            {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
         
@@ -124,14 +124,14 @@ async def test_photo_count_after_cleanup(
         
         # Simulate old photos exist
         old_photo = MagicMock()
+        old_photo.stat.return_value.st_mtime = 0  # Very old
         mock_glob.return_value = [old_photo]
-        mock_stat.return_value.st_mtime = 0  # Very old
         
         # Download photos (will trigger cleanup)
         await hass.services.async_call(
             "button",
             "press",
-            {"entity_id": "button.fmd_test_user_download_photos"},
+            {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
         
