@@ -9,6 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from homeassistant.core import HomeAssistant
 
 from custom_components.fmd.const import DOMAIN
+from .conftest import setup_integration
 
 
 async def test_location_update_button(
@@ -203,35 +204,3 @@ async def test_wipe_device_button_allowed(
     )
     
     mock_fmd_api.create.return_value.wipe_device.assert_called_once()
-
-
-def get_mock_config_entry():
-    """Create a mock config entry."""
-    from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_ID
-    
-    return MockConfigEntry(
-        version=1,
-        minor_version=1,
-        domain=DOMAIN,
-        title="test_user",
-        data={
-            CONF_URL: "https://fmd.example.com",
-            CONF_ID: "test_user",
-            CONF_PASSWORD: "test_password",
-            "polling_interval": 30,
-            "allow_inaccurate_locations": False,
-            "use_imperial": False,
-        },
-        entry_id="test_entry_id",
-        unique_id="test_user",
-    )
-
-
-async def setup_integration(hass: HomeAssistant, mock_fmd_api: AsyncMock) -> None:
-    """Set up integration for testing."""
-    config_entry = get_mock_config_entry()
-    config_entry.add_to_hass(hass)
-    
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
-        await hass.config_entries.async_setup(config_entry.entry_id)
-        await hass.async_block_till_done()

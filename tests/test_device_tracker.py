@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.fmd.const import DOMAIN
+from .conftest import setup_integration, get_mock_config_entry
 
 
 async def test_device_tracker_setup(
@@ -85,12 +86,12 @@ async def test_device_tracker_imperial_units(
 ) -> None:
     """Test imperial unit conversion."""
     config_entry = get_mock_config_entry()
-    config_entry.data["use_imperial"] = True
+    # Modify the data dict directly - MockConfigEntry.data is mutable
+    config_entry.data = {**config_entry.data, "use_imperial": True}
     config_entry.add_to_hass(hass)
     
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
-        await hass.config_entries.async_setup(config_entry.entry_id)
-        await hass.async_block_till_done()
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
     
     state = hass.states.get("device_tracker.fmd_test_user")
     # GPS accuracy should be converted from meters to feet
@@ -127,38 +128,3 @@ async def test_device_tracker_location_filtering(
     # Should use GPS location, not beacondb
     assert state.attributes["latitude"] == 37.7750
     assert state.attributes["provider"] == "gps"
-
-
-def get_mock_config_entry():
-    """Create a mock config entry."""
-    from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_ID
-    
-    return MockConfigEntry(
-        version=1,
-        minor_version=1,
-        domain=DOMAIN,
-        title="test_user",
-        data={
-            CONF_URL: "https://fmd.example.com",
-            CONF_ID: "test_user",
-            CONF_PASSWORD: "test_password",
-            "polling_interval": 30,
-            "allow_inaccurate_locations": False,
-            "use_imperial": False,
-        },
-        source="user",
-        entry_id="test_entry_id",
-        unique_id="test_user",
-        options={},
-        discovery_keys={},
-    )
-
-
-async def setup_integration(hass: HomeAssistant, mock_fmd_api: AsyncMock) -> None:
-    """Set up integration for testing."""
-    config_entry = get_mock_config_entry()
-    config_entry.add_to_hass(hass)
-    
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
-        await hass.config_entries.async_setup(config_entry.entry_id)
-        await hass.async_block_till_done()

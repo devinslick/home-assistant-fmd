@@ -70,15 +70,14 @@ def mock_config_entry():
     }
 
 
-@pytest.fixture
-async def setup_integration(
-    hass: HomeAssistant,
-    mock_fmd_api: AsyncMock,
-) -> None:
-    """Set up the FMD integration."""
+def get_mock_config_entry() -> MockConfigEntry:
+    """Create a mock config entry for testing.
+    
+    Returns a MockConfigEntry that can be modified before being added to hass.
+    """
     from homeassistant.const import CONF_URL, CONF_ID
     
-    config_entry = MockConfigEntry(
+    return MockConfigEntry(
         version=1,
         minor_version=1,
         domain=DOMAIN,
@@ -94,7 +93,17 @@ async def setup_integration(
         entry_id="test_entry_id",
         unique_id="test_user",
     )
+
+
+async def setup_integration(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Set up the FMD integration for testing.
     
+    This is a helper function, not a fixture, so tests can call it directly.
+    """
+    config_entry = get_mock_config_entry()
     config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
