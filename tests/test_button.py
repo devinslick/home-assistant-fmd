@@ -106,7 +106,7 @@ async def test_download_photos_button(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test download photos button."""
-    mock_fmd_api.create.return_value.get_photos.return_value = [
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
         {"filename": "photo1.jpg", "content": b"photo_data_1"},
         {"filename": "photo2.jpg", "content": b"photo_data_2"},
     ]
@@ -122,7 +122,7 @@ async def test_download_photos_button(
             blocking=True,
         )
         
-        mock_fmd_api.create.return_value.get_photos.assert_called_once()
+        mock_fmd_api.create.return_value.get_pictures.assert_called_once()
         # Verify photos were written
         assert mock_open.call_count == 2
 
@@ -132,7 +132,7 @@ async def test_download_photos_with_cleanup(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test download photos with auto-cleanup enabled."""
-    mock_fmd_api.create.return_value.get_photos.return_value = [
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
         {"filename": "photo1.jpg", "content": b"photo_data_1"},
     ]
     

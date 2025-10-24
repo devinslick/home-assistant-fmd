@@ -29,7 +29,7 @@ async def test_photo_count_after_download(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count updates after download."""
-    mock_fmd_api.create.return_value.get_photos.return_value = [
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
         {"filename": "photo1.jpg", "content": b"photo_data_1"},
         {"filename": "photo2.jpg", "content": b"photo_data_2"},
         {"filename": "photo3.jpg", "content": b"photo_data_3"},
@@ -68,7 +68,7 @@ async def test_photo_count_attributes(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count sensor attributes."""
-    mock_fmd_api.create.return_value.get_photos.return_value = [
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
         {"filename": "photo1.jpg", "content": b"photo_data_1"},
         {"filename": "photo2.jpg", "content": b"photo_data_2"},
     ]
@@ -104,7 +104,7 @@ async def test_photo_count_after_cleanup(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count updates after cleanup."""
-    mock_fmd_api.create.return_value.get_photos.return_value = [
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
         {"filename": "photo1.jpg", "content": b"photo_data_1"},
     ]
     
