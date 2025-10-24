@@ -150,10 +150,12 @@ async def test_authenticate_and_get_locations_success(mock_fmd_api: AsyncMock) -
     """Test authenticate_and_get_locations function directly."""
     from custom_components.fmd.config_flow import authenticate_and_get_locations
 
-    # Mock FmdApi.create to return our mock instance
-    mock_fmd_api.get_all_locations.return_value = [
-        {"lat": 37.7749, "lon": -122.4194, "time": "2025-10-24T13:20:00Z"}
-    ]
+    # Mock FmdApi.create to return our mock instance (it's async, so use AsyncMock)
+    mock_fmd_api.get_all_locations = AsyncMock(
+        return_value=[
+            {"lat": 37.7749, "lon": -122.4194, "time": "2025-10-24T13:20:00Z"}
+        ]
+    )
 
     with patch(
         "custom_components.fmd.config_flow.FmdApi.create", return_value=mock_fmd_api

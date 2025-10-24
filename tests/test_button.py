@@ -499,11 +499,11 @@ async def test_wipe_button_blocked_by_safety(
     """Test wipe button is blocked when safety switch is on."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Safety is ON by default
+    # Safety is OFF by default (disabled)
     state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
-    assert state.state == "on"
+    assert state.state == "off"
 
-    # Try to wipe with safety on
+    # Try to wipe with safety off (disabled)
     await hass.services.async_call(
         "button",
         "press",
@@ -512,5 +512,33 @@ async def test_wipe_button_blocked_by_safety(
     )
     await hass.async_block_till_done()
 
-    # Should not call send_command
+    # Should not call send_command because safety is disabled
     mock_fmd_api.create.return_value.send_command.assert_not_called()
+
+    # Now enable the safety switch (turn it on)
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Verify it's now on
+    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
+    assert state.state == "on"
+
+    # Reset the mock to check if wipe works now
+    mock_fmd_api.create.return_value.send_command.reset_mock()
+
+    # Try to wipe with safety enabled
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_wipe_execute"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Now wipe command should be called since safety is enabled
+    mock_fmd_api.create.return_value.send_command.assert_called_once_with("wipe")
