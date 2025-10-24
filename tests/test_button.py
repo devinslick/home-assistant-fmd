@@ -39,9 +39,10 @@ async def test_ring_button(
     await hass.services.async_call(
         "button",
         "press",
-        {"entity_id": "button.fmd_test_user_ring"},
+        {"entity_id": "button.fmd_test_user_volume_ring_device"},
         blocking=True,
     )
+    await hass.async_block_till_done()
     
     mock_fmd_api.create.return_value.send_command.assert_called_once_with("ring")
 
@@ -56,9 +57,10 @@ async def test_lock_button(
     await hass.services.async_call(
         "button",
         "press",
-        {"entity_id": "button.fmd_test_user_lock"},
+        {"entity_id": "button.fmd_test_user_lock_device"},
         blocking=True,
     )
+    await hass.async_block_till_done()
     
     mock_fmd_api.create.return_value.send_command.assert_called_once_with("lock")
 
@@ -73,9 +75,10 @@ async def test_capture_front_button(
     await hass.services.async_call(
         "button",
         "press",
-        {"entity_id": "button.fmd_test_user_capture_front_photo"},
+        {"entity_id": "button.fmd_test_user_photo_capture_front"},
         blocking=True,
     )
+    await hass.async_block_till_done()
     
     mock_fmd_api.create.return_value.take_picture.assert_called_once_with("front")
 
@@ -90,9 +93,10 @@ async def test_capture_rear_button(
     await hass.services.async_call(
         "button",
         "press",
-        {"entity_id": "button.fmd_test_user_capture_rear_photo"},
+        {"entity_id": "button.fmd_test_user_photo_capture_rear"},
         blocking=True,
     )
+    await hass.async_block_till_done()
     
     mock_fmd_api.create.return_value.take_picture.assert_called_once_with("rear")
 
@@ -199,8 +203,9 @@ async def test_wipe_device_button_allowed(
     await hass.services.async_call(
         "button",
         "press",
-        {"entity_id": "button.fmd_test_user_wipe_device"},
+        {"entity_id": "button.fmd_test_user_wipe_execute"},
         blocking=True,
     )
+    await hass.async_block_till_done()
     
     mock_fmd_api.create.return_value.send_command.assert_called_with("delete")

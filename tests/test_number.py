@@ -60,18 +60,18 @@ async def test_high_frequency_interval_number(
     entity_id = "number.fmd_test_user_high_frequency_interval"
     state = hass.states.get(entity_id)
     assert state is not None
-    assert float(state.state) == 10
+    assert float(state.state) == 5  # Default value
     
     # Set new value
     await hass.services.async_call(
         "number",
         "set_value",
-        {"entity_id": entity_id, "value": 5},
+        {"entity_id": entity_id, "value": 10},
         blocking=True,
     )
     
     state = hass.states.get(entity_id)
-    assert float(state.state) == 5
+    assert float(state.state) == 10
 
 
 async def test_high_frequency_interval_affects_polling(
