@@ -38,7 +38,7 @@ def mock_fmd_api():
             "time": "2025-10-23T12:00:00Z",
             "provider": "gps",
             "bat": 85,
-            "acc": 10.5,  # Accuracy in meters
+            "accuracy": 10.5,  # GPS accuracy in meters
         }
     ])
     api_instance.request_location = AsyncMock(return_value=True)
@@ -58,8 +58,8 @@ def mock_fmd_api():
         "time": "2025-10-23T12:00:00Z",
         "provider": "gps",
         "bat": 85,
-        "acc": 10.5,  # GPS accuracy in meters
-        "spd": 0.0,
+        "accuracy": 10.5,  # GPS accuracy in meters
+        "speed": 0.0,
     }
     api_instance.decrypt_data_blob = MagicMock(return_value=json.dumps(mock_location_data).encode('utf-8'))
     
