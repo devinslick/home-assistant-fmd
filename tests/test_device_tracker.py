@@ -13,7 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.fmd.const import DOMAIN
-from .conftest import setup_integration, get_mock_config_entry
+from conftest import setup_integration, get_mock_config_entry
 
 
 async def test_device_tracker_setup(

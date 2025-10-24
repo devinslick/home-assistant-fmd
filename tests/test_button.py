@@ -9,7 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from homeassistant.core import HomeAssistant
 
 from custom_components.fmd.const import DOMAIN
-from .conftest import setup_integration
+from conftest import setup_integration
 
 
 async def test_location_update_button(

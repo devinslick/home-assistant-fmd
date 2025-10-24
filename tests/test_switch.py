@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.const import STATE_ON, STATE_OFF
 
 from custom_components.fmd.const import DOMAIN
-from .conftest import setup_integration
+from conftest import setup_integration
 
 
 async def test_high_frequency_mode_switch(

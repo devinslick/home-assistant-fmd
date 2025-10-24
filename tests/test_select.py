@@ -8,7 +8,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.fmd.const import DOMAIN
-from .conftest import setup_integration
+from conftest import setup_integration
 
 
 async def test_location_source_select(
