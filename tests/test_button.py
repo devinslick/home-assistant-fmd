@@ -128,6 +128,7 @@ async def test_download_photos_button(
     
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.exists") as mock_exists, \
+         patch("pathlib.Path.is_dir", return_value=True), \
          patch("pathlib.Path.write_bytes") as mock_write:
         
         # exists() called for media_base check, then for each photo file
@@ -197,6 +198,7 @@ async def test_download_photos_with_cleanup(
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
          patch("pathlib.Path.exists") as mock_exists, \
+         patch("pathlib.Path.is_dir", return_value=True), \
          patch("pathlib.Path.glob") as mock_glob:
     
         # exists() for media_base check, then for new photo file
