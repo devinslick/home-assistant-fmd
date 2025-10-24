@@ -82,7 +82,7 @@ async def async_setup_entry(
 class FmdDeviceTracker(TrackerEntity):
     """Represent a tracked device."""
 
-    _attr_has_entity_name = True
+    _attr_has_entity_name = False
     _attr_entity_category = (
         None  # Explicitly set to None to ensure it's a primary entity
     )
@@ -109,7 +109,8 @@ class FmdDeviceTracker(TrackerEntity):
         self._block_inaccurate = block_inaccurate
         self._use_imperial = use_imperial  # Whether to convert units to imperial
         self._location = None
-        self._attr_name = None  # Use device name only, no suffix
+        # Generate entity name from FMD ID (stable, won't change if device is renamed)
+        self._attr_name = f"fmd_{self._entry.data['id']}"
         self._battery_level = None
         self._last_poll_time = None  # When we last polled FMD server
         self._remove_timer = None
@@ -228,7 +229,7 @@ class FmdDeviceTracker(TrackerEntity):
     @property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return f"{self._entry.entry_id}_tracker"
+        return f"fmd_{self._entry.data['id']}"
 
     @property
     def device_info(self) -> dict[str, Any]:
