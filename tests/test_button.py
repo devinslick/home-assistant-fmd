@@ -116,12 +116,16 @@ async def test_download_photos_button(
     
     # Mock decrypt_data_blob to return DIFFERENT base64-encoded fake image data
     # So they don't hash to the same value and get skipped as duplicates
+    # Note: decrypt_data_blob is a sync function called in executor
     fake_image_1 = base64.b64encode(b"fake_jpeg_data_1_unique").decode('utf-8')
     fake_image_2 = base64.b64encode(b"fake_jpeg_data_2_different").decode('utf-8')
-    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = [
-        fake_image_1,
-        fake_image_2,
-    ]
+    
+    # Use a function instead of list to avoid StopIteration issues
+    decrypt_values = {
+        "encrypted_blob_1": fake_image_1,
+        "encrypted_blob_2": fake_image_2,
+    }
+    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = lambda blob: decrypt_values.get(blob, fake_image_1)
     
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
