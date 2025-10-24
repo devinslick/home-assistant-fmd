@@ -58,7 +58,7 @@ class FmdPhotoCountSensor(SensorEntity):
         self.api = api
         self._attr_device_info = device_info
         self._attr_unique_id = f"{entry.entry_id}_photo_count"
-        
+
         self._photos_in_media_folder = 0  # Total photos stored (primary value)
         self._last_download_count = 0  # Photos from last download
         self._last_download_time = None
@@ -78,8 +78,13 @@ class FmdPhotoCountSensor(SensorEntity):
         """Return additional state attributes."""
         return {
             "last_download_count": self._last_download_count,
-            "last_download_time": self._last_download_time.isoformat() if self._last_download_time else None,
-            "photos_in_media_folder": self._photos_in_media_folder,  # Keep for backward compatibility
+            "last_download_time": (
+                self._last_download_time.isoformat()
+                if self._last_download_time
+                else None
+            ),
+            "photos_in_media_folder": self._photos_in_media_folder,  # Keep for
+            # backward compatibility
         }
 
     def update_photo_count(self, download_count: int) -> None:
@@ -95,11 +100,11 @@ class FmdPhotoCountSensor(SensorEntity):
             media_base = Path("/media")
             if not media_base.exists() or not media_base.is_dir():
                 media_base = Path(self.hass.config.path("media"))
-            
+
             # Use device-specific subdirectory
             device_id = self.entry.data["id"]
             media_dir = media_base / "fmd" / device_id
-            
+
             if media_dir.exists():
                 self._photos_in_media_folder = len(list(media_dir.glob("*.jpg")))
             else:
