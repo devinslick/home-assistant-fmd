@@ -185,6 +185,12 @@ class FmdWipeSafetySwitch(SwitchEntity):
             "model": "Device Tracker",
         }
 
+    async def async_will_remove_from_hass(self) -> None:
+        """Cancel the auto-disable task when entity is removed."""
+        if self._auto_disable_task:
+            self._auto_disable_task.cancel()
+            self._auto_disable_task = None
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Enable device wipe safety (allows wipe button to work)."""
         _LOGGER.critical("🚨🚨🚨 DEVICE WIPE SAFETY ENABLED 🚨🚨🚨")
