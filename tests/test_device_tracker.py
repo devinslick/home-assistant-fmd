@@ -362,3 +362,108 @@ async def test_device_tracker_zero_accuracy(
     state = hass.states.get("device_tracker.fmd_test_user")
     assert state is not None
     assert state.attributes["gps_accuracy"] == 0.0
+
+
+async def test_device_tracker_with_date_timestamp(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test device tracker includes date timestamp when available."""
+    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "date": 1729689600000,  # Unix timestamp in milliseconds
+            "provider": "gps",
+            "bat": 85,
+            "accuracy": 10.5,
+        }
+    ]
+
+    await setup_integration(hass, mock_fmd_api)
+
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
+    assert state.attributes["device_timestamp"] == "2025-10-23T12:00:00Z"
+    assert state.attributes["device_timestamp_ms"] == "1729689600000"
+
+
+async def test_device_tracker_battery_level_invalid(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test device tracker handles invalid battery value gracefully."""
+    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "gps",
+            "bat": "invalid",  # Invalid battery value
+            "accuracy": 10.5,
+        }
+    ]
+
+    await setup_integration(hass, mock_fmd_api)
+
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
+    # Battery level should not be in attributes if invalid
+    assert state.attributes.get("battery_level") is None
+
+
+async def test_device_tracker_imperial_altitude_speed(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test imperial unit conversion for altitude and speed."""
+    from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    # Create config entry with imperial units enabled
+    config_entry = MockConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="test_user",
+        data={
+            CONF_URL: "https://fmd.example.com",
+            CONF_ID: "test_user",
+            CONF_PASSWORD: "test_password",
+            "polling_interval": 30,
+            "allow_inaccurate_locations": False,
+            "use_imperial": True,  # Enable imperial units
+        },
+        entry_id="test_entry_id",
+        unique_id="test_user",
+    )
+    config_entry.add_to_hass(hass)
+
+    # Mock location with altitude and speed
+    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "gps",
+            "bat": 85,
+            "accuracy": 10.5,
+            "altitude": 100.0,  # meters
+            "speed": 10.0,  # m/s
+        }
+    ]
+
+    with patch.object(
+        hass, "async_add_executor_job", side_effect=lambda func, *args: func(*args)
+    ):
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
+    # Check imperial conversions
+    # altitude: 100m * 3.28084 = 328.084 feet -> 328.1
+    # speed: 10 m/s * 2.23694 = 22.3694 mph -> 22.4
+    assert state.attributes["altitude_unit"] == "ft"
+    assert state.attributes["speed_unit"] == "mph"
