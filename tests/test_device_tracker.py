@@ -212,3 +212,149 @@ async def test_device_tracker_setup_initial_location_fetch_failure(
     state = hass.states.get("device_tracker.fmd_test_user")
     assert state is not None
     assert state.state == "unknown"
+
+
+# Phase 3 error handling tests
+async def test_device_tracker_no_location_data(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test device tracker handles empty location data."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Update to empty locations
+    mock_fmd_api.create.return_value.get_all_locations.return_value = []
+
+    # Trigger an update
+    await hass.services.async_call("homeassistant", "update_entity", {})
+    await hass.async_block_till_done()
+
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
+
+
+async def test_device_tracker_missing_attributes(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test device tracker handles missing optional location attributes."""
+    # Location with only required fields
+    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "gps",
+            # Missing optional fields: bat, acc, alt, spd, dir
+        }
+    ]
+
+    await setup_integration(hass, mock_fmd_api)
+
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
+    assert state.attributes["latitude"] == 37.7749
+    assert state.attributes["longitude"] == -122.4194
+
+
+async def test_device_tracker_with_altitude_speed_heading(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test device tracker includes altitude, speed, and heading when available."""
+    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "gps",
+            "bat": 85,
+            "acc": 10.5,
+            "alt": 100.0,
+            "spd": 5.5,
+            "dir": 180.0,
+        }
+    ]
+
+    await setup_integration(hass, mock_fmd_api)
+
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
+    # Verify all extended attributes are present
+    assert state.attributes["latitude"] == 37.7749
+    assert state.attributes["longitude"] == -122.4194
+    assert state.attributes["battery_level"] == 85
+    assert state.attributes["gps_accuracy"] == 10.5
+    assert "altitude" in state.attributes or "alt" in state.attributes
+    assert "speed" in state.attributes or "spd" in state.attributes
+    assert "heading" in state.attributes or "dir" in state.attributes
+
+
+async def test_device_tracker_inaccurate_location_filtering_enabled(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test inaccurate location filtering blocks low-accuracy providers."""
+    from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
+
+    # Create config with filtering ENABLED (default)
+    config_entry = MockConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="test_user",
+        data={
+            CONF_URL: "https://fmd.example.com",
+            CONF_ID: "test_user",
+            CONF_PASSWORD: "test_password",
+            "polling_interval": 30,
+            "allow_inaccurate_locations": False,  # Filtering ENABLED
+            "use_imperial": False,
+        },
+        entry_id="test_entry_id",
+        unique_id="test_user",
+    )
+    config_entry.add_to_hass(hass)
+
+    # Only inaccurate location available (should be filtered)
+    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "beacondb",
+            "bat": 85,
+            "acc": 5000.0,  # Very inaccurate
+        }
+    ]
+
+    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    state = hass.states.get("device_tracker.fmd_test_user")
+    # Should remain unknown since inaccurate location filtered
+    assert state.state == "unknown"
+
+
+async def test_device_tracker_zero_accuracy(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test device tracker handles zero accuracy value."""
+    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "gps",
+            "bat": 85,
+            "acc": 0.0,  # Zero accuracy
+        }
+    ]
+
+    await setup_integration(hass, mock_fmd_api)
+
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
+    assert state.attributes["gps_accuracy"] == 0.0

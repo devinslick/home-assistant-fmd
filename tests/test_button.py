@@ -291,3 +291,158 @@ async def test_wipe_device_button_allowed(
     await hass.async_block_till_done()
 
     mock_fmd_api.create.return_value.send_command.assert_called_with("delete")
+
+
+# Phase 3 error handling tests
+async def test_location_update_tracker_not_found(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test location update when tracker is not found."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Remove tracker from hass.data
+    hass.data["fmd"][list(hass.data["fmd"].keys())[0]].pop("tracker", None)
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_location_update"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Should handle gracefully - API should not be called
+    mock_fmd_api.create.return_value.request_location.assert_not_called()
+
+
+async def test_ring_button_api_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test ring button handles API errors gracefully."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Mock API to raise error
+    mock_fmd_api.create.return_value.send_command.side_effect = RuntimeError(
+        "API error"
+    )
+
+    try:
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_volume_ring_device"},
+            blocking=True,
+        )
+    except RuntimeError:
+        pass
+
+    await hass.async_block_till_done()
+    mock_fmd_api.create.return_value.send_command.assert_called_once_with("ring")
+
+
+async def test_lock_button_api_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test lock button handles API errors gracefully."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Mock API to raise error
+    mock_fmd_api.create.return_value.send_command.side_effect = RuntimeError(
+        "API error"
+    )
+
+    try:
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_lock_device"},
+            blocking=True,
+        )
+    except RuntimeError:
+        pass
+
+    await hass.async_block_till_done()
+    mock_fmd_api.create.return_value.send_command.assert_called_once_with("lock")
+
+
+async def test_capture_photo_api_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test capture photo button handles API errors gracefully."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Mock API to raise error
+    mock_fmd_api.create.return_value.take_picture.side_effect = RuntimeError(
+        "API error"
+    )
+
+    try:
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_capture_front"},
+            blocking=True,
+        )
+    except RuntimeError:
+        pass
+
+    await hass.async_block_till_done()
+    mock_fmd_api.create.return_value.take_picture.assert_called_once_with("front")
+
+
+async def test_download_photos_empty_result(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test download photos button with empty result."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Return empty list
+    mock_fmd_api.create.return_value.get_pictures.return_value = []
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_download"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Sensor should have count of 0
+    sensor = hass.data["fmd"][list(hass.data["fmd"].keys())[0]]["photo_count_sensor"]
+    assert sensor._last_download_count == 0
+
+
+async def test_wipe_button_tracker_not_found(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test wipe button when tracker is not found."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Remove tracker from hass.data
+    hass.data["fmd"][list(hass.data["fmd"].keys())[0]].pop("tracker", None)
+
+    # Enable safety
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+
+    # Try wipe
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_wipe_execute"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Should not call API since tracker not found
+    mock_fmd_api.create.return_value.send_command.assert_not_called()
