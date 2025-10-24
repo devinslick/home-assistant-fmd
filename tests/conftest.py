@@ -30,7 +30,7 @@ def mock_fmd_api():
     
     api_instance = AsyncMock()
     
-    # Mock async methods
+    # Mock async methods - these should match the actual fmd-api methods
     api_instance.get_all_locations = AsyncMock(return_value=[
         {
             "lat": 37.7749,
@@ -38,20 +38,17 @@ def mock_fmd_api():
             "time": "2025-10-23T12:00:00Z",
             "provider": "gps",
             "bat": 85,
+            "acc": 10.5,  # Accuracy in meters
         }
     ])
     api_instance.request_location = AsyncMock(return_value=True)
-    api_instance.send_command = AsyncMock(return_value=True)
+    api_instance.send_command = AsyncMock(return_value=True)  # Used for ring, lock, delete, etc.
     api_instance.toggle_bluetooth = AsyncMock(return_value=True)
     api_instance.toggle_do_not_disturb = AsyncMock(return_value=True)
     api_instance.set_ringer_mode = AsyncMock(return_value=True)
-    api_instance.take_picture = AsyncMock(return_value=True)
+    api_instance.take_picture = AsyncMock(return_value=True)  # Used for camera capture
     api_instance.get_pictures = AsyncMock(return_value=[])
     api_instance.get_photos = AsyncMock(return_value=[])  # Alias for get_pictures
-    api_instance.wipe_device = AsyncMock(return_value=True)
-    api_instance.ring = AsyncMock(return_value=True)
-    api_instance.lock = AsyncMock(return_value=True)
-    api_instance.capture_photo = AsyncMock(return_value=True)
     
     # Mock synchronous decrypt_data_blob method
     # It should return JSON bytes that can be parsed
@@ -61,7 +58,7 @@ def mock_fmd_api():
         "time": "2025-10-23T12:00:00Z",
         "provider": "gps",
         "bat": 85,
-        "acc": 10.0,
+        "acc": 10.5,  # GPS accuracy in meters
         "spd": 0.0,
     }
     api_instance.decrypt_data_blob = MagicMock(return_value=json.dumps(mock_location_data).encode('utf-8'))
