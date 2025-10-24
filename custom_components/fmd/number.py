@@ -1,9 +1,8 @@
 """Number entities for FMD integration."""
 from __future__ import annotations
 
-from typing import Any
-
 import logging
+from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
@@ -31,9 +30,9 @@ async def async_setup_entry(
         FmdHighFrequencyIntervalNumber(hass, entry),
         FmdMaxPhotosNumber(hass, entry),
     ]
-    
+
     async_add_entities(entities)
-    
+
     # Store max photos number reference for download button to access
     hass.data[DOMAIN][entry.entry_id]["max_photos_number"] = entities[2]
 
@@ -55,7 +54,9 @@ class FmdUpdateIntervalNumber(NumberEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_update_interval"
         self._attr_name = "Update interval"
-        self._attr_native_value = entry.data.get("polling_interval", DEFAULT_UPDATE_INTERVAL)
+        self._attr_native_value = entry.data.get(
+            "polling_interval", DEFAULT_UPDATE_INTERVAL
+        )
         self._attr_icon = "mdi:timer-outline"
 
     @property
@@ -73,12 +74,14 @@ class FmdUpdateIntervalNumber(NumberEntity):
         _LOGGER.info("Update interval changed to %s minutes", value)
         self._attr_native_value = value
         self.async_write_ha_state()
-        
+
         # Update the actual polling interval in device_tracker
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
         if tracker:
             tracker.set_polling_interval(int(value))
-            _LOGGER.info("Successfully updated tracker polling interval to %s minutes", value)
+            _LOGGER.info(
+                "Successfully updated tracker polling interval to %s minutes", value
+            )
         else:
             _LOGGER.error("Could not find tracker to update polling interval")
 
@@ -118,12 +121,15 @@ class FmdHighFrequencyIntervalNumber(NumberEntity):
         _LOGGER.info("High frequency interval changed to %s minutes", value)
         self._attr_native_value = value
         self.async_write_ha_state()
-        
+
         # Update the high-frequency interval in the tracker
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
         if tracker:
             tracker.set_high_frequency_interval(int(value))
-            _LOGGER.info("Successfully updated tracker high-frequency interval to %s minutes", value)
+            _LOGGER.info(
+                "Successfully updated tracker high-frequency interval to %s minutes",
+                value,
+            )
         else:
             _LOGGER.error("Could not find tracker to update high-frequency interval")
 
@@ -167,4 +173,3 @@ class FmdMaxPhotosNumber(NumberEntity):
         _LOGGER.info("Photo: Max to retain changed to %s", value)
         self._attr_native_value = value
         self.async_write_ha_state()
-
