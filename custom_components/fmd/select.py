@@ -29,7 +29,7 @@ class FmdLocationSourceSelect(SelectEntity):
         "All Providers (Default)",
         "GPS Only (Accurate)",
         "Cell Only (Fast)",
-        "Last Known (No Request)"
+        "Last Known (No Request)",
     ]
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -59,7 +59,7 @@ class FmdLocationSourceSelect(SelectEntity):
 
     def get_provider_value(self) -> str:
         """Convert the selected option to the API provider parameter.
-        
+
         Returns:
             str: Provider value for request_location() - "all", "gps", "cell", or "last"
         """
@@ -67,7 +67,7 @@ class FmdLocationSourceSelect(SelectEntity):
             "All Providers (Default)": "all",
             "GPS Only (Accurate)": "gps",
             "Cell Only (Fast)": "cell",
-            "Last Known (No Request)": "last"
+            "Last Known (No Request)": "last",
         }
         return provider_map.get(self._attr_current_option, "all")
 
@@ -78,12 +78,14 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up FMD select entities."""
-    async_add_entities([
-        FmdLocationSourceSelect(hass, entry),
-        FmdBluetoothSelect(hass, entry),
-        FmdDoNotDisturbSelect(hass, entry),
-        FmdRingerModeSelect(hass, entry),
-    ])
+    async_add_entities(
+        [
+            FmdLocationSourceSelect(hass, entry),
+            FmdBluetoothSelect(hass, entry),
+            FmdDoNotDisturbSelect(hass, entry),
+            FmdRingerModeSelect(hass, entry),
+        ]
+    )
 
 
 class FmdBluetoothSelect(SelectEntity):

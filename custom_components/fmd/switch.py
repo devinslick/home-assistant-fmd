@@ -30,9 +30,9 @@ async def async_setup_entry(
         FmdPhotoAutoCleanupSwitch(hass, entry),
         FmdWipeSafetySwitch(hass, entry),
     ]
-    
+
     async_add_entities(switches)
-    
+
     # Store photo auto-cleanup switch reference for download button to access
     for switch in switches:
         if isinstance(switch, FmdPhotoAutoCleanupSwitch):
@@ -70,7 +70,7 @@ class FmdHighFrequencyModeSwitch(SwitchEntity):
         _LOGGER.info("High frequency mode enabled")
         self._attr_is_on = True
         self.async_write_ha_state()
-        
+
         # Enable high-frequency mode in the tracker
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
         if tracker:
@@ -84,7 +84,7 @@ class FmdHighFrequencyModeSwitch(SwitchEntity):
         _LOGGER.info("High frequency mode disabled")
         self._attr_is_on = False
         self.async_write_ha_state()
-        
+
         # Disable high-frequency mode in the tracker
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
         if tracker:
@@ -109,8 +109,9 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
         self._attr_name = "Location: allow inaccurate updates"
         # Get allow_inaccurate setting, defaulting to False (blocking enabled, switch off)
         # For backward compatibility, also check old "block_inaccurate" key
-        allow_inaccurate = entry.data.get("allow_inaccurate_locations",
-                                         not entry.data.get("block_inaccurate", True))
+        allow_inaccurate = entry.data.get(
+            "allow_inaccurate_locations", not entry.data.get("block_inaccurate", True)
+        )
         self._attr_is_on = allow_inaccurate
 
     @property
@@ -128,7 +129,7 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
         _LOGGER.info("Inaccurate locations allowed (blocking disabled)")
         self._attr_is_on = True
         self.async_write_ha_state()
-        
+
         # Update the tracker to disable filtering
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
         if tracker:
@@ -142,7 +143,7 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
         _LOGGER.info("Inaccurate locations disallowed (blocking enabled)")
         self._attr_is_on = False
         self.async_write_ha_state()
-        
+
         # Update the tracker to enable filtering
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
         if tracker:
@@ -154,7 +155,7 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
 
 class FmdWipeSafetySwitch(SwitchEntity):
     """Safety switch that must be enabled before device wipe can be performed.
-    
+
     This switch automatically disables itself after 60 seconds for safety.
     """
 
@@ -170,7 +171,7 @@ class FmdWipeSafetySwitch(SwitchEntity):
         self._attr_name = "Wipe: ⚠️ Safety switch ⚠️"
         self._attr_is_on = False
         self._auto_disable_task = None
-        
+
         # Store reference for the wipe button to access
         if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
             hass.data[DOMAIN][entry.entry_id]["wipe_safety_switch"] = self
@@ -194,27 +195,33 @@ class FmdWipeSafetySwitch(SwitchEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Enable device wipe safety (allows wipe button to work)."""
         _LOGGER.critical("🚨🚨🚨 DEVICE WIPE SAFETY ENABLED 🚨🚨🚨")
-        _LOGGER.critical("⚠️ The 'Wipe Device' button is now ACTIVE for the next 60 seconds!")
-        _LOGGER.critical("⚠️ Pressing the wipe button will PERMANENTLY ERASE ALL DATA on your device!")
+        _LOGGER.critical(
+            "⚠️ The 'Wipe Device' button is now ACTIVE for the next 60 seconds!"
+        )
+        _LOGGER.critical(
+            "⚠️ Pressing the wipe button will PERMANENTLY ERASE ALL DATA on your device!"
+        )
         _LOGGER.critical("⚠️ To CANCEL: Turn this safety switch OFF immediately!")
         _LOGGER.critical("⏰ This safety will AUTO-DISABLE in 60 seconds")
         self._attr_is_on = True
         self.async_write_ha_state()
-        
+
         # Cancel any existing auto-disable task
         if self._auto_disable_task:
             self._auto_disable_task.cancel()
-        
+
         # Schedule automatic disable after 60 seconds
         self._auto_disable_task = asyncio.create_task(self._auto_disable())
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable device wipe safety (blocks wipe button)."""
         _LOGGER.warning("✅ DEVICE WIPE SAFETY DISABLED - Wipe button is now BLOCKED")
-        _LOGGER.info("Device wipe command is no longer available until safety is re-enabled")
+        _LOGGER.info(
+            "Device wipe command is no longer available until safety is re-enabled"
+        )
         self._attr_is_on = False
         self.async_write_ha_state()
-        
+
         # Cancel auto-disable task if running
         if self._auto_disable_task:
             self._auto_disable_task.cancel()
@@ -236,7 +243,7 @@ class FmdWipeSafetySwitch(SwitchEntity):
 
 class FmdPhotoAutoCleanupSwitch(SwitchEntity):
     """Switch entity to enable automatic cleanup of old photos.
-    
+
     When enabled, automatically deletes oldest photos after download
     if total count exceeds the "Photo: Max to retain" limit.
     """
@@ -265,13 +272,19 @@ class FmdPhotoAutoCleanupSwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Enable automatic photo cleanup."""
-        _LOGGER.info("Photo auto-cleanup ENABLED - Old photos will be deleted when limit exceeded")
-        _LOGGER.info("Maximum photos retained: Set via 'Photo: Max to retain' number entity")
+        _LOGGER.info(
+            "Photo auto-cleanup ENABLED - Old photos will be deleted when limit exceeded"
+        )
+        _LOGGER.info(
+            "Maximum photos retained: Set via 'Photo: Max to retain' number entity"
+        )
         self._attr_is_on = True
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable automatic photo cleanup."""
-        _LOGGER.info("Photo auto-cleanup DISABLED - Photos will not be automatically deleted")
+        _LOGGER.info(
+            "Photo auto-cleanup DISABLED - Photos will not be automatically deleted"
+        )
         self._attr_is_on = False
         self.async_write_ha_state()
