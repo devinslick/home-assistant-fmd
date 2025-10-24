@@ -16,7 +16,7 @@ This integration acts as a **client** for your FMD server, providing seamless in
 
 ## Quick Start Overview
 
-This integration provides **19 entities** to control your Android device:
+This integration provides **20 entities** to control your Android device:
 
 🗺️ **Location Tracking**
 - Real-time device location on Home Assistant map
@@ -973,7 +973,15 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Version History
 
-### v0.9.0 (Current) - October 22, 2025
+### v0.9.5 (Current) - October 24, 2025
+**Graceful Error Handling & Linting**
+- ✅ Added ConfigEntryNotReady exception for graceful handling of temporary service outages
+- ✅ Fixed pre-commit pipeline with dynamic Python version support
+- ✅ Resolved all linting issues (unused imports, line length violations)
+- ✅ Improved code quality and compliance
+- Total entities: **20 per device**
+
+### v0.9.0 - October 22, 2025
 **Major Refactor: PyPI Package Migration**
 - ✅ Migrated from embedded `fmd_client` to PyPI package `fmd-api`
 - ✅ Simplified dependencies and improved maintainability
@@ -994,7 +1002,7 @@ To be included in Home Assistant Core, the following items must be completed:
 **Icon Improvements**
 - ✅ Submitted integration branding to Home Assistant brands repository
 - ✅ Improved entity icon definitions
-- Total entities: 19 per device
+- Total entities: 20 per device
 
 ### v0.8.2 - October 20, 2025
 **Unit Conversion Feature**
@@ -1002,7 +1010,7 @@ To be included in Home Assistant Core, the following items must be completed:
 - ✅ Converts speed (m/s → mph), altitude (m → ft), and GPS accuracy (m → ft)
 - ✅ Added unit indicators in device tracker attributes
 - ✅ Configurable during initial setup
-- Total entities: 19 per device
+- Total entities: 20 per device
 
 ### v0.8.1 - October 20, 2025
 **UX Improvements: Entity Naming & Organization**
@@ -1051,7 +1059,7 @@ A: Yes, this integration requires a self-hosted or hosted FMD server. The integr
 A: No, you must install the FMD Android app on the device you want to track. The app communicates with the FMD server.
 
 **Q: Can I track multiple devices?**
-A: Yes! Add a new integration instance for each device. Each device gets its own set of 19 entities.
+A: Yes! Add a new integration instance for each device. Each device gets its own set of 20 entities.
 
 **Q: Why is my location not updating?**
 A: Check: 1) Device has internet, 2) FMD app is running, 3) Location permissions granted, 4) Device is sending data to server (check FMD server logs).
