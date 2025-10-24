@@ -203,7 +203,7 @@ async def test_high_frequency_mode_api_error(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test high frequency mode when API raises error."""
+    """Test high frequency mode when API raises error still updates state."""
     await setup_integration(hass, mock_fmd_api)
 
     # Make the tracker method raise an error
@@ -212,7 +212,8 @@ async def test_high_frequency_mode_api_error(
 
     entity_id = "switch.fmd_test_user_high_frequency_mode"
 
-    # Try to turn on - should handle error gracefully
+    # Try to turn on - will update state even if API fails
+    # The implementation writes state before calling the tracker method
     await hass.services.async_call(
         "switch",
         "turn_on",
@@ -220,9 +221,9 @@ async def test_high_frequency_mode_api_error(
         blocking=True,
     )
 
-    # State should still exist
+    # State should be updated (set before API call)
     state = hass.states.get(entity_id)
-    assert state is not None
+    assert state.state == STATE_ON
 
 
 async def test_allow_inaccurate_api_error(
