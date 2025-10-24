@@ -103,7 +103,7 @@ async def test_setup_entry_api_failure(
         assert not await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
 
-    assert config_entry.state == ConfigEntryState.SETUP_ERROR
+    assert config_entry.state == ConfigEntryState.SETUP_RETRY
 
 
 async def test_setup_entry_network_error_raises_config_entry_not_ready(
@@ -134,6 +134,6 @@ async def test_setup_entry_network_error_raises_config_entry_not_ready(
         result = await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
 
-    # ConfigEntryNotReady results in SETUP_ERROR state with automatic retry
+    # ConfigEntryNotReady results in SETUP_RETRY state with automatic retry
     assert not result
-    assert config_entry.state == ConfigEntryState.SETUP_ERROR
+    assert config_entry.state == ConfigEntryState.SETUP_RETRY

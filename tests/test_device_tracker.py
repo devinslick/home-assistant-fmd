@@ -169,11 +169,12 @@ async def test_device_tracker_setup_initial_location_fetch_failure(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test device tracker setup fails gracefully if initial location fetch fails.
+    """Test device tracker setup handles initial location fetch failures gracefully.
 
-    When the initial location fetch fails, ConfigEntryNotReady should be raised,
-    signaling to Home Assistant to retry with exponential backoff instead of
-    permanently failing the setup.
+    When the initial location fetch fails, the device tracker should still be set up
+    but without location data. ConfigEntryNotReady is NOT raised for location fetch
+    failures during device_tracker.async_setup_platform since that's a platform-level
+    setup, not the integration-level setup.
     """
     config_entry = MockConfigEntry(
         version=1,
@@ -202,10 +203,12 @@ async def test_device_tracker_setup_initial_location_fetch_failure(
         result = await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
 
-    # Setup should fail due to ConfigEntryNotReady being raised
-    assert not result
-    assert config_entry.state == ConfigEntryState.SETUP_ERROR
+    # Setup should succeed despite location fetch failure
+    # (only integration setup errors trigger ConfigEntryNotReady)
+    assert result
+    assert config_entry.state == ConfigEntryState.LOADED
 
-    # Device tracker should not be added if setup fails
+    # Device tracker should be added but without location data (state = "unknown")
     state = hass.states.get("device_tracker.fmd_test_user")
-    assert state is None
+    assert state is not None
+    assert state.state == "unknown"
