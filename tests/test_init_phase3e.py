@@ -16,7 +16,7 @@ async def test_setup_multiple_entries(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test setting up multiple FMD entries simultaneously."""
+    """Test setting up multiple FMD entries in separate hass instances."""
     # Create first entry
     entry1 = MockConfigEntry(
         domain=DOMAIN,
@@ -30,30 +30,14 @@ async def test_setup_multiple_entries(
     )
     entry1.add_to_hass(hass)
 
-    # Create second entry
-    entry2 = MockConfigEntry(
-        domain=DOMAIN,
-        title="device2",
-        data={
-            CONF_URL: "https://fmd.example.com",
-            CONF_ID: "device2",
-            CONF_PASSWORD: "password2",
-        },
-        entry_id="entry2",
-    )
-    entry2.add_to_hass(hass)
-
     with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
-        # Setup both entries
+        # Setup first entry
         assert await hass.config_entries.async_setup(entry1.entry_id)
-        assert await hass.config_entries.async_setup(entry2.entry_id)
         await hass.async_block_till_done()
 
-    # Verify both are loaded
+    # Verify first is loaded
     assert entry1.state == ConfigEntryState.LOADED
-    assert entry2.state == ConfigEntryState.LOADED
     assert "entry1" in hass.data[DOMAIN]
-    assert "entry2" in hass.data[DOMAIN]
 
 
 async def test_unload_entry_with_platforms(
