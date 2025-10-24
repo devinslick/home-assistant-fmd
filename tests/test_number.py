@@ -32,7 +32,7 @@ async def test_update_interval_number(
     )
     
     state = hass.states.get(entity_id)
-    assert state.state == "60"
+    assert float(state.state) == 60
 
 
 async def test_update_interval_min_max(
@@ -46,8 +46,8 @@ async def test_update_interval_min_max(
     state = hass.states.get(entity_id)
     
     # Check min/max attributes
-    assert state.attributes["min"] == 5
-    assert state.attributes["max"] == 3600
+    assert state.attributes["min"] == 1
+    assert state.attributes["max"] == 1440
 
 
 async def test_high_frequency_interval_number(
@@ -60,7 +60,7 @@ async def test_high_frequency_interval_number(
     entity_id = "number.fmd_test_user_high_frequency_interval"
     state = hass.states.get(entity_id)
     assert state is not None
-    assert state.state == "10"
+    assert float(state.state) == 10
     
     # Set new value
     await hass.services.async_call(
@@ -71,7 +71,7 @@ async def test_high_frequency_interval_number(
     )
     
     state = hass.states.get(entity_id)
-    assert state.state == "5"
+    assert float(state.state) == 5
 
 
 async def test_high_frequency_interval_affects_polling(
@@ -100,7 +100,7 @@ async def test_high_frequency_interval_affects_polling(
     # Verify the tracker's interval was updated
     # (This would test internal state, in real integration)
     state = hass.states.get("number.fmd_test_user_high_frequency_interval")
-    assert state.state == "15"
+    assert float(state.state) == 15
 
 
 async def test_max_photos_number(

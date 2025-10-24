@@ -26,12 +26,12 @@ async def test_location_source_select(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": entity_id, "option": "GPS"},
+        {"entity_id": entity_id, "option": "GPS Only (Accurate)"},
         blocking=True,
     )
     
     state = hass.states.get(entity_id)
-    assert state.state == "GPS"
+    assert state.state == "GPS Only (Accurate)"
 
 
 async def test_location_source_placeholder_reset(
@@ -47,7 +47,7 @@ async def test_location_source_placeholder_reset(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": entity_id, "option": "GPS"},
+        {"entity_id": entity_id, "option": "GPS Only (Accurate)"},
         blocking=True,
     )
     

@@ -43,7 +43,7 @@ async def test_ring_button(
         blocking=True,
     )
     
-    mock_fmd_api.create.return_value.ring.assert_called_once()
+    mock_fmd_api.create.return_value.send_command.assert_called_once_with("ring")
 
 
 async def test_lock_button(
@@ -60,7 +60,7 @@ async def test_lock_button(
         blocking=True,
     )
     
-    mock_fmd_api.create.return_value.lock.assert_called_once()
+    mock_fmd_api.create.return_value.send_command.assert_called_once_with("lock")
 
 
 async def test_capture_front_button(
@@ -77,7 +77,7 @@ async def test_capture_front_button(
         blocking=True,
     )
     
-    mock_fmd_api.create.return_value.capture_photo.assert_called_once_with("front")
+    mock_fmd_api.create.return_value.take_picture.assert_called_once_with("front")
 
 
 async def test_capture_rear_button(
@@ -94,7 +94,7 @@ async def test_capture_rear_button(
         blocking=True,
     )
     
-    mock_fmd_api.create.return_value.capture_photo.assert_called_once_with("rear")
+    mock_fmd_api.create.return_value.take_picture.assert_called_once_with("rear")
 
 
 async def test_download_photos_button(
@@ -203,4 +203,4 @@ async def test_wipe_device_button_allowed(
         blocking=True,
     )
     
-    mock_fmd_api.create.return_value.wipe_device.assert_called_once()
+    mock_fmd_api.create.return_value.send_command.assert_called_with("delete")
