@@ -152,4 +152,4 @@ async def test_photo_count_icon(
     
     entity_id = "sensor.fmd_test_user_photo_count"
     state = hass.states.get(entity_id)
-    assert state.attributes["icon"] == "mdi:camera"
+    assert state.attributes["icon"] == "mdi:image-multiple"
