@@ -62,11 +62,15 @@ async def test_photo_count_after_download(
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
          patch("pathlib.Path.exists") as mock_exists, \
+         patch("pathlib.Path.is_dir", return_value=True), \
          patch("pathlib.Path.glob") as mock_glob:
         
-        # First call to exists() is for media_base directory check, return True
-        # Then for each photo file check (3 times), return False so they're saved
-        mock_exists.side_effect = [True, False, False, False]
+        # exists() calls:
+        # 1. Button: media_base.exists() check
+        # 2-4. Button: filepath.exists() for each of 3 photos
+        # 5. Sensor: media_base.exists() check
+        # 6. Sensor: media_dir.exists() check
+        mock_exists.side_effect = [True, False, False, False, True, True]
         
         # glob is called by sensor's _update_media_folder_count after download
         mock_glob.return_value = [mock_photo1, mock_photo2, mock_photo3]
@@ -117,10 +121,15 @@ async def test_photo_count_attributes(
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
          patch("pathlib.Path.exists") as mock_exists, \
+         patch("pathlib.Path.is_dir", return_value=True), \
          patch("pathlib.Path.glob") as mock_glob:
         
-        # exists() called for media_base check, then for each photo file
-        mock_exists.side_effect = [True, False, False]
+        # exists() called for:
+        # 1. Button: media_base.exists() check
+        # 2-3. Button: filepath.exists() for each of 2 photos
+        # 4. Sensor: media_base.exists()
+        # 5. Sensor: media_dir.exists()
+        mock_exists.side_effect = [True, False, False, True, True]
         
         # glob returns our mock photos when sensor counts
         mock_glob.return_value = [mock_photo1, mock_photo2]
@@ -178,11 +187,17 @@ async def test_photo_count_after_cleanup(
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
          patch("pathlib.Path.exists") as mock_exists, \
+         patch("pathlib.Path.is_dir", return_value=True), \
          patch("pathlib.Path.glob") as mock_glob, \
          patch("pathlib.Path.unlink"):
         
-        # exists() called for media_base check, then for new photo file, then in cleanup for old photos
-        mock_exists.side_effect = [True, False, True]
+        # exists() calls:
+        # 1. Button: media_base.exists()
+        # 2. Button: new photo filepath.exists()
+        # 3. Cleanup: glob returns photos, sorted, oldest checked
+        # 4. Sensor: media_base.exists()
+        # 5. Sensor: media_dir.exists()
+        mock_exists.side_effect = [True, False, True, True]
         
         # glob called multiple times: once to find photos to delete, once to count after
         mock_glob.side_effect = [

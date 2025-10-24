@@ -127,8 +127,11 @@ async def test_download_photos_button(
     await setup_integration(hass, mock_fmd_api)
     
     with patch("pathlib.Path.mkdir"), \
-         patch("pathlib.Path.exists", return_value=False), \
+         patch("pathlib.Path.exists") as mock_exists, \
          patch("pathlib.Path.write_bytes") as mock_write:
+        
+        # exists() called for media_base check, then for each photo file
+        mock_exists.side_effect = [True, False, False]
         
         await hass.services.async_call(
             "button",
@@ -176,7 +179,7 @@ async def test_download_photos_with_cleanup(
         blocking=True,
     )
     
-    # Create mock old photos (4 old photos, limit is 3, so 1 should be deleted)
+    # Create mock old photos (4 old photos + will add 1 new = 5 total, limit is 3, so 2 should be deleted)
     from unittest.mock import MagicMock
     old_photos = []
     for i in range(4):
@@ -185,17 +188,22 @@ async def test_download_photos_with_cleanup(
         photo.name = f"old_photo_{i}.jpg"
         old_photos.append(photo)
     
+    # The new photo that will be downloaded
+    new_photo = MagicMock()
+    new_photo.stat.return_value.st_mtime = datetime.now().timestamp()
+    new_photo.name = "new_photo.jpg"
+    
     # Now patch only for the photo download operation
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
          patch("pathlib.Path.exists") as mock_exists, \
          patch("pathlib.Path.glob") as mock_glob:
     
-        # exists() for media_base check, then for new photo file, then in cleanup
-        mock_exists.side_effect = [True, False] + [True] * len(old_photos)
+        # exists() for media_base check, then for new photo file
+        mock_exists.side_effect = [True, False]
         
-        # glob returns old photos for cleanup to find
-        mock_glob.return_value = old_photos
+        # glob returns all photos (4 old + 1 new = 5) when cleanup runs
+        mock_glob.return_value = old_photos + [new_photo]
     
         await hass.services.async_call(
             "button",
@@ -204,8 +212,10 @@ async def test_download_photos_with_cleanup(
             blocking=True,
         )
     
-        # Verify the oldest photo was deleted (first in list has oldest timestamp)
+        # Verify the 2 oldest photos were deleted (5 photos - 3 limit = 2 to delete)
+        # The photos are sorted by timestamp, so photos[0] and photos[1] are oldest
         old_photos[0].unlink.assert_called_once()
+        old_photos[1].unlink.assert_called_once()
 async def test_wipe_device_button_blocked(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
