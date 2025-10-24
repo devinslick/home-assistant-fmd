@@ -54,7 +54,7 @@ async def test_allow_inaccurate_switch(
     """Test allow inaccurate locations switch."""
     await setup_integration(hass, mock_fmd_api)
     
-    entity_id = "switch.fmd_test_user_allow_inaccurate_locations"
+    entity_id = "switch.fmd_test_user_location_allow_inaccurate_updates"
     state = hass.states.get(entity_id)
     assert state.state == STATE_OFF
     

@@ -110,21 +110,21 @@ async def test_max_photos_number(
     """Test max photos to keep number entity."""
     await setup_integration(hass, mock_fmd_api)
     
-    entity_id = "number.fmd_test_user_max_photos_to_keep"
+    entity_id = "number.fmd_test_user_photo_max_to_retain"
     state = hass.states.get(entity_id)
     assert state is not None
-    assert state.state == "100"
+    assert float(state.state) == 10  # Default value
     
     # Set new value
     await hass.services.async_call(
         "number",
         "set_value",
-        {"entity_id": entity_id, "value": 50},
+        {"entity_id": entity_id, "value": 20},
         blocking=True,
     )
     
     state = hass.states.get(entity_id)
-    assert state.state == "50"
+    assert float(state.state) == 20
 
 
 async def test_max_photos_min_max(
@@ -134,9 +134,9 @@ async def test_max_photos_min_max(
     """Test max photos respects min/max values."""
     await setup_integration(hass, mock_fmd_api)
     
-    entity_id = "number.fmd_test_user_max_photos_to_keep"
+    entity_id = "number.fmd_test_user_photo_max_to_retain"
     state = hass.states.get(entity_id)
     
     # Check min/max attributes
     assert state.attributes["min"] == 1
-    assert state.attributes["max"] == 1000
+    assert state.attributes["max"] == 50

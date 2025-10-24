@@ -63,10 +63,10 @@ async def test_bluetooth_select(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test bluetooth control select."""
+    """Test bluetooth command select."""
     await setup_integration(hass, mock_fmd_api)
     
-    entity_id = "select.fmd_test_user_bluetooth_control"
+    entity_id = "select.fmd_test_user_bluetooth"
     state = hass.states.get(entity_id)
     assert state is not None
     
@@ -85,10 +85,10 @@ async def test_dnd_select(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test do not disturb control select."""
+    """Test Do Not Disturb command select."""
     await setup_integration(hass, mock_fmd_api)
     
-    entity_id = "select.fmd_test_user_do_not_disturb_control"
+    entity_id = "select.fmd_test_user_volume_do_not_disturb"
     state = hass.states.get(entity_id)
     assert state is not None
     
@@ -110,7 +110,7 @@ async def test_ringer_mode_select(
     """Test ringer mode control select."""
     await setup_integration(hass, mock_fmd_api)
     
-    entity_id = "select.fmd_test_user_ringer_mode_control"
+    entity_id = "select.fmd_test_user_volume_ringer_mode"
     state = hass.states.get(entity_id)
     assert state is not None
     
@@ -132,7 +132,7 @@ async def test_ringer_mode_vibrate(
     """Test ringer mode set to vibrate."""
     await setup_integration(hass, mock_fmd_api)
     
-    entity_id = "select.fmd_test_user_ringer_mode_control"
+    entity_id = "select.fmd_test_user_volume_ringer_mode"
     
     await hass.services.async_call(
         "select",
@@ -151,7 +151,7 @@ async def test_ringer_mode_normal(
     """Test ringer mode set to normal."""
     await setup_integration(hass, mock_fmd_api)
     
-    entity_id = "select.fmd_test_user_ringer_mode_control"
+    entity_id = "select.fmd_test_user_volume_ringer_mode"
     
     await hass.services.async_call(
         "select",
