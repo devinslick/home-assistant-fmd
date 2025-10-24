@@ -1044,46 +1044,46 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Frequently Asked Questions (FAQ)
 
-**Q: Do I need to run my own FMD server?**  
+**Q: Do I need to run my own FMD server?**
 A: Yes, this integration requires a self-hosted or hosted FMD server. The integration connects to YOUR server, not a centralized service. See [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
 
-**Q: Does this work without the FMD Android app?**  
+**Q: Does this work without the FMD Android app?**
 A: No, you must install the FMD Android app on the device you want to track. The app communicates with the FMD server.
 
-**Q: Can I track multiple devices?**  
+**Q: Can I track multiple devices?**
 A: Yes! Add a new integration instance for each device. Each device gets its own set of 19 entities.
 
-**Q: Why is my location not updating?**  
+**Q: Why is my location not updating?**
 A: Check: 1) Device has internet, 2) FMD app is running, 3) Location permissions granted, 4) Device is sending data to server (check FMD server logs).
 
-**Q: How do I know if a command was received?**  
+**Q: How do I know if a command was received?**
 A: Commands are fire-and-forget. Check device physically or use another method to confirm. There's no acknowledgment from the device.
 
-**Q: Can I see Bluetooth/DND state in Home Assistant?**  
+**Q: Can I see Bluetooth/DND state in Home Assistant?**
 A: No, FMD doesn't support querying device state. Commands are one-way only.
 
-**Q: How much battery does this use?**  
+**Q: How much battery does this use?**
 A: Normal mode: minimal (just checks server). High frequency mode: significant (actively requests GPS). See [Performance](#performance--resource-usage).
 
-**Q: Where are photos stored?**  
+**Q: Where are photos stored?**
 A: `/media/fmd/<device-id>/` (Docker/Core) or `/config/media/fmd/<device-id>/` (HAOS). Photos appear in Media Browser automatically.
 
-**Q: Can I download photos older than the configured max?**  
+**Q: Can I download photos older than the configured max?**
 A: No, increase "Max Photos to Download" setting before pressing "Download Photos" to get more history.
 
-**Q: Is my data encrypted?**  
+**Q: Is my data encrypted?**
 A: Yes! Location and photos are encrypted end-to-end using RSA-3072 + AES-GCM. Only your Home Assistant instance can decrypt.
 
-**Q: What happens if I accidentally press the wipe button?**  
+**Q: What happens if I accidentally press the wipe button?**
 A: Nothing! The safety switch must be enabled first. The wipe button is blocked by default.
 
-**Q: Can I undo a device wipe?**  
+**Q: Can I undo a device wipe?**
 A: No, device wipe is permanent. All data is erased. This is an FMD feature, not controllable by this integration.
 
-**Q: Does this work on iOS/iPhone?**  
+**Q: Does this work on iOS/iPhone?**
 A: No, FMD is Android-only. This integration only works with Android devices running the FMD app.
 
-**Q: Can I use this for fleet/business tracking?**  
+**Q: Can I use this for fleet/business tracking?**
 A: Yes, the MIT License allows commercial use. Add one integration instance per device.
 
 ## Credits and Attribution

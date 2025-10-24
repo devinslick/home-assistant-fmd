@@ -21,7 +21,7 @@ The integration code itself works fine on Windows - this is only a testing limit
 ## Test Coverage
 Tests are located in the `tests/` directory and cover:
 - Component initialization and setup (`test_init.py`)
-- Configuration flow (`test_config_flow.py`)  
+- Configuration flow (`test_config_flow.py`)
 - Device tracker platform (`test_device_tracker.py`)
 - Button platform (`test_button.py`)
 - Switch platform (`test_switch.py`)

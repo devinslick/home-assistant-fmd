@@ -78,10 +78,10 @@ A huge thank you to **Nulide**, **Thore**, and all FMD contributors for creating
 
 ## This Integration
 
-**Home Assistant FMD Integration**  
-**Author**: Devin Slick ([@devinslick](https://github.com/devinslick))  
-**Repository**: https://github.com/devinslick/home-assistant-fmd  
-**License**: MIT License  
+**Home Assistant FMD Integration**
+**Author**: Devin Slick ([@devinslick](https://github.com/devinslick))
+**Repository**: https://github.com/devinslick/home-assistant-fmd
+**License**: MIT License
 
 ### Integration Contributors
 
