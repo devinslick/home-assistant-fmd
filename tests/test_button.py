@@ -114,9 +114,10 @@ async def test_download_photos_button(
         "encrypted_blob_2",
     ]
     
-    # Mock decrypt_data_blob to return base64-encoded fake image data
-    fake_image_1 = base64.b64encode(b"fake_jpeg_data_1").decode('utf-8')
-    fake_image_2 = base64.b64encode(b"fake_jpeg_data_2").decode('utf-8')
+    # Mock decrypt_data_blob to return DIFFERENT base64-encoded fake image data
+    # So they don't hash to the same value and get skipped as duplicates
+    fake_image_1 = base64.b64encode(b"fake_jpeg_data_1_unique").decode('utf-8')
+    fake_image_2 = base64.b64encode(b"fake_jpeg_data_2_different").decode('utf-8')
     mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = [
         fake_image_1,
         fake_image_2,
@@ -147,17 +148,27 @@ async def test_download_photos_with_cleanup(
 ) -> None:
     """Test download photos with auto-cleanup enabled."""
     import base64
+    from datetime import datetime, timedelta
     
     # Return encrypted blob
     mock_fmd_api.create.return_value.get_pictures.return_value = ["encrypted_blob_1"]
     
     # Mock decrypt_data_blob to return base64-encoded fake image data
-    fake_image = base64.b64encode(b"fake_jpeg_data_1").decode('utf-8')
+    fake_image = base64.b64encode(b"fake_jpeg_data_cleanup_test").decode('utf-8')
     mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
     
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
     
+    # Set max photos to 3
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": "number.fmd_test_user_max_photos", "value": 3},
+        blocking=True,
+    )
+    
+    # Enable auto-cleanup
     await hass.services.async_call(
         "switch",
         "turn_on",
@@ -165,18 +176,26 @@ async def test_download_photos_with_cleanup(
         blocking=True,
     )
     
+    # Create mock old photos (4 old photos, limit is 3, so 1 should be deleted)
+    from unittest.mock import MagicMock
+    old_photos = []
+    for i in range(4):
+        photo = MagicMock()
+        photo.stat.return_value.st_mtime = (datetime.now() - timedelta(days=i+1)).timestamp()
+        photo.name = f"old_photo_{i}.jpg"
+        old_photos.append(photo)
+    
     # Now patch only for the photo download operation
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
-         patch("pathlib.Path.exists", return_value=False), \
+         patch("pathlib.Path.exists") as mock_exists, \
          patch("pathlib.Path.glob") as mock_glob:
     
-        # Simulate old photos
-        from unittest.mock import MagicMock
-        old_photo = MagicMock()
-        old_photo.stat.return_value.st_mtime = 0  # Very old timestamp
-        old_photo.name = "old_photo.jpg"
-        mock_glob.return_value = [old_photo]
+        # exists() for media_base check, then for new photo file, then in cleanup
+        mock_exists.side_effect = [True, False] + [True] * len(old_photos)
+        
+        # glob returns old photos for cleanup to find
+        mock_glob.return_value = old_photos
     
         await hass.services.async_call(
             "button",
@@ -185,8 +204,8 @@ async def test_download_photos_with_cleanup(
             blocking=True,
         )
     
-        # Verify photo.unlink() was called on the old photo
-        old_photo.unlink.assert_called_once()
+        # Verify the oldest photo was deleted (first in list has oldest timestamp)
+        old_photos[0].unlink.assert_called_once()
 async def test_wipe_device_button_blocked(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,

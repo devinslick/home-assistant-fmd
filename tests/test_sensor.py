@@ -38,17 +38,38 @@ async def test_photo_count_after_download(
         "encrypted_blob_3",
     ]
     
-    # Mock decrypt_data_blob to return base64-encoded fake image data
-    fake_image = base64.b64encode(b"fake_jpeg_data").decode('utf-8')
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
+    # Mock decrypt_data_blob to return DIFFERENT base64-encoded fake image data
+    fake_image_1 = base64.b64encode(b"fake_jpeg_data_1_unique").decode('utf-8')
+    fake_image_2 = base64.b64encode(b"fake_jpeg_data_2_different").decode('utf-8')
+    fake_image_3 = base64.b64encode(b"fake_jpeg_data_3_another").decode('utf-8')
+    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = [
+        fake_image_1,
+        fake_image_2,
+        fake_image_3,
+    ]
     
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
     
+    # Create mock photo objects for glob to return
+    mock_photo1 = MagicMock()
+    mock_photo1.name = "photo1.jpg"
+    mock_photo2 = MagicMock()
+    mock_photo2.name = "photo2.jpg"
+    mock_photo3 = MagicMock()
+    mock_photo3.name = "photo3.jpg"
+    
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
-         patch("pathlib.Path.exists", return_value=False), \
+         patch("pathlib.Path.exists") as mock_exists, \
          patch("pathlib.Path.glob") as mock_glob:
+        
+        # First call to exists() is for media_base directory check, return True
+        # Then for each photo file check (3 times), return False so they're saved
+        mock_exists.side_effect = [True, False, False, False]
+        
+        # glob is called by sensor's _update_media_folder_count after download
+        mock_glob.return_value = [mock_photo1, mock_photo2, mock_photo3]
         
         # Download photos
         await hass.services.async_call(
@@ -57,12 +78,6 @@ async def test_photo_count_after_download(
             {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
-        
-        # Mock counting downloaded files
-        mock_photo1 = MagicMock()
-        mock_photo2 = MagicMock()
-        mock_photo3 = MagicMock()
-        mock_glob.return_value = [mock_photo1, mock_photo2, mock_photo3]
         
         # Trigger sensor update
         await hass.async_block_till_done()
@@ -84,17 +99,31 @@ async def test_photo_count_attributes(
         "encrypted_blob_2",
     ]
     
-    # Mock decrypt_data_blob to return base64-encoded fake image data
-    fake_image = base64.b64encode(b"fake_jpeg_data").decode('utf-8')
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
+    # Mock decrypt_data_blob to return DIFFERENT base64-encoded fake image data
+    fake_image_1 = base64.b64encode(b"fake_jpeg_data_1_unique").decode('utf-8')
+    fake_image_2 = base64.b64encode(b"fake_jpeg_data_2_different").decode('utf-8')
+    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = [
+        fake_image_1,
+        fake_image_2,
+    ]
     
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
     
+    # Create mock photo objects for glob
+    mock_photo1 = MagicMock()
+    mock_photo2 = MagicMock()
+    
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
-         patch("pathlib.Path.exists", return_value=False), \
+         patch("pathlib.Path.exists") as mock_exists, \
          patch("pathlib.Path.glob") as mock_glob:
+        
+        # exists() called for media_base check, then for each photo file
+        mock_exists.side_effect = [True, False, False]
+        
+        # glob returns our mock photos when sensor counts
+        mock_glob.return_value = [mock_photo1, mock_photo2]
         
         # Download photos
         await hass.services.async_call(
@@ -103,9 +132,6 @@ async def test_photo_count_attributes(
             {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
-        
-        # Mock files
-        mock_glob.return_value = [MagicMock(), MagicMock()]
         
         await hass.async_block_till_done()
         
@@ -121,12 +147,13 @@ async def test_photo_count_after_cleanup(
 ) -> None:
     """Test photo count updates after cleanup."""
     import base64
+    from datetime import datetime, timedelta
     
     # Return encrypted blob
     mock_fmd_api.create.return_value.get_pictures.return_value = ["encrypted_blob_1"]
     
     # Mock decrypt_data_blob to return base64-encoded fake image data
-    fake_image = base64.b64encode(b"fake_jpeg_data").decode('utf-8')
+    fake_image = base64.b64encode(b"fake_jpeg_data_unique_cleanup").decode('utf-8')
     mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
     
     # Setup integration BEFORE patching Path methods
@@ -140,18 +167,22 @@ async def test_photo_count_after_cleanup(
         blocking=True,
     )
     
+    # Create mock photo objects with timestamps
+    old_photo = MagicMock()
+    old_photo.stat.return_value.st_mtime = (datetime.now() - timedelta(days=8)).timestamp()
+    
+    new_photo = MagicMock()
+    new_photo.stat.return_value.st_mtime = datetime.now().timestamp()
+    
     # Now patch for photo download operation
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
-         patch("pathlib.Path.exists", return_value=False), \
+         patch("pathlib.Path.exists") as mock_exists, \
          patch("pathlib.Path.glob") as mock_glob, \
          patch("pathlib.Path.unlink"):
         
-        # Simulate old photos exist, then after cleanup only new photo
-        old_photo = MagicMock()
-        old_photo.stat.return_value.st_mtime = 0  # Very old
-        new_photo = MagicMock()
-        new_photo.stat.return_value.st_mtime = 9999999999  # New
+        # exists() called for media_base check, then for new photo file, then in cleanup for old photos
+        mock_exists.side_effect = [True, False, True]
         
         # glob called multiple times: once to find photos to delete, once to count after
         mock_glob.side_effect = [
