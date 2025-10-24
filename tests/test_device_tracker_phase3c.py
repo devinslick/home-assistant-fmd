@@ -112,7 +112,8 @@ async def test_device_tracker_zero_accuracy(
 
     state = hass.states.get("device_tracker.fmd_test_user")
     assert state is not None
-    assert state.attributes.get("accuracy") == 0.0
+    # GPS with zero accuracy is still accurate, so it should be used
+    assert state.attributes.get("gps_accuracy") == 0.0
 
 
 async def test_device_tracker_negative_battery(

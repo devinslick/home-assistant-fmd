@@ -84,7 +84,7 @@ async def test_device_tracker_location_provider_wifi_accurate(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test device tracker correctly identifies wifi as potentially accurate."""
+    """Test device tracker with WiFi provider below 20m accuracy threshold."""
     mock_fmd_api.create.return_value.get_all_locations.return_value = [
         {
             "lat": 37.7749,
@@ -92,7 +92,7 @@ async def test_device_tracker_location_provider_wifi_accurate(
             "time": "2025-10-23T12:00:00Z",
             "provider": "wifi",
             "bat": 85,
-            "accuracy": 25.0,
+            "accuracy": 15.0,  # Below 20m threshold for accurate
             "altitude": 100.0,
             "speed": 2.5,
             "heading": 90.0,
@@ -103,6 +103,7 @@ async def test_device_tracker_location_provider_wifi_accurate(
 
     state = hass.states.get("device_tracker.fmd_test_user")
     assert state is not None
+    # WiFi with <20m accuracy should be accepted
     assert state.attributes.get("latitude") == 37.7749
 
 
