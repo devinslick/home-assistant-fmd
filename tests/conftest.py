@@ -132,7 +132,14 @@ async def setup_integration(
     
     This is a helper function, not a fixture, so tests can call it directly.
     """
+    # Mock async_add_executor_job to actually execute the callable
+    # This is needed because device_tracker uses it to run decrypt_data_blob
+    async def mock_executor_job(func, *args):
+        return func(*args)
+    
     config_entry = get_mock_config_entry()
     config_entry.add_to_hass(hass)
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    
+    with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()

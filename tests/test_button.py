@@ -204,17 +204,6 @@ async def test_download_photos_with_cleanup(
     def exists_side_effect(self):
         return "photo_" not in str(self)
     
-    # Track which photos were deleted
-    deleted_photos = []
-    
-    def unlink_side_effect():
-        """Track unlink calls."""
-        deleted_photos.append(True)
-    
-    # Attach unlink side effects to old photos
-    for photo in old_photos:
-        photo.unlink.side_effect = unlink_side_effect
-    
     # Now patch only for the photo download operation
     with patch("pathlib.Path.mkdir"), \
          patch("pathlib.Path.write_bytes"), \
@@ -224,21 +213,26 @@ async def test_download_photos_with_cleanup(
     
         # glob returns all photos (4 old + 1 new = 5) when cleanup runs
         mock_glob.return_value = old_photos + [new_photo]
-    
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_photo_download"},
-            blocking=True,
-        )
-    
-        # Verify the 2 oldest photos were deleted (5 photos - 3 limit = 2 to delete)
-        # The photos are sorted by timestamp, so photos[0] and photos[1] are oldest
-        old_photos[0].unlink.assert_called_once()
-        old_photos[1].unlink.assert_called_once()
-        # Ensure photos 2 and 3 were NOT deleted
-        old_photos[2].unlink.assert_not_called()
-        old_photos[3].unlink.assert_not_called()
+        
+        # Mock async_add_executor_job to actually execute the callable
+        async def mock_executor_job(func, *args):
+            return func(*args)
+        
+        with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+        
+            # Verify the 2 oldest photos were deleted (5 photos - 3 limit = 2 to delete)
+            # The photos are sorted by timestamp, so photos[0] and photos[1] are oldest
+            old_photos[0].unlink.assert_called_once()
+            old_photos[1].unlink.assert_called_once()
+            # Ensure photos 2 and 3 were NOT deleted
+            old_photos[2].unlink.assert_not_called()
+            old_photos[3].unlink.assert_not_called()
 async def test_wipe_device_button_blocked(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
