@@ -31,6 +31,7 @@ jobs:
           pip install pytest>=7.3.1 pytest-asyncio>=0.20.3 pytest-cov>=3.0.0
           pip install pytest-homeassistant-custom-component>=0.13.200
           pip install fmd-api==0.1.0
+          pip install Pillow>=10.0.0
       
       - name: Add custom_components to Python path
         run: |

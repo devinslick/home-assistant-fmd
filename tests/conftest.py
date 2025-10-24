@@ -26,7 +26,11 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 @pytest.fixture
 def mock_fmd_api():
     """Mock FmdApi for testing."""
+    import json
+    
     api_instance = AsyncMock()
+    
+    # Mock async methods
     api_instance.get_all_locations = AsyncMock(return_value=[
         {
             "lat": 37.7749,
@@ -43,6 +47,20 @@ def mock_fmd_api():
     api_instance.set_ringer_mode = AsyncMock(return_value=True)
     api_instance.take_picture = AsyncMock(return_value=True)
     api_instance.get_pictures = AsyncMock(return_value=[])
+    api_instance.wipe_device = AsyncMock(return_value=True)
+    
+    # Mock synchronous decrypt_data_blob method
+    # It should return JSON bytes that can be parsed
+    mock_location_data = {
+        "lat": 37.7749,
+        "lon": -122.4194,
+        "time": "2025-10-23T12:00:00Z",
+        "provider": "gps",
+        "bat": 85,
+        "acc": 10.0,
+        "spd": 0.0,
+    }
+    api_instance.decrypt_data_blob = MagicMock(return_value=json.dumps(mock_location_data).encode('utf-8'))
     
     with patch("fmd_api.FmdApi.create", return_value=api_instance):
         yield api_instance
