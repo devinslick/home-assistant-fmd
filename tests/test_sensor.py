@@ -29,17 +29,25 @@ async def test_photo_count_after_download(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count updates after download."""
+    import base64
+    
+    # Return encrypted blobs
     mock_fmd_api.create.return_value.get_pictures.return_value = [
-        {"filename": "photo1.jpg", "content": b"photo_data_1"},
-        {"filename": "photo2.jpg", "content": b"photo_data_2"},
-        {"filename": "photo3.jpg", "content": b"photo_data_3"},
+        "encrypted_blob_1",
+        "encrypted_blob_2",
+        "encrypted_blob_3",
     ]
+    
+    # Mock decrypt_data_blob to return base64-encoded fake image data
+    fake_image = base64.b64encode(b"fake_jpeg_data").decode('utf-8')
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
     
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
     
     with patch("pathlib.Path.mkdir"), \
-         patch("pathlib.Path.open"), \
+         patch("pathlib.Path.write_bytes"), \
+         patch("pathlib.Path.exists", return_value=False), \
          patch("pathlib.Path.glob") as mock_glob:
         
         # Download photos
@@ -68,16 +76,24 @@ async def test_photo_count_attributes(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count sensor attributes."""
+    import base64
+    
+    # Return encrypted blobs
     mock_fmd_api.create.return_value.get_pictures.return_value = [
-        {"filename": "photo1.jpg", "content": b"photo_data_1"},
-        {"filename": "photo2.jpg", "content": b"photo_data_2"},
+        "encrypted_blob_1",
+        "encrypted_blob_2",
     ]
+    
+    # Mock decrypt_data_blob to return base64-encoded fake image data
+    fake_image = base64.b64encode(b"fake_jpeg_data").decode('utf-8')
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
     
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
     
     with patch("pathlib.Path.mkdir"), \
-         patch("pathlib.Path.open"), \
+         patch("pathlib.Path.write_bytes"), \
+         patch("pathlib.Path.exists", return_value=False), \
          patch("pathlib.Path.glob") as mock_glob:
         
         # Download photos
@@ -104,9 +120,14 @@ async def test_photo_count_after_cleanup(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count updates after cleanup."""
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        {"filename": "photo1.jpg", "content": b"photo_data_1"},
-    ]
+    import base64
+    
+    # Return encrypted blob
+    mock_fmd_api.create.return_value.get_pictures.return_value = ["encrypted_blob_1"]
+    
+    # Mock decrypt_data_blob to return base64-encoded fake image data
+    fake_image = base64.b64encode(b"fake_jpeg_data").decode('utf-8')
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
     
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
@@ -121,7 +142,8 @@ async def test_photo_count_after_cleanup(
     
     # Now patch for photo download operation
     with patch("pathlib.Path.mkdir"), \
-         patch("pathlib.Path.open"), \
+         patch("pathlib.Path.write_bytes"), \
+         patch("pathlib.Path.exists", return_value=False), \
          patch("pathlib.Path.glob") as mock_glob, \
          patch("pathlib.Path.unlink"):
         

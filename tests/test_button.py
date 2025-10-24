@@ -106,15 +106,29 @@ async def test_download_photos_button(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test download photos button."""
+    import base64
+    
+    # Return encrypted blobs (just strings)
     mock_fmd_api.create.return_value.get_pictures.return_value = [
-        {"filename": "photo1.jpg", "content": b"photo_data_1"},
-        {"filename": "photo2.jpg", "content": b"photo_data_2"},
+        "encrypted_blob_1",
+        "encrypted_blob_2",
+    ]
+    
+    # Mock decrypt_data_blob to return base64-encoded fake image data
+    fake_image_1 = base64.b64encode(b"fake_jpeg_data_1").decode('utf-8')
+    fake_image_2 = base64.b64encode(b"fake_jpeg_data_2").decode('utf-8')
+    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = [
+        fake_image_1,
+        fake_image_2,
     ]
     
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
     
-    with patch("pathlib.Path.mkdir"), patch("pathlib.Path.open") as mock_open:
+    with patch("pathlib.Path.mkdir"), \
+         patch("pathlib.Path.exists", return_value=False), \
+         patch("pathlib.Path.write_bytes") as mock_write:
+        
         await hass.services.async_call(
             "button",
             "press",
@@ -123,8 +137,8 @@ async def test_download_photos_button(
         )
         
         mock_fmd_api.create.return_value.get_pictures.assert_called_once()
-        # Verify photos were written
-        assert mock_open.call_count == 2
+        # Verify 2 photos were written
+        assert mock_write.call_count == 2
 
 
 async def test_download_photos_with_cleanup(
@@ -132,9 +146,14 @@ async def test_download_photos_with_cleanup(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test download photos with auto-cleanup enabled."""
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        {"filename": "photo1.jpg", "content": b"photo_data_1"},
-    ]
+    import base64
+    
+    # Return encrypted blob
+    mock_fmd_api.create.return_value.get_pictures.return_value = ["encrypted_blob_1"]
+    
+    # Mock decrypt_data_blob to return base64-encoded fake image data
+    fake_image = base64.b64encode(b"fake_jpeg_data_1").decode('utf-8')
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
     
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
@@ -148,27 +167,26 @@ async def test_download_photos_with_cleanup(
     
     # Now patch only for the photo download operation
     with patch("pathlib.Path.mkdir"), \
-         patch("pathlib.Path.open"), \
+         patch("pathlib.Path.write_bytes"), \
+         patch("pathlib.Path.exists", return_value=False), \
          patch("pathlib.Path.glob") as mock_glob:
-        
+    
         # Simulate old photos
         from unittest.mock import MagicMock
         old_photo = MagicMock()
         old_photo.stat.return_value.st_mtime = 0  # Very old timestamp
         old_photo.name = "old_photo.jpg"
         mock_glob.return_value = [old_photo]
-        
+    
         await hass.services.async_call(
             "button",
             "press",
             {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
-        
+    
         # Verify photo.unlink() was called on the old photo
         old_photo.unlink.assert_called_once()
-
-
 async def test_wipe_device_button_blocked(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
