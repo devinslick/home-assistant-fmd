@@ -74,7 +74,7 @@ async def test_bluetooth_select(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": entity_id, "option": "Enable"},
+        {"entity_id": entity_id, "option": "Enable Bluetooth"},
         blocking=True,
     )
     
@@ -96,7 +96,7 @@ async def test_dnd_select(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": entity_id, "option": "Enable"},
+        {"entity_id": entity_id, "option": "Enable Do Not Disturb"},
         blocking=True,
     )
     
@@ -137,7 +137,7 @@ async def test_ringer_mode_vibrate(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": entity_id, "option": "Vibrate"},
+        {"entity_id": entity_id, "option": "Vibrate Only"},
         blocking=True,
     )
     
@@ -156,7 +156,7 @@ async def test_ringer_mode_normal(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": entity_id, "option": "Normal"},
+        {"entity_id": entity_id, "option": "Normal (Sound + Vibrate)"},
         blocking=True,
     )
     

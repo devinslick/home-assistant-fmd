@@ -98,7 +98,7 @@ async def test_capture_rear_button(
     )
     await hass.async_block_till_done()
     
-    mock_fmd_api.create.return_value.take_picture.assert_called_once_with("rear")
+    mock_fmd_api.create.return_value.take_picture.assert_called_once_with("back")
 
 
 async def test_download_photos_button(

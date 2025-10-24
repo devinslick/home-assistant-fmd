@@ -580,7 +580,7 @@ class FmdWipeDeviceButton(ButtonEntity):
     async def async_press(self) -> None:
         """Handle the button press - wipe device if safety switch is enabled."""
         # Check if safety switch is enabled
-        safety_switch_entity_id = f"switch.fmd_{self._entry.data['id']}_device_wipe_safety"
+        safety_switch_entity_id = f"switch.fmd_{self._entry.data['id']}_wipe_safety_switch"
         safety_switch_state = self.hass.states.get(safety_switch_entity_id)
         
         if not safety_switch_state or safety_switch_state.state != "on":
