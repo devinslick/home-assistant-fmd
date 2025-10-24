@@ -1,14 +1,10 @@
 """Test FMD number entities."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
-import pytest
-
-from homeassistant.core import HomeAssistant
-
-from custom_components.fmd.const import DOMAIN
 from conftest import setup_integration
+from homeassistant.core import HomeAssistant
 
 
 async def test_update_interval_number(
@@ -17,12 +13,12 @@ async def test_update_interval_number(
 ) -> None:
     """Test update interval number entity."""
     await setup_integration(hass, mock_fmd_api)
-    
+
     entity_id = "number.fmd_test_user_update_interval"
     state = hass.states.get(entity_id)
     assert state is not None
     assert state.state == "30"
-    
+
     # Set new value
     await hass.services.async_call(
         "number",
@@ -30,7 +26,7 @@ async def test_update_interval_number(
         {"entity_id": entity_id, "value": 60},
         blocking=True,
     )
-    
+
     state = hass.states.get(entity_id)
     assert float(state.state) == 60
 
@@ -41,10 +37,10 @@ async def test_update_interval_min_max(
 ) -> None:
     """Test update interval respects min/max values."""
     await setup_integration(hass, mock_fmd_api)
-    
+
     entity_id = "number.fmd_test_user_update_interval"
     state = hass.states.get(entity_id)
-    
+
     # Check min/max attributes
     assert state.attributes["min"] == 1
     assert state.attributes["max"] == 1440
@@ -56,12 +52,12 @@ async def test_high_frequency_interval_number(
 ) -> None:
     """Test high frequency interval number entity."""
     await setup_integration(hass, mock_fmd_api)
-    
+
     entity_id = "number.fmd_test_user_high_frequency_interval"
     state = hass.states.get(entity_id)
     assert state is not None
     assert float(state.state) == 5  # Default value
-    
+
     # Set new value
     await hass.services.async_call(
         "number",
@@ -69,7 +65,7 @@ async def test_high_frequency_interval_number(
         {"entity_id": entity_id, "value": 10},
         blocking=True,
     )
-    
+
     state = hass.states.get(entity_id)
     assert float(state.state) == 10
 
@@ -80,7 +76,7 @@ async def test_high_frequency_interval_affects_polling(
 ) -> None:
     """Test that high frequency interval changes affect tracker polling."""
     await setup_integration(hass, mock_fmd_api)
-    
+
     # Enable high frequency mode
     await hass.services.async_call(
         "switch",
@@ -88,7 +84,7 @@ async def test_high_frequency_interval_affects_polling(
         {"entity_id": "switch.fmd_test_user_high_frequency_mode"},
         blocking=True,
     )
-    
+
     # Change interval
     await hass.services.async_call(
         "number",
@@ -96,7 +92,7 @@ async def test_high_frequency_interval_affects_polling(
         {"entity_id": "number.fmd_test_user_high_frequency_interval", "value": 15},
         blocking=True,
     )
-    
+
     # Verify the tracker's interval was updated
     # (This would test internal state, in real integration)
     state = hass.states.get("number.fmd_test_user_high_frequency_interval")
@@ -109,12 +105,12 @@ async def test_max_photos_number(
 ) -> None:
     """Test max photos to keep number entity."""
     await setup_integration(hass, mock_fmd_api)
-    
+
     entity_id = "number.fmd_test_user_photo_max_to_retain"
     state = hass.states.get(entity_id)
     assert state is not None
     assert float(state.state) == 10  # Default value
-    
+
     # Set new value
     await hass.services.async_call(
         "number",
@@ -122,7 +118,7 @@ async def test_max_photos_number(
         {"entity_id": entity_id, "value": 20},
         blocking=True,
     )
-    
+
     state = hass.states.get(entity_id)
     assert float(state.state) == 20
 
@@ -133,10 +129,10 @@ async def test_max_photos_min_max(
 ) -> None:
     """Test max photos respects min/max values."""
     await setup_integration(hass, mock_fmd_api)
-    
+
     entity_id = "number.fmd_test_user_photo_max_to_retain"
     state = hass.states.get(entity_id)
-    
+
     # Check min/max attributes
     assert state.attributes["min"] == 1
     assert state.attributes["max"] == 50

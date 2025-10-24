@@ -3,13 +3,11 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
-import pytest
-
 from homeassistant import config_entries, data_entry_flow
-from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_ID
+from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
 from homeassistant.core import HomeAssistant
 
-from custom_components.fmd.const import DOMAIN, DEFAULT_POLLING_INTERVAL
+from custom_components.fmd.const import DEFAULT_POLLING_INTERVAL, DOMAIN
 
 
 async def test_form(hass: HomeAssistant, mock_fmd_api: AsyncMock) -> None:
@@ -97,7 +95,9 @@ async def test_form_cannot_connect(hass: HomeAssistant) -> None:
     assert result2["errors"] == {"base": "cannot_connect"}
 
 
-async def test_form_default_values(hass: HomeAssistant, mock_fmd_api: AsyncMock) -> None:
+async def test_form_default_values(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test default values are set correctly."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
