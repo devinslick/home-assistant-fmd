@@ -157,7 +157,6 @@ async def test_switch_wipe_safety_cancelled_error_handling(
 
 async def test_device_tracker_config_entry_not_ready(
     hass: HomeAssistant,
-    mock_fmd_api: AsyncMock,
 ) -> None:
     """Test ConfigEntryNotReady on failure (covers lines 68-71)."""
     from unittest.mock import AsyncMock, patch
@@ -168,28 +167,28 @@ async def test_device_tracker_config_entry_not_ready(
     error_api = AsyncMock()
     error_api.get_all_locations = AsyncMock(side_effect=Exception("Network timeout"))
 
+    # Mock async_add_executor_job
+    async def mock_executor_job(func, *args):
+        return func(*args)
+
     # Mock FmdApi.create to return the error_api
     with patch("custom_components.fmd.FmdApi.create", return_value=error_api):
-        # Mock async_add_executor_job
-        async def mock_executor_job(func, *args):
-            return func(*args)
-
-        # Set up the entry - should fail during initial location fetch
-        entry = MockConfigEntry(
-            domain=DOMAIN,
-            data={
-                "url": "https://fmd.example.com",
-                "id": "test_user_config_error",
-                "password": "test_password",
-            },
-            unique_id="test_user_config_error",
-        )
-        entry.add_to_hass(hass)
-
-        # Should raise ConfigEntryNotReady
         with patch.object(
             hass, "async_add_executor_job", side_effect=mock_executor_job
         ):
+            # Set up the entry - should fail during initial location fetch
+            entry = MockConfigEntry(
+                domain=DOMAIN,
+                data={
+                    "url": "https://fmd.example.com",
+                    "id": "test_user_config_error",
+                    "password": "test_password",
+                },
+                unique_id="test_user_config_error",
+            )
+            entry.add_to_hass(hass)
+
+            # Should raise ConfigEntryNotReady
             with pytest.raises(ConfigEntryNotReady):
                 await hass.config_entries.async_setup(entry.entry_id)
 
