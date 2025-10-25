@@ -233,6 +233,7 @@ async def test_button_download_photos_with_exif_timestamp(
 ) -> None:
     """Test download photos button extracts EXIF timestamp from images."""
     import base64
+    import re
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -276,9 +277,10 @@ async def test_button_download_photos_with_exif_timestamp(
         )
 
     mock_api.get_pictures.assert_awaited_once()
-    if not any("20251019_153045" in path.name for path in written_paths):
+    pattern = re.compile(r"photo_20251019_153045_.*\\.jpg")
+    if not any(pattern.match(path.name) for path in written_paths):
         print(f"DEBUG: written_paths = {[str(p) for p in written_paths]}")
-    assert any("20251019_153045" in path.name for path in written_paths)
+    assert any(pattern.match(path.name) for path in written_paths)
 
 
 @pytest.mark.asyncio
