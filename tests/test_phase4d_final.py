@@ -172,7 +172,8 @@ async def test_device_tracker_config_entry_not_ready(
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "fmd_id": "test_user_config_error",
+            "url": "https://fmd.example.com",
+            "id": "test_user_config_error",
             "password": "test_password",
         },
         unique_id="test_user_config_error",
@@ -207,11 +208,12 @@ async def test_device_tracker_imperial_altitude(
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "fmd_id": "test_user",
+            "url": "https://fmd.example.com",
+            "id": "test_user_imperial",
             "password": "test_password",
         },
         options={"use_imperial": True},
-        unique_id="test_user",
+        unique_id="test_user_imperial",
     )
     entry.add_to_hass(hass)
 
@@ -258,11 +260,12 @@ async def test_device_tracker_imperial_speed(
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "fmd_id": "test_user",
+            "url": "https://fmd.example.com",
+            "id": "test_user_imperial_speed",
             "password": "test_password",
         },
         options={"use_imperial": True},
-        unique_id="test_user_speed",
+        unique_id="test_user_imperial_speed",
     )
     entry.add_to_hass(hass)
 
