@@ -264,8 +264,8 @@ async def test_button_download_photos_with_exif_timestamp(
 
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
         "pathlib.Path.mkdir"
-    ), patch("pathlib.Path.is_dir", return_value=True), patch(
-        "pathlib.Path.exists", side_effect=fake_exists
+    ), patch.object(Path, "is_dir", return_value=True), patch.object(
+        Path, "exists", side_effect=fake_exists
     ), patch(
         "custom_components.fmd.button.Image.open", return_value=fake_image
     ):
@@ -305,10 +305,10 @@ async def test_button_download_photos_exif_parsing_error(
 
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
         "pathlib.Path.mkdir"
-    ), patch("pathlib.Path.is_dir", return_value=True), patch(
-        "pathlib.Path.exists", return_value=False
-    ), patch(
-        "pathlib.Path.write_bytes"
+    ), patch.object(Path, "is_dir", return_value=True), patch.object(
+        Path, "exists", return_value=False
+    ), patch.object(
+        Path, "write_bytes"
     ) as mock_write, patch(
         "custom_components.fmd.button.Image.open",
         side_effect=OSError("Invalid EXIF"),
