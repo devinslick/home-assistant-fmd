@@ -169,15 +169,15 @@ async def test_capture_front_camera_button_api_error(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test front camera button when send_command raises exception."""
+    """Test front camera button when take_picture raises exception."""
     await setup_integration(hass, mock_fmd_api)
 
     # Get the actual API instance and configure mock to fail
     api_instance = mock_fmd_api.create.return_value
 
     # Reset the mock call count before reconfiguring
-    api_instance.send_command.reset_mock()
-    api_instance.send_command.side_effect = Exception("API Error")
+    api_instance.take_picture.reset_mock()
+    api_instance.take_picture.side_effect = Exception("API Error")
 
     await hass.services.async_call(
         "button",
@@ -187,23 +187,23 @@ async def test_capture_front_camera_button_api_error(
     )
     await hass.async_block_till_done()
 
-    # Should attempt to call send_command even though it fails
-    api_instance.send_command.assert_called()
+    # Should attempt to call take_picture even though it fails
+    api_instance.take_picture.assert_called()
 
 
 async def test_capture_rear_camera_button_api_error(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test rear camera button when send_command raises exception."""
+    """Test rear camera button when take_picture raises exception."""
     await setup_integration(hass, mock_fmd_api)
 
     # Get the actual API instance and configure mock to fail
     api_instance = mock_fmd_api.create.return_value
 
     # Reset the mock call count before reconfiguring
-    api_instance.send_command.reset_mock()
-    api_instance.send_command.side_effect = Exception("API Error")
+    api_instance.take_picture.reset_mock()
+    api_instance.take_picture.side_effect = Exception("API Error")
 
     await hass.services.async_call(
         "button",
@@ -213,8 +213,8 @@ async def test_capture_rear_camera_button_api_error(
     )
     await hass.async_block_till_done()
 
-    # Should attempt to call send_command even though it fails
-    api_instance.send_command.assert_called()
+    # Should attempt to call take_picture even though it fails
+    api_instance.take_picture.assert_called()
 
 
 async def test_photo_download_button_get_pictures_error(
