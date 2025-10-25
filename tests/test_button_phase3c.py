@@ -148,6 +148,9 @@ async def test_lock_button_api_error(
 
     # Get the actual API instance and configure mock to fail
     api_instance = mock_fmd_api.create.return_value
+
+    # Reset the mock call count before reconfiguring
+    api_instance.send_command.reset_mock()
     api_instance.send_command.side_effect = Exception("API Error")
 
     await hass.services.async_call(
@@ -171,6 +174,9 @@ async def test_capture_front_camera_button_api_error(
 
     # Get the actual API instance and configure mock to fail
     api_instance = mock_fmd_api.create.return_value
+
+    # Reset the mock call count before reconfiguring
+    api_instance.send_command.reset_mock()
     api_instance.send_command.side_effect = Exception("API Error")
 
     await hass.services.async_call(
@@ -194,6 +200,9 @@ async def test_capture_rear_camera_button_api_error(
 
     # Get the actual API instance and configure mock to fail
     api_instance = mock_fmd_api.create.return_value
+
+    # Reset the mock call count before reconfiguring
+    api_instance.send_command.reset_mock()
     api_instance.send_command.side_effect = Exception("API Error")
 
     await hass.services.async_call(
