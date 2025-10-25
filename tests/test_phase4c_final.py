@@ -58,10 +58,6 @@ async def test_select_dnd_enable(
     """Test DND select sends enable command (covers lines 120, 132-134)."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the tracker to access its API
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
     await hass.services.async_call(
         "select",
         "select_option",
@@ -73,8 +69,8 @@ async def test_select_dnd_enable(
     )
     await hass.async_block_till_done()
 
-    # Assert on tracker.api (which is the actual API instance)
-    tracker.api.toggle_do_not_disturb.assert_called_once_with(True)
+    # Assert on the mocked API instance
+    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(True)
 
 
 async def test_select_dnd_disable(
@@ -83,10 +79,6 @@ async def test_select_dnd_disable(
 ) -> None:
     """Test DND select sends disable command."""
     await setup_integration(hass, mock_fmd_api)
-
-    # Get the tracker to access its API
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     await hass.services.async_call(
         "select",
@@ -99,8 +91,10 @@ async def test_select_dnd_disable(
     )
     await hass.async_block_till_done()
 
-    # Assert on tracker.api (which is the actual API instance)
-    tracker.api.toggle_do_not_disturb.assert_called_once_with(False)
+    # Assert on the mocked API instance
+    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(
+        False
+    )
 
 
 async def test_select_ringer_mode_normal(
@@ -110,20 +104,19 @@ async def test_select_ringer_mode_normal(
     """Test ringer mode normal command (covers lines 184, 196-198)."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the tracker to access its API
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": "select.fmd_test_user_ringer_mode", "option": "Normal"},
+        {
+            "entity_id": "select.fmd_test_user_ringer_mode",
+            "option": "Normal (Sound + Vibrate)",
+        },
         blocking=True,
     )
     await hass.async_block_till_done()
 
-    # Assert on tracker.api (which is the actual API instance)
-    tracker.api.set_ringer_mode.assert_called_once_with(2)
+    # Assert on the mocked API instance - API expects string "normal"
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with("normal")
 
 
 async def test_select_ringer_mode_vibrate(
@@ -133,20 +126,19 @@ async def test_select_ringer_mode_vibrate(
     """Test ringer mode vibrate command (covers line 249)."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the tracker to access its API
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": "select.fmd_test_user_ringer_mode", "option": "Vibrate"},
+        {
+            "entity_id": "select.fmd_test_user_ringer_mode",
+            "option": "Vibrate Only",
+        },
         blocking=True,
     )
     await hass.async_block_till_done()
 
-    # Assert on tracker.api (which is the actual API instance)
-    tracker.api.set_ringer_mode.assert_called_once_with(1)
+    # Assert on the mocked API instance - API expects string "vibrate"
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with("vibrate")
 
 
 async def test_select_ringer_mode_silent(
@@ -156,10 +148,6 @@ async def test_select_ringer_mode_silent(
     """Test ringer mode silent command."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the tracker to access its API
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
     await hass.services.async_call(
         "select",
         "select_option",
@@ -168,8 +156,8 @@ async def test_select_ringer_mode_silent(
     )
     await hass.async_block_till_done()
 
-    # Assert on tracker.api (which is the actual API instance)
-    tracker.api.set_ringer_mode.assert_called_once_with(0)
+    # Assert on the mocked API instance - API expects string "silent"
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with("silent")
 
 
 async def test_switch_wipe_safety_auto_disable_task_cancellation(
@@ -287,9 +275,7 @@ async def test_device_tracker_high_frequency_mode_request_success(
         await device_tracker.async_update()
 
     # Verify request_location was called with "all" provider
-    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
-        provider="all"
-    )
+    mock_fmd_api.create.return_value.request_location.assert_called_with(provider="all")
 
 
 async def test_device_tracker_high_frequency_mode_request_fails(
@@ -313,9 +299,7 @@ async def test_device_tracker_high_frequency_mode_request_fails(
     await device_tracker.async_update()
 
     # Verify request_location was called
-    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
-        provider="all"
-    )
+    mock_fmd_api.create.return_value.request_location.assert_called_with(provider="all")
 
 
 async def test_device_tracker_high_frequency_mode_exception(
@@ -341,6 +325,4 @@ async def test_device_tracker_high_frequency_mode_exception(
     await device_tracker.async_update()
 
     # Verify request_location was attempted
-    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
-        provider="all"
-    )
+    mock_fmd_api.create.return_value.request_location.assert_called_with(provider="all")
