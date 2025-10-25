@@ -245,8 +245,8 @@ async def test_button_download_photos_with_exif_timestamp(
     written_paths: list[Path] = []
 
     def fake_exists(path: Path) -> bool:
-        # Always return False so no file is skipped as duplicate
-        return False
+        # Only the expected EXIF-timestamped file does not exist; others do
+        return "20251019_153045" not in path.name
 
     def fake_write_bytes(path: Path, data: bytes) -> int:
         written_paths.append(path)
