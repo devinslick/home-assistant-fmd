@@ -21,17 +21,23 @@ from custom_components.fmd.const import DOMAIN
 
 
 @pytest.mark.asyncio
-async def test_device_tracker_initial_update_fails_config_entry_not_ready(
+async def test_device_tracker_initial_update_fails_graceful(
     hass, config_entry, fmd_api_mock
 ):
-    """Test ConfigEntryNotReady raised when initial location fetch fails."""
-    fmd_api_mock.get_location.side_effect = Exception("Server unreachable")
+    """Test platform-level initial location fetch failure is handled gracefully."""
+    fmd_api_mock.get_location.side_effect = Exception("Network error")
 
-    # Attempt to set up the entry
-    await hass.config_entries.async_setup(config_entry.entry_id)
+    # Setup should succeed despite initial fetch failure
+    result = await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
 
-    # Entry should be in setup_retry state
-    assert config_entry.state == ConfigEntryState.SETUP_RETRY
+    # Platform setup should succeed (graceful degradation)
+    assert result is True
+    assert config_entry.state == ConfigEntryState.LOADED
+
+    # Device tracker should exist but have unknown state
+    device_tracker = hass.data[DOMAIN][config_entry.entry_id]["device_tracker"]
+    assert device_tracker.state == STATE_UNAVAILABLE
 
 
 @pytest.mark.asyncio
