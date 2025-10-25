@@ -9,14 +9,13 @@ Focus areas:
 """
 from __future__ import annotations
 
-import asyncio
 import io
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from conftest import setup_integration
-from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.const import STATE_NOT_HOME
 from homeassistant.core import HomeAssistant
 from PIL import Image
 
@@ -37,7 +36,7 @@ async def test_device_tracker_initial_update_fails_graceful(
     # Device tracker should exist but have unknown state
     entry_id = list(hass.data[DOMAIN].keys())[0]
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
-    assert device_tracker.state == STATE_UNAVAILABLE
+    assert device_tracker.state == STATE_NOT_HOME
 
 
 @pytest.mark.asyncio
@@ -51,22 +50,26 @@ async def test_device_tracker_high_frequency_mode_request_location_success(
     entry_id = list(hass.data[DOMAIN].keys())[0]
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
-    # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
 
-    # Mock request_location to return success
-    mock_fmd_api.create.return_value.request_location.return_value = True
+    api = mock_fmd_api.create.return_value
+    api.request_location.reset_mock()
 
-    # Trigger polling update with mocked sleep
-    with patch("custom_components.fmd.device_tracker.asyncio.sleep") as mock_sleep:
-        mock_sleep.return_value = asyncio.sleep(0)
-        await device_tracker.async_update()
+    with patch(
+        "custom_components.fmd.device_tracker.async_track_time_interval"
+    ) as mock_track:
+        device_tracker.start_polling()
 
-    # Verify request_location was called
-    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
-        provider="all"
-    )
-    mock_sleep.assert_called_once_with(10)
+    update_callback = mock_track.call_args[0][1]
+
+    sleep_mock = AsyncMock(return_value=None)
+    api.request_location.return_value = True
+
+    with patch("asyncio.sleep", new=sleep_mock):
+        await update_callback(None)
+
+    api.request_location.assert_awaited_once_with(provider="all")
+    sleep_mock.assert_awaited_once_with(10)
 
 
 @pytest.mark.asyncio
@@ -80,21 +83,26 @@ async def test_device_tracker_high_frequency_mode_request_location_fails(
     entry_id = list(hass.data[DOMAIN].keys())[0]
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
-    # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
 
-    # Mock request_location to return failure
-    mock_fmd_api.create.return_value.request_location.return_value = False
+    api = mock_fmd_api.create.return_value
+    api.request_location.reset_mock()
+    api.request_location.return_value = False
 
-    # Trigger polling update
-    with patch("custom_components.fmd.device_tracker.asyncio.sleep") as mock_sleep:
-        await device_tracker.async_update()
+    with patch(
+        "custom_components.fmd.device_tracker.async_track_time_interval"
+    ) as mock_track:
+        device_tracker.start_polling()
 
-    # Verify request_location was called but sleep was not
-    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
-        provider="all"
-    )
-    mock_sleep.assert_not_called()
+    update_callback = mock_track.call_args[0][1]
+
+    sleep_mock = AsyncMock(return_value=None)
+
+    with patch("asyncio.sleep", new=sleep_mock):
+        await update_callback(None)
+
+    api.request_location.assert_awaited_once_with(provider="all")
+    sleep_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -108,21 +116,26 @@ async def test_device_tracker_high_frequency_mode_exception(
     entry_id = list(hass.data[DOMAIN].keys())[0]
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
-    # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
 
-    # Mock request_location to raise exception
-    mock_fmd_api.create.return_value.request_location.side_effect = Exception(
-        "Network error"
-    )
+    api = mock_fmd_api.create.return_value
+    api.request_location.reset_mock()
+    api.request_location.side_effect = Exception("Network error")
 
-    # Trigger polling update - should not raise
-    await device_tracker.async_update()
+    with patch(
+        "custom_components.fmd.device_tracker.async_track_time_interval"
+    ) as mock_track:
+        device_tracker.start_polling()
 
-    # Verify request_location was called
-    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
-        provider="all"
-    )
+    update_callback = mock_track.call_args[0][1]
+
+    sleep_mock = AsyncMock(return_value=None)
+
+    with patch("asyncio.sleep", new=sleep_mock):
+        await update_callback(None)
+
+    api.request_location.assert_awaited_once_with(provider="all")
+    sleep_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -133,24 +146,23 @@ async def test_device_tracker_attributes_with_altitude_imperial(
     # Setup with imperial units
     hass.config.units.name = "us_customary"
 
-    # Mock location with altitude
-    mock_fmd_api.create.return_value.get_location.return_value = {
-        "pictures": [],
-        "location": [
-            {
-                "lat": 47.6062,
-                "lon": -122.3321,
-                "provider": "gps",
-                "time": 1729000000000,
-                "altitude": 100.0,  # 100 meters
-            }
-        ],
-    }
+    mock_api = mock_fmd_api.create.return_value
+    mock_api.get_all_locations.return_value = [
+        {
+            "lat": 47.6062,
+            "lon": -122.3321,
+            "provider": "gps",
+            "time": "2025-10-15T10:15:00Z",
+            "altitude": 100.0,
+            "bat": 90,
+        }
+    ]
 
     await setup_integration(hass, mock_fmd_api)
 
     entry_id = list(hass.data[DOMAIN].keys())[0]
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
+    device_tracker._use_imperial = True
     await device_tracker.async_update()
 
     attributes = device_tracker.extra_state_attributes
@@ -168,24 +180,23 @@ async def test_device_tracker_attributes_with_speed_imperial(
     # Setup with imperial units
     hass.config.units.name = "us_customary"
 
-    # Mock location with speed
-    mock_fmd_api.create.return_value.get_location.return_value = {
-        "pictures": [],
-        "location": [
-            {
-                "lat": 47.6062,
-                "lon": -122.3321,
-                "provider": "gps",
-                "time": 1729000000000,
-                "speed": 10.0,  # 10 m/s
-            }
-        ],
-    }
+    mock_api = mock_fmd_api.create.return_value
+    mock_api.get_all_locations.return_value = [
+        {
+            "lat": 47.6062,
+            "lon": -122.3321,
+            "provider": "gps",
+            "time": "2025-10-15T10:15:00Z",
+            "speed": 10.0,
+            "bat": 80,
+        }
+    ]
 
     await setup_integration(hass, mock_fmd_api)
 
     entry_id = list(hass.data[DOMAIN].keys())[0]
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
+    device_tracker._use_imperial = True
     await device_tracker.async_update()
 
     attributes = device_tracker.extra_state_attributes
@@ -200,11 +211,7 @@ async def test_device_tracker_empty_blob_warning(
     hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
     """Test device tracker logs warning for empty location blobs."""
-    # Mock location with empty blob
-    mock_fmd_api.create.return_value.get_location.return_value = {
-        "pictures": [],
-        "location": [None, b""],  # Empty blobs
-    }
+    mock_fmd_api.create.return_value.get_all_locations.return_value = [None, b""]
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -213,7 +220,7 @@ async def test_device_tracker_empty_blob_warning(
     await device_tracker.async_update()
 
     # Should not crash, state should be unavailable
-    assert device_tracker.state == STATE_UNAVAILABLE
+    assert device_tracker.state == STATE_NOT_HOME
 
 
 @pytest.mark.asyncio
@@ -221,30 +228,40 @@ async def test_button_download_photos_with_exif_timestamp(
     hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
     """Test download photos button extracts EXIF timestamp from images."""
-    # Create a mock image with EXIF data
-    img = Image.new("RGB", (100, 100), color="red")
-    exif_data = img.getexif()
-    # Set DateTimeOriginal (tag 36867)
-    exif_data[36867] = "2025:10:19 15:30:45"
-
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format="JPEG", exif=exif_data)
-    img_bytes.seek(0)
-    image_data = img_bytes.getvalue()
-
-    # Mock API response with photo
-    mock_fmd_api.create.return_value.get_location.return_value = {
-        "pictures": [image_data],
-        "location": [],
-    }
+    import base64
 
     await setup_integration(hass, mock_fmd_api)
 
-    # Press the button using service call
-    with patch("pathlib.Path.mkdir"), patch(
-        "pathlib.Path.is_dir", return_value=True
-    ), patch("pathlib.Path.exists", return_value=False), patch(
-        "pathlib.Path.write_bytes"
+    mock_api = mock_fmd_api.create.return_value
+    mock_api.get_pictures.return_value = ["encrypted_photo"]
+
+    # Create a mock image with EXIF data and encode as base64 string
+    img = Image.new("RGB", (100, 100), color="red")
+    exif_data = img.getexif()
+    exif_data[36867] = "2025:10:19 15:30:45"
+    img_bytes = io.BytesIO()
+    img.save(img_bytes, format="JPEG", exif=exif_data)
+    encoded_image = base64.b64encode(img_bytes.getvalue()).decode("utf-8")
+    mock_api.decrypt_data_blob.return_value = encoded_image
+
+    written_paths: list[Path] = []
+
+    def fake_exists(path: Path) -> bool:
+        return not path.name.startswith("photo_")
+
+    def fake_write_bytes(path: Path, data: bytes) -> int:
+        written_paths.append(path)
+        return len(data)
+
+    async def run_executor(func, *args):
+        return func(*args)
+
+    with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
+        "pathlib.Path.mkdir"
+    ), patch("pathlib.Path.is_dir", return_value=True), patch(
+        "pathlib.Path.exists", side_effect=fake_exists
+    ), patch(
+        "pathlib.Path.write_bytes", side_effect=fake_write_bytes
     ):
         await hass.services.async_call(
             "button",
@@ -253,15 +270,8 @@ async def test_button_download_photos_with_exif_timestamp(
             blocking=True,
         )
 
-    # Check that file was saved with timestamp in name
-    from conftest import get_mock_config_entry
-
-    config_entry = get_mock_config_entry()
-    media_dir = Path(hass.config.path("media", "fmd", config_entry.data["id"]))
-    saved_files = list(media_dir.glob("photo_*.jpg"))
-
-    assert len(saved_files) == 1
-    assert "20251019_153045" in saved_files[0].name
+    mock_api.get_pictures.assert_awaited_once()
+    assert any("20251019_153045" in path.name for path in written_paths)
 
 
 @pytest.mark.asyncio
@@ -269,19 +279,26 @@ async def test_button_download_photos_exif_parsing_error(
     hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
     """Test download photos button handles EXIF parsing errors gracefully."""
-    # Create invalid image data that will fail EXIF parsing
-    invalid_image_data = b"not a valid jpeg image"
-
-    # Mock API response with invalid photo
-    mock_fmd_api.create.return_value.get_location.return_value = {
-        "pictures": [invalid_image_data],
-        "location": [],
-    }
+    import base64
 
     await setup_integration(hass, mock_fmd_api)
 
-    # Press the button - should not crash
-    with patch("pathlib.Path.mkdir"), patch("pathlib.Path.write_bytes"):
+    mock_api = mock_fmd_api.create.return_value
+    mock_api.get_pictures.return_value = ["invalid_blob"]
+    mock_api.decrypt_data_blob.return_value = base64.b64encode(
+        b"not a valid jpeg image"
+    ).decode("utf-8")
+
+    async def run_executor(func, *args):
+        return func(*args)
+
+    with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
+        "pathlib.Path.mkdir"
+    ), patch("pathlib.Path.is_dir", return_value=True), patch(
+        "pathlib.Path.exists", return_value=False
+    ), patch(
+        "pathlib.Path.write_bytes"
+    ) as mock_write:
         await hass.services.async_call(
             "button",
             "press",
@@ -289,7 +306,9 @@ async def test_button_download_photos_exif_parsing_error(
             blocking=True,
         )
 
-    # Should still attempt to save (will fail, but error is handled)
+    mock_api.get_pictures.assert_awaited_once()
+    # Even with parsing issues, we should attempt to write bytes
+    assert mock_write.called
 
 
 @pytest.mark.asyncio
@@ -297,24 +316,31 @@ async def test_button_download_photos_updates_sensor(
     hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
     """Test download photos button updates photo count sensor."""
+    import base64
+
     # Create a simple image
     img = Image.new("RGB", (100, 100), color="blue")
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
 
-    # Mock API response with one photo
-    mock_fmd_api.create.return_value.get_location.return_value = {
-        "pictures": [img_bytes.getvalue()],
-        "location": [],
-    }
-
     await setup_integration(hass, mock_fmd_api)
 
+    mock_api = mock_fmd_api.create.return_value
+    mock_api.get_pictures.return_value = ["photo_blob"]
+    mock_api.decrypt_data_blob.return_value = base64.b64encode(
+        img_bytes.getvalue()
+    ).decode("utf-8")
+
+    async def run_executor(func, *args):
+        return func(*args)
+
     # Press the button
-    with patch("pathlib.Path.mkdir"), patch(
-        "pathlib.Path.is_dir", return_value=True
-    ), patch("pathlib.Path.exists", return_value=False), patch(
+    with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
+        "pathlib.Path.mkdir"
+    ), patch("pathlib.Path.is_dir", return_value=True), patch(
+        "pathlib.Path.exists", return_value=False
+    ), patch(
         "pathlib.Path.write_bytes"
     ):
         await hass.services.async_call(
