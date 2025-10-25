@@ -63,7 +63,7 @@ async def async_setup_entry(
     # Fetch initial location before adding the entity
     _LOGGER.info("Fetching initial location data...")
     try:
-        await tracker.async_update()
+        await tracker.async_update(raise_on_error=True)
         _LOGGER.info("Initial location: %s", tracker._location)
     except Exception as err:
         # If initial location fetch fails, raise ConfigEntryNotReady
@@ -359,8 +359,13 @@ class FmdDeviceTracker(TrackerEntity):
         )
         return False
 
-    async def async_update(self) -> None:
-        """Update the device location."""
+    async def async_update(self, raise_on_error: bool = False) -> None:
+        """Update the device location.
+
+        Args:
+            raise_on_error: If True, exceptions will be raised instead of being caught
+                          and logged. Used during initial setup to allow ConfigEntryNotReady.
+        """
         try:
             _LOGGER.info("=== Starting location update ===")
 
@@ -475,3 +480,6 @@ class FmdDeviceTracker(TrackerEntity):
                 _LOGGER.warning("No location blobs returned from API")
         except Exception as e:
             _LOGGER.error("Error getting location: %s", e, exc_info=True)
+            # Re-raise exception during initial setup to allow ConfigEntryNotReady
+            if raise_on_error:
+                raise
