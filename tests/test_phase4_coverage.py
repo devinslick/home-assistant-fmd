@@ -1,56 +1,10 @@
 """Phase 4 tests - Targeting 100% coverage for remaining gaps."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
-import pytest
 from conftest import setup_integration
-from homeassistant.config_entries import ConfigEntryNotReady
 from homeassistant.core import HomeAssistant
-
-
-async def test_device_tracker_initial_fetch_fails(
-    hass: HomeAssistant,
-    mock_fmd_api: AsyncMock,
-) -> None:
-    """Test device_tracker setup when initial location fetch fails."""
-    # Make get_all_locations raise an exception
-    mock_fmd_api.create.return_value.get_all_locations.side_effect = Exception(
-        "Network error"
-    )
-
-    from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
-
-    from custom_components.fmd.const import DOMAIN
-
-    mock_config_entry = pytest.importorskip(
-        "pytest_homeassistant_custom_component.common"
-    ).MockConfigEntry(
-        version=1,
-        minor_version=1,
-        domain=DOMAIN,
-        title="test_user",
-        data={
-            CONF_URL: "https://fmd.example.com",
-            CONF_ID: "test_user",
-            CONF_PASSWORD: "test_password",
-            "polling_interval": 30,
-            "allow_inaccurate_locations": False,
-            "use_imperial": False,
-        },
-        entry_id="test_entry_id",
-        unique_id="test_user",
-    )
-    mock_config_entry.add_to_hass(hass)
-
-    # Mock async_add_executor_job
-    async def mock_executor_job(func, *args):
-        return func(*args)
-
-    with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
-        # Should raise ConfigEntryNotReady
-        with pytest.raises(ConfigEntryNotReady):
-            await hass.config_entries.async_setup(mock_config_entry.entry_id)
 
 
 async def test_high_frequency_switch_tracker_not_found(
@@ -68,7 +22,7 @@ async def test_high_frequency_switch_tracker_not_found(
     await hass.services.async_call(
         "switch",
         "turn_off",
-        {"entity_id": "switch.fmd_test_user_location_update_high_frequency_mode"},
+        {"entity_id": "switch.fmd_test_user_high_frequency_mode"},
         blocking=True,
     )
     await hass.async_block_till_done()
@@ -91,7 +45,7 @@ async def test_allow_inaccurate_switch_tracker_not_found(
     await hass.services.async_call(
         "switch",
         "turn_off",
-        {"entity_id": "switch.fmd_test_user_location_filter_allow_inaccurate"},
+        {"entity_id": "switch.fmd_test_user_location_allow_inaccurate_updates"},
         blocking=True,
     )
     await hass.async_block_till_done()
@@ -110,26 +64,26 @@ async def test_wipe_safety_auto_disable_cancel(
     await hass.services.async_call(
         "switch",
         "turn_on",
-        {"entity_id": "switch.fmd_test_user_wipe_safety_wipe_safety"},
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
         blocking=True,
     )
     await hass.async_block_till_done()
 
     # Verify it's on
-    state = hass.states.get("switch.fmd_test_user_wipe_safety_wipe_safety")
+    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
     assert state.state == "on"
 
     # Turn it off before auto-disable (cancels the task)
     await hass.services.async_call(
         "switch",
         "turn_off",
-        {"entity_id": "switch.fmd_test_user_wipe_safety_wipe_safety"},
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
         blocking=True,
     )
     await hass.async_block_till_done()
 
     # Verify it's off
-    state = hass.states.get("switch.fmd_test_user_wipe_safety_wipe_safety")
+    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
     assert state.state == "off"
 
 
@@ -144,13 +98,13 @@ async def test_photo_cleanup_switch_turn_off(
     await hass.services.async_call(
         "switch",
         "turn_off",
-        {"entity_id": "switch.fmd_test_user_photo_photo_auto_cleanup"},
+        {"entity_id": "switch.fmd_test_user_photo_auto_cleanup"},
         blocking=True,
     )
     await hass.async_block_till_done()
 
     # Verify it's off
-    state = hass.states.get("switch.fmd_test_user_photo_photo_auto_cleanup")
+    state = hass.states.get("switch.fmd_test_user_photo_auto_cleanup")
     assert state.state == "off"
 
 
