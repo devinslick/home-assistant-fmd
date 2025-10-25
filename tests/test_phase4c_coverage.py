@@ -7,14 +7,17 @@ Focus areas:
 - switch.py: Auto-disable exception handling
 - sensor.py: TYPE_CHECKING import (not testable via pytest)
 """
+from __future__ import annotations
+
 import asyncio
 import io
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntryState
+from conftest import setup_integration
 from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.core import HomeAssistant
 from PIL import Image
 
 from custom_components.fmd.const import DOMAIN
@@ -22,41 +25,37 @@ from custom_components.fmd.const import DOMAIN
 
 @pytest.mark.asyncio
 async def test_device_tracker_initial_update_fails_graceful(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test platform-level initial location fetch failure is handled gracefully."""
-    fmd_api_mock.get_location.side_effect = Exception("Network error")
+    mock_fmd_api.create.return_value.get_location.side_effect = Exception(
+        "Network error"
+    )
 
-    # Setup should succeed despite initial fetch failure
-    result = await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
-
-    # Platform setup should succeed (graceful degradation)
-    assert result is True
-    assert config_entry.state == ConfigEntryState.LOADED
+    await setup_integration(hass, mock_fmd_api)
 
     # Device tracker should exist but have unknown state
-    device_tracker = hass.data[DOMAIN][config_entry.entry_id]["device_tracker"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
     assert device_tracker.state == STATE_UNAVAILABLE
 
 
 @pytest.mark.asyncio
 async def test_device_tracker_high_frequency_mode_request_location_success(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test high-frequency mode successfully requests location from device."""
-    # Setup the device tracker
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Get the device tracker
-    device_tracker = hass.data[DOMAIN][config_entry.entry_id]["device_tracker"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
 
     # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
 
     # Mock request_location to return success
-    fmd_api_mock.request_location.return_value = True
+    mock_fmd_api.create.return_value.request_location.return_value = True
 
     # Trigger polling update with mocked sleep
     with patch("custom_components.fmd.device_tracker.asyncio.sleep") as mock_sleep:
@@ -64,75 +63,78 @@ async def test_device_tracker_high_frequency_mode_request_location_success(
         await device_tracker.async_update()
 
     # Verify request_location was called
-    fmd_api_mock.request_location.assert_called_once_with(provider="all")
+    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
+        provider="all"
+    )
     mock_sleep.assert_called_once_with(10)
 
 
 @pytest.mark.asyncio
 async def test_device_tracker_high_frequency_mode_request_location_fails(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test high-frequency mode handles request_location failure gracefully."""
-    # Setup the device tracker
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Get the device tracker
-    device_tracker = hass.data[DOMAIN][config_entry.entry_id]["device_tracker"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
 
     # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
 
     # Mock request_location to return failure
-    fmd_api_mock.request_location.return_value = False
+    mock_fmd_api.create.return_value.request_location.return_value = False
 
     # Trigger polling update
     with patch("custom_components.fmd.device_tracker.asyncio.sleep") as mock_sleep:
         await device_tracker.async_update()
 
     # Verify request_location was called but sleep was not
-    fmd_api_mock.request_location.assert_called_once_with(provider="all")
+    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
+        provider="all"
+    )
     mock_sleep.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_device_tracker_high_frequency_mode_exception(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test high-frequency mode handles exceptions during location request."""
-    # Setup the device tracker
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Get the device tracker
-    device_tracker = hass.data[DOMAIN][config_entry.entry_id]["device_tracker"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
 
     # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
 
     # Mock request_location to raise exception
-    fmd_api_mock.request_location.side_effect = Exception("Network error")
+    mock_fmd_api.create.return_value.request_location.side_effect = Exception(
+        "Network error"
+    )
 
     # Trigger polling update - should not raise
     await device_tracker.async_update()
 
     # Verify request_location was called
-    fmd_api_mock.request_location.assert_called_once_with(provider="all")
+    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
+        provider="all"
+    )
 
 
 @pytest.mark.asyncio
 async def test_device_tracker_attributes_with_altitude_imperial(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test device tracker attributes include altitude in imperial units."""
     # Setup with imperial units
     hass.config.units.name = "us_customary"
 
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
-
     # Mock location with altitude
-    fmd_api_mock.get_location.return_value = {
+    mock_fmd_api.create.return_value.get_location.return_value = {
         "pictures": [],
         "location": [
             {
@@ -145,7 +147,10 @@ async def test_device_tracker_attributes_with_altitude_imperial(
         ],
     }
 
-    device_tracker = hass.data[DOMAIN][config_entry.entry_id]["device_tracker"]
+    await setup_integration(hass, mock_fmd_api)
+
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
     await device_tracker.async_update()
 
     attributes = device_tracker.extra_state_attributes
@@ -157,17 +162,14 @@ async def test_device_tracker_attributes_with_altitude_imperial(
 
 @pytest.mark.asyncio
 async def test_device_tracker_attributes_with_speed_imperial(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test device tracker attributes include speed in imperial units."""
     # Setup with imperial units
     hass.config.units.name = "us_customary"
 
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
-
     # Mock location with speed
-    fmd_api_mock.get_location.return_value = {
+    mock_fmd_api.create.return_value.get_location.return_value = {
         "pictures": [],
         "location": [
             {
@@ -180,7 +182,10 @@ async def test_device_tracker_attributes_with_speed_imperial(
         ],
     }
 
-    device_tracker = hass.data[DOMAIN][config_entry.entry_id]["device_tracker"]
+    await setup_integration(hass, mock_fmd_api)
+
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
     await device_tracker.async_update()
 
     attributes = device_tracker.extra_state_attributes
@@ -191,18 +196,20 @@ async def test_device_tracker_attributes_with_speed_imperial(
 
 
 @pytest.mark.asyncio
-async def test_device_tracker_empty_blob_warning(hass, config_entry, fmd_api_mock):
+async def test_device_tracker_empty_blob_warning(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test device tracker logs warning for empty location blobs."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
-
     # Mock location with empty blob
-    fmd_api_mock.get_location.return_value = {
+    mock_fmd_api.create.return_value.get_location.return_value = {
         "pictures": [],
         "location": [None, b""],  # Empty blobs
     }
 
-    device_tracker = hass.data[DOMAIN][config_entry.entry_id]["device_tracker"]
+    await setup_integration(hass, mock_fmd_api)
+
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
     await device_tracker.async_update()
 
     # Should not crash, state should be unavailable
@@ -211,12 +218,9 @@ async def test_device_tracker_empty_blob_warning(hass, config_entry, fmd_api_moc
 
 @pytest.mark.asyncio
 async def test_button_download_photos_with_exif_timestamp(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test download photos button extracts EXIF timestamp from images."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
-
     # Create a mock image with EXIF data
     img = Image.new("RGB", (100, 100), color="red")
     exif_data = img.getexif()
@@ -229,17 +233,23 @@ async def test_button_download_photos_with_exif_timestamp(
     image_data = img_bytes.getvalue()
 
     # Mock API response with photo
-    fmd_api_mock.get_location.return_value = {
+    mock_fmd_api.create.return_value.get_location.return_value = {
         "pictures": [image_data],
         "location": [],
     }
 
+    await setup_integration(hass, mock_fmd_api)
+
     # Press the button
-    button_entity = hass.data[DOMAIN][config_entry.entry_id]["download_photos_button"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    button_entity = hass.data[DOMAIN][entry_id]["download_photos_button"]
     await button_entity.async_press()
     await hass.async_block_till_done()
 
     # Check that file was saved with timestamp in name
+    from conftest import get_mock_config_entry
+
+    config_entry = get_mock_config_entry()
     media_dir = Path(hass.config.path("media", "fmd", config_entry.data["id"]))
     saved_files = list(media_dir.glob("photo_*.jpg"))
 
@@ -249,23 +259,23 @@ async def test_button_download_photos_with_exif_timestamp(
 
 @pytest.mark.asyncio
 async def test_button_download_photos_exif_parsing_error(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test download photos button handles EXIF parsing errors gracefully."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
-
     # Create invalid image data that will fail EXIF parsing
     invalid_image_data = b"not a valid jpeg image"
 
     # Mock API response with invalid photo
-    fmd_api_mock.get_location.return_value = {
+    mock_fmd_api.create.return_value.get_location.return_value = {
         "pictures": [invalid_image_data],
         "location": [],
     }
 
+    await setup_integration(hass, mock_fmd_api)
+
     # Press the button - should not crash
-    button_entity = hass.data[DOMAIN][config_entry.entry_id]["download_photos_button"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    button_entity = hass.data[DOMAIN][entry_id]["download_photos_button"]
     await button_entity.async_press()
     await hass.async_block_till_done()
 
@@ -273,11 +283,10 @@ async def test_button_download_photos_exif_parsing_error(
 
 
 @pytest.mark.asyncio
-async def test_button_download_photos_updates_sensor(hass, config_entry, fmd_api_mock):
+async def test_button_download_photos_updates_sensor(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test download photos button updates photo count sensor."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
-
     # Create a simple image
     img = Image.new("RGB", (100, 100), color="blue")
     img_bytes = io.BytesIO()
@@ -285,32 +294,29 @@ async def test_button_download_photos_updates_sensor(hass, config_entry, fmd_api
     img_bytes.seek(0)
 
     # Mock API response with one photo
-    fmd_api_mock.get_location.return_value = {
+    mock_fmd_api.create.return_value.get_location.return_value = {
         "pictures": [img_bytes.getvalue()],
         "location": [],
     }
 
+    await setup_integration(hass, mock_fmd_api)
+
     # Press the button
-    button_entity = hass.data[DOMAIN][config_entry.entry_id]["download_photos_button"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    button_entity = hass.data[DOMAIN][entry_id]["download_photos_button"]
     await button_entity.async_press()
     await hass.async_block_till_done()
 
     # Check that sensor was updated (sensor should exist and have update method called)
-    photo_sensor = hass.data[DOMAIN][config_entry.entry_id].get("photo_count_sensor")
+    photo_sensor = hass.data[DOMAIN][entry_id].get("photo_count_sensor")
     assert photo_sensor is not None
 
 
 @pytest.mark.asyncio
 async def test_button_download_photos_sensor_not_found(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test download photos button handles missing photo sensor gracefully."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
-
-    # Remove the photo sensor
-    del hass.data[DOMAIN][config_entry.entry_id]["photo_count_sensor"]
-
     # Create a simple image
     img = Image.new("RGB", (100, 100), color="green")
     img_bytes = io.BytesIO()
@@ -318,30 +324,37 @@ async def test_button_download_photos_sensor_not_found(
     img_bytes.seek(0)
 
     # Mock API response
-    fmd_api_mock.get_location.return_value = {
+    mock_fmd_api.create.return_value.get_location.return_value = {
         "pictures": [img_bytes.getvalue()],
         "location": [],
     }
 
+    await setup_integration(hass, mock_fmd_api)
+
+    # Remove the photo sensor
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    del hass.data[DOMAIN][entry_id]["photo_count_sensor"]
+
     # Press the button - should not crash
-    button_entity = hass.data[DOMAIN][config_entry.entry_id]["download_photos_button"]
+    button_entity = hass.data[DOMAIN][entry_id]["download_photos_button"]
     await button_entity.async_press()
     await hass.async_block_till_done()
 
 
 @pytest.mark.asyncio
 async def test_button_download_photos_cleanup_delete_error(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test photo cleanup handles file deletion errors gracefully."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
+
+    entry_id = list(hass.data[DOMAIN].keys())[0]
 
     # Enable auto-cleanup and set max to 1
-    cleanup_switch = hass.data[DOMAIN][config_entry.entry_id]["photo_auto_cleanup"]
+    cleanup_switch = hass.data[DOMAIN][entry_id]["photo_auto_cleanup"]
     await cleanup_switch.async_turn_on()
 
-    max_photos = hass.data[DOMAIN][config_entry.entry_id]["max_photos_number"]
+    max_photos = hass.data[DOMAIN][entry_id]["max_photos_number"]
     max_photos._attr_native_value = 1
 
     # Create two images
@@ -357,7 +370,7 @@ async def test_button_download_photos_cleanup_delete_error(
     img2_bytes.seek(0)
 
     # Mock API response with two photos
-    fmd_api_mock.get_location.return_value = {
+    mock_fmd_api.create.return_value.get_location.return_value = {
         "pictures": [img1_bytes.getvalue(), img2_bytes.getvalue()],
         "location": [],
     }
@@ -365,43 +378,45 @@ async def test_button_download_photos_cleanup_delete_error(
     # Mock Path.unlink to raise exception
     with patch("pathlib.Path.unlink", side_effect=Exception("Permission denied")):
         # Press the button - should handle error
-        button_entity = hass.data[DOMAIN][config_entry.entry_id][
-            "download_photos_button"
-        ]
+        button_entity = hass.data[DOMAIN][entry_id]["download_photos_button"]
         await button_entity.async_press()
         await hass.async_block_till_done()
 
 
 @pytest.mark.asyncio
-async def test_button_wipe_device_success(hass, config_entry, fmd_api_mock):
+async def test_button_wipe_device_success(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test wipe device button successfully sends wipe command."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
+
+    entry_id = list(hass.data[DOMAIN].keys())[0]
 
     # Enable wipe safety
-    safety_switch = hass.data[DOMAIN][config_entry.entry_id]["wipe_safety_switch"]
+    safety_switch = hass.data[DOMAIN][entry_id]["wipe_safety_switch"]
     await safety_switch.async_turn_on()
 
     # Mock successful wipe
-    fmd_api_mock.wipe_device.return_value = True
+    mock_fmd_api.create.return_value.wipe_device.return_value = True
 
     # Press the wipe button
-    wipe_button = hass.data[DOMAIN][config_entry.entry_id]["wipe_device_button"]
+    wipe_button = hass.data[DOMAIN][entry_id]["wipe_device_button"]
     await wipe_button.async_press()
     await hass.async_block_till_done()
 
     # Verify wipe was called
-    fmd_api_mock.wipe_device.assert_called_once()
+    mock_fmd_api.create.return_value.wipe_device.assert_called_once()
 
     # Safety switch should be automatically disabled
     assert safety_switch.is_on is False
 
 
 @pytest.mark.asyncio
-async def test_select_bluetooth_enable_command(hass, config_entry, fmd_api_mock):
+async def test_select_bluetooth_enable_command(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test Bluetooth select entity sends enable command."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Get the Bluetooth select entity
     state = hass.states.get("select.fmd_test_user_bluetooth")
@@ -416,14 +431,15 @@ async def test_select_bluetooth_enable_command(hass, config_entry, fmd_api_mock)
     )
 
     # Verify API was called
-    fmd_api_mock.toggle_bluetooth.assert_called_once_with(True)
+    mock_fmd_api.create.return_value.toggle_bluetooth.assert_called_once_with(True)
 
 
 @pytest.mark.asyncio
-async def test_select_bluetooth_disable_command(hass, config_entry, fmd_api_mock):
+async def test_select_bluetooth_disable_command(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test Bluetooth select entity sends disable command."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Get the Bluetooth select entity
     state = hass.states.get("select.fmd_test_user_bluetooth")
@@ -438,14 +454,15 @@ async def test_select_bluetooth_disable_command(hass, config_entry, fmd_api_mock
     )
 
     # Verify API was called
-    fmd_api_mock.toggle_bluetooth.assert_called_once_with(False)
+    mock_fmd_api.create.return_value.toggle_bluetooth.assert_called_once_with(False)
 
 
 @pytest.mark.asyncio
-async def test_select_dnd_enable_command(hass, config_entry, fmd_api_mock):
+async def test_select_dnd_enable_command(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test DND select entity sends enable command."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Select "Enable Do Not Disturb"
     await hass.services.async_call(
@@ -459,14 +476,15 @@ async def test_select_dnd_enable_command(hass, config_entry, fmd_api_mock):
     )
 
     # Verify API was called
-    fmd_api_mock.toggle_dnd.assert_called_once_with(True)
+    mock_fmd_api.create.return_value.toggle_dnd.assert_called_once_with(True)
 
 
 @pytest.mark.asyncio
-async def test_select_dnd_disable_command(hass, config_entry, fmd_api_mock):
+async def test_select_dnd_disable_command(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test DND select entity sends disable command."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Select "Disable Do Not Disturb"
     await hass.services.async_call(
@@ -480,14 +498,15 @@ async def test_select_dnd_disable_command(hass, config_entry, fmd_api_mock):
     )
 
     # Verify API was called
-    fmd_api_mock.toggle_dnd.assert_called_once_with(False)
+    mock_fmd_api.create.return_value.toggle_dnd.assert_called_once_with(False)
 
 
 @pytest.mark.asyncio
-async def test_select_ringer_mode_normal(hass, config_entry, fmd_api_mock):
+async def test_select_ringer_mode_normal(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test ringer mode select entity sends normal mode command."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Select "Normal"
     await hass.services.async_call(
@@ -498,14 +517,15 @@ async def test_select_ringer_mode_normal(hass, config_entry, fmd_api_mock):
     )
 
     # Verify API was called with mode 2
-    fmd_api_mock.set_ringer_mode.assert_called_once_with(2)
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with(2)
 
 
 @pytest.mark.asyncio
-async def test_select_ringer_mode_vibrate(hass, config_entry, fmd_api_mock):
+async def test_select_ringer_mode_vibrate(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test ringer mode select entity sends vibrate mode command."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Select "Vibrate"
     await hass.services.async_call(
@@ -516,14 +536,15 @@ async def test_select_ringer_mode_vibrate(hass, config_entry, fmd_api_mock):
     )
 
     # Verify API was called with mode 1
-    fmd_api_mock.set_ringer_mode.assert_called_once_with(1)
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with(1)
 
 
 @pytest.mark.asyncio
-async def test_select_ringer_mode_silent(hass, config_entry, fmd_api_mock):
+async def test_select_ringer_mode_silent(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test ringer mode select entity sends silent mode command."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Select "Silent"
     await hass.services.async_call(
@@ -534,19 +555,19 @@ async def test_select_ringer_mode_silent(hass, config_entry, fmd_api_mock):
     )
 
     # Verify API was called with mode 0
-    fmd_api_mock.set_ringer_mode.assert_called_once_with(0)
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with(0)
 
 
 @pytest.mark.asyncio
 async def test_switch_wipe_safety_auto_disable_cancelled_error(
-    hass, config_entry, fmd_api_mock
-):
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
     """Test wipe safety auto-disable handles CancelledError gracefully."""
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
 
     # Get the wipe safety switch
-    safety_switch = hass.data[DOMAIN][config_entry.entry_id]["wipe_safety_switch"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    safety_switch = hass.data[DOMAIN][entry_id]["wipe_safety_switch"]
 
     # Turn on the switch (starts auto-disable task)
     await safety_switch.async_turn_on()
