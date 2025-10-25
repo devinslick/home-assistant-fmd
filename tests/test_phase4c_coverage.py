@@ -253,8 +253,10 @@ async def test_button_download_photos_with_exif_timestamp(
         written_paths.append(path)
         return len(data)
 
-    async def run_executor(func, *args):
-        return func(*args)
+    def run_executor(func, *args):
+        if "write_bytes" in str(func):
+            fake_write_bytes(args[0], args[1])
+        return len(args[1])
 
     fake_exif: dict[int, str] = {36867: "2025:10:19 15:30:45"}
     fake_image = MagicMock()
@@ -262,10 +264,8 @@ async def test_button_download_photos_with_exif_timestamp(
 
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
         "pathlib.Path.mkdir"
-    ), patch("pathlib.Path.is_dir", return_value=True), patch.object(
-        Path, "exists", side_effect=fake_exists
-    ), patch.object(
-        Path, "write_bytes", side_effect=fake_write_bytes
+    ), patch("pathlib.Path.is_dir", return_value=True), patch(
+        "pathlib.Path.exists", side_effect=fake_exists
     ), patch(
         "custom_components.fmd.button.Image.open", return_value=fake_image
     ):
@@ -298,15 +298,17 @@ async def test_button_download_photos_exif_parsing_error(
         b"fake-image-bytes"
     ).decode("utf-8")
 
-    async def run_executor(func, *args):
-        return func(*args)
+    def run_executor(func, *args):
+        if "write_bytes" in str(func):
+            mock_write(*args)
+        return len(args[1])
 
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
         "pathlib.Path.mkdir"
-    ), patch("pathlib.Path.is_dir", return_value=True), patch.object(
-        Path, "exists", return_value=False
-    ), patch.object(
-        Path, "write_bytes"
+    ), patch("pathlib.Path.is_dir", return_value=True), patch(
+        "pathlib.Path.exists", return_value=False
+    ), patch(
+        "pathlib.Path.write_bytes"
     ) as mock_write, patch(
         "custom_components.fmd.button.Image.open",
         side_effect=OSError("Invalid EXIF"),
@@ -344,7 +346,7 @@ async def test_button_download_photos_updates_sensor(
         img_bytes.getvalue()
     ).decode("utf-8")
 
-    async def run_executor(func, *args):
+    def run_executor(func, *args):
         return func(*args)
 
     # Press the button
