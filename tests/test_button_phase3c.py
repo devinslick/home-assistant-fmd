@@ -146,8 +146,9 @@ async def test_lock_button_api_error(
     """Test lock button when send_command raises exception."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Configure mock AFTER setup to affect the button press
-    mock_fmd_api.create.return_value.send_command.side_effect = Exception("API Error")
+    # Get the actual API instance and configure mock to fail
+    api_instance = mock_fmd_api.create.return_value
+    api_instance.send_command.side_effect = Exception("API Error")
 
     await hass.services.async_call(
         "button",
@@ -158,7 +159,7 @@ async def test_lock_button_api_error(
     await hass.async_block_till_done()
 
     # Should attempt to call send_command even though it fails
-    mock_fmd_api.create.return_value.send_command.assert_called()
+    api_instance.send_command.assert_called()
 
 
 async def test_capture_front_camera_button_api_error(
@@ -168,8 +169,9 @@ async def test_capture_front_camera_button_api_error(
     """Test front camera button when send_command raises exception."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Configure mock AFTER setup to affect the button press
-    mock_fmd_api.create.return_value.send_command.side_effect = Exception("API Error")
+    # Get the actual API instance and configure mock to fail
+    api_instance = mock_fmd_api.create.return_value
+    api_instance.send_command.side_effect = Exception("API Error")
 
     await hass.services.async_call(
         "button",
@@ -180,7 +182,7 @@ async def test_capture_front_camera_button_api_error(
     await hass.async_block_till_done()
 
     # Should attempt to call send_command even though it fails
-    mock_fmd_api.create.return_value.send_command.assert_called()
+    api_instance.send_command.assert_called()
 
 
 async def test_capture_rear_camera_button_api_error(
@@ -190,8 +192,9 @@ async def test_capture_rear_camera_button_api_error(
     """Test rear camera button when send_command raises exception."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Configure mock AFTER setup to affect the button press
-    mock_fmd_api.create.return_value.send_command.side_effect = Exception("API Error")
+    # Get the actual API instance and configure mock to fail
+    api_instance = mock_fmd_api.create.return_value
+    api_instance.send_command.side_effect = Exception("API Error")
 
     await hass.services.async_call(
         "button",
@@ -202,7 +205,7 @@ async def test_capture_rear_camera_button_api_error(
     await hass.async_block_till_done()
 
     # Should attempt to call send_command even though it fails
-    mock_fmd_api.create.return_value.send_command.assert_called()
+    api_instance.send_command.assert_called()
 
 
 async def test_photo_download_button_get_pictures_error(
