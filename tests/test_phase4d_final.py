@@ -160,9 +160,15 @@ async def test_device_tracker_config_entry_not_ready(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test ConfigEntryNotReady on failure (covers lines 68-71)."""
+    from unittest.mock import patch
+
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    # Set up the entry but make FmdApi.create fail
+    # Mock async_add_executor_job
+    async def mock_executor_job(func, *args):
+        return func(*args)
+
+    # Set up the entry but make get_all_locations fail during initial fetch
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -179,8 +185,9 @@ async def test_device_tracker_config_entry_not_ready(
     )
 
     # Should raise ConfigEntryNotReady
-    with pytest.raises(ConfigEntryNotReady):
-        await hass.config_entries.async_setup(entry.entry_id)
+    with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
+        with pytest.raises(ConfigEntryNotReady):
+            await hass.config_entries.async_setup(entry.entry_id)
 
 
 async def test_device_tracker_imperial_altitude(
@@ -188,7 +195,13 @@ async def test_device_tracker_imperial_altitude(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker altitude in imperial units (covers lines 299-300)."""
+    from unittest.mock import patch
+
     from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    # Mock async_add_executor_job
+    async def mock_executor_job(func, *args):
+        return func(*args)
 
     # Create entry with imperial units in options
     entry = MockConfigEntry(
@@ -202,8 +215,9 @@ async def test_device_tracker_imperial_altitude(
     )
     entry.add_to_hass(hass)
 
-    await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
+    with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
 
     # Get the device tracker
     entry_id = list(hass.data[DOMAIN].keys())[0]
@@ -233,7 +247,13 @@ async def test_device_tracker_imperial_speed(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker speed in imperial units (covers lines 309-310)."""
+    from unittest.mock import patch
+
     from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    # Mock async_add_executor_job
+    async def mock_executor_job(func, *args):
+        return func(*args)
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -246,8 +266,9 @@ async def test_device_tracker_imperial_speed(
     )
     entry.add_to_hass(hass)
 
-    await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
+    with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
 
     entry_id = list(hass.data[DOMAIN].keys())[0]
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
