@@ -253,7 +253,7 @@ async def test_button_download_photos_with_exif_timestamp(
         written_paths.append(path)
         return len(data)
 
-    def run_executor(func, *args):
+    async def run_executor(func, *args):
         return func(*args)
 
     fake_exif: dict[int, str] = {36867: "2025:10:19 15:30:45"}
@@ -262,10 +262,10 @@ async def test_button_download_photos_with_exif_timestamp(
 
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
         "pathlib.Path.mkdir"
-    ), patch("pathlib.Path.is_dir", return_value=True), patch(
-        "pathlib.Path.exists", side_effect=fake_exists
-    ), patch(
-        "pathlib.Path.write_bytes", side_effect=fake_write_bytes
+    ), patch("pathlib.Path.is_dir", return_value=True), patch.object(
+        Path, "exists", side_effect=fake_exists
+    ), patch.object(
+        Path, "write_bytes", side_effect=fake_write_bytes
     ), patch(
         "custom_components.fmd.button.Image.open", return_value=fake_image
     ):
@@ -277,7 +277,7 @@ async def test_button_download_photos_with_exif_timestamp(
         )
 
     mock_api.get_pictures.assert_awaited_once()
-    pattern = re.compile(r"photo_20251019_153045_.*\\.jpg")
+    pattern = re.compile(r"photo_20251019_153045_.*\.jpg")
     if not any(pattern.match(path.name) for path in written_paths):
         print(f"DEBUG: written_paths = {[str(p) for p in written_paths]}")
     assert any(pattern.match(path.name) for path in written_paths)
@@ -298,15 +298,15 @@ async def test_button_download_photos_exif_parsing_error(
         b"fake-image-bytes"
     ).decode("utf-8")
 
-    def run_executor(func, *args):
+    async def run_executor(func, *args):
         return func(*args)
 
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
         "pathlib.Path.mkdir"
-    ), patch("pathlib.Path.is_dir", return_value=True), patch(
-        "pathlib.Path.exists", return_value=False
-    ), patch(
-        "pathlib.Path.write_bytes"
+    ), patch("pathlib.Path.is_dir", return_value=True), patch.object(
+        Path, "exists", return_value=False
+    ), patch.object(
+        Path, "write_bytes"
     ) as mock_write, patch(
         "custom_components.fmd.button.Image.open",
         side_effect=OSError("Invalid EXIF"),
@@ -344,7 +344,7 @@ async def test_button_download_photos_updates_sensor(
         img_bytes.getvalue()
     ).decode("utf-8")
 
-    def run_executor(func, *args):
+    async def run_executor(func, *args):
         return func(*args)
 
     # Press the button
