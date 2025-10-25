@@ -254,7 +254,7 @@ async def test_button_download_photos_with_exif_timestamp(
         return len(data)
 
     def run_executor(func, *args):
-        if "write_bytes" in str(func):
+        if func.__name__ == "write_bytes":
             fake_write_bytes(args[0], args[1])
         return len(args[1])
 
@@ -299,7 +299,7 @@ async def test_button_download_photos_exif_parsing_error(
     ).decode("utf-8")
 
     def run_executor(func, *args):
-        if "write_bytes" in str(func):
+        if func.__name__ == "write_bytes":
             mock_write(*args)
         return len(args[1])
 
