@@ -36,7 +36,7 @@ async def test_device_tracker_initial_update_fails_graceful(
 
     # Device tracker should exist but have unknown state
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
     assert device_tracker.state == STATE_UNAVAILABLE
 
 
@@ -49,7 +49,7 @@ async def test_device_tracker_high_frequency_mode_request_location_success(
 
     # Get the device tracker
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
@@ -78,7 +78,7 @@ async def test_device_tracker_high_frequency_mode_request_location_fails(
 
     # Get the device tracker
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
@@ -106,7 +106,7 @@ async def test_device_tracker_high_frequency_mode_exception(
 
     # Get the device tracker
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
@@ -150,7 +150,7 @@ async def test_device_tracker_attributes_with_altitude_imperial(
     await setup_integration(hass, mock_fmd_api)
 
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
     await device_tracker.async_update()
 
     attributes = device_tracker.extra_state_attributes
@@ -185,7 +185,7 @@ async def test_device_tracker_attributes_with_speed_imperial(
     await setup_integration(hass, mock_fmd_api)
 
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
     await device_tracker.async_update()
 
     attributes = device_tracker.extra_state_attributes
@@ -209,7 +209,7 @@ async def test_device_tracker_empty_blob_warning(
     await setup_integration(hass, mock_fmd_api)
 
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
     await device_tracker.async_update()
 
     # Should not crash, state should be unavailable
@@ -240,11 +240,18 @@ async def test_button_download_photos_with_exif_timestamp(
 
     await setup_integration(hass, mock_fmd_api)
 
-    # Press the button
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    button_entity = hass.data[DOMAIN][entry_id]["download_photos_button"]
-    await button_entity.async_press()
-    await hass.async_block_till_done()
+    # Press the button using service call
+    with patch("pathlib.Path.mkdir"), patch(
+        "pathlib.Path.is_dir", return_value=True
+    ), patch("pathlib.Path.exists", return_value=False), patch(
+        "pathlib.Path.write_bytes"
+    ):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
 
     # Check that file was saved with timestamp in name
     from conftest import get_mock_config_entry
@@ -274,10 +281,13 @@ async def test_button_download_photos_exif_parsing_error(
     await setup_integration(hass, mock_fmd_api)
 
     # Press the button - should not crash
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    button_entity = hass.data[DOMAIN][entry_id]["download_photos_button"]
-    await button_entity.async_press()
-    await hass.async_block_till_done()
+    with patch("pathlib.Path.mkdir"), patch("pathlib.Path.write_bytes"):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
 
     # Should still attempt to save (will fail, but error is handled)
 
@@ -302,12 +312,20 @@ async def test_button_download_photos_updates_sensor(
     await setup_integration(hass, mock_fmd_api)
 
     # Press the button
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    button_entity = hass.data[DOMAIN][entry_id]["download_photos_button"]
-    await button_entity.async_press()
-    await hass.async_block_till_done()
+    with patch("pathlib.Path.mkdir"), patch(
+        "pathlib.Path.is_dir", return_value=True
+    ), patch("pathlib.Path.exists", return_value=False), patch(
+        "pathlib.Path.write_bytes"
+    ):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
 
     # Check that sensor was updated (sensor should exist and have update method called)
+    entry_id = list(hass.data[DOMAIN].keys())[0]
     photo_sensor = hass.data[DOMAIN][entry_id].get("photo_count_sensor")
     assert photo_sensor is not None
 
@@ -336,9 +354,17 @@ async def test_button_download_photos_sensor_not_found(
     del hass.data[DOMAIN][entry_id]["photo_count_sensor"]
 
     # Press the button - should not crash
-    button_entity = hass.data[DOMAIN][entry_id]["download_photos_button"]
-    await button_entity.async_press()
-    await hass.async_block_till_done()
+    with patch("pathlib.Path.mkdir"), patch(
+        "pathlib.Path.is_dir", return_value=True
+    ), patch("pathlib.Path.exists", return_value=False), patch(
+        "pathlib.Path.write_bytes"
+    ):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
 
 
 @pytest.mark.asyncio
@@ -351,7 +377,7 @@ async def test_button_download_photos_cleanup_delete_error(
     entry_id = list(hass.data[DOMAIN].keys())[0]
 
     # Enable auto-cleanup and set max to 1
-    cleanup_switch = hass.data[DOMAIN][entry_id]["photo_auto_cleanup"]
+    cleanup_switch = hass.data[DOMAIN][entry_id]["photo_auto_cleanup_switch"]
     await cleanup_switch.async_turn_on()
 
     max_photos = hass.data[DOMAIN][entry_id]["max_photos_number"]
@@ -376,11 +402,20 @@ async def test_button_download_photos_cleanup_delete_error(
     }
 
     # Mock Path.unlink to raise exception
-    with patch("pathlib.Path.unlink", side_effect=Exception("Permission denied")):
+    with patch("pathlib.Path.mkdir"), patch(
+        "pathlib.Path.is_dir", return_value=True
+    ), patch("pathlib.Path.exists", return_value=False), patch(
+        "pathlib.Path.write_bytes"
+    ), patch(
+        "pathlib.Path.unlink", side_effect=Exception("Permission denied")
+    ):
         # Press the button - should handle error
-        button_entity = hass.data[DOMAIN][entry_id]["download_photos_button"]
-        await button_entity.async_press()
-        await hass.async_block_till_done()
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
 
 
 @pytest.mark.asyncio
@@ -400,9 +435,12 @@ async def test_button_wipe_device_success(
     mock_fmd_api.create.return_value.wipe_device.return_value = True
 
     # Press the wipe button
-    wipe_button = hass.data[DOMAIN][entry_id]["wipe_device_button"]
-    await wipe_button.async_press()
-    await hass.async_block_till_done()
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_wipe_execute"},
+        blocking=True,
+    )
 
     # Verify wipe was called
     mock_fmd_api.create.return_value.wipe_device.assert_called_once()
@@ -469,7 +507,7 @@ async def test_select_dnd_enable_command(
         "select",
         "select_option",
         {
-            "entity_id": "select.fmd_test_user_do_not_disturb",
+            "entity_id": "select.fmd_test_user_volume_do_not_disturb",
             "option": "Enable Do Not Disturb",
         },
         blocking=True,
@@ -491,7 +529,7 @@ async def test_select_dnd_disable_command(
         "select",
         "select_option",
         {
-            "entity_id": "select.fmd_test_user_do_not_disturb",
+            "entity_id": "select.fmd_test_user_volume_do_not_disturb",
             "option": "Disable Do Not Disturb",
         },
         blocking=True,
@@ -512,7 +550,7 @@ async def test_select_ringer_mode_normal(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": "select.fmd_test_user_ringer_mode", "option": "Normal"},
+        {"entity_id": "select.fmd_test_user_volume_ringer_mode", "option": "Normal"},
         blocking=True,
     )
 
@@ -531,7 +569,7 @@ async def test_select_ringer_mode_vibrate(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": "select.fmd_test_user_ringer_mode", "option": "Vibrate"},
+        {"entity_id": "select.fmd_test_user_volume_ringer_mode", "option": "Vibrate"},
         blocking=True,
     )
 
@@ -550,7 +588,7 @@ async def test_select_ringer_mode_silent(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": "select.fmd_test_user_ringer_mode", "option": "Silent"},
+        {"entity_id": "select.fmd_test_user_volume_ringer_mode", "option": "Silent"},
         blocking=True,
     )
 
