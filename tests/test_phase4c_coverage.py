@@ -238,9 +238,9 @@ async def test_button_download_photos_with_exif_timestamp(
 
     mock_api = mock_fmd_api.create.return_value
     mock_api.get_pictures.return_value = ["encrypted_photo"]
-
-    encoded_image = base64.b64encode(b"fake-image-bytes").decode("utf-8")
-    mock_api.decrypt_data_blob.return_value = encoded_image
+    mock_api.decrypt_data_blob.side_effect = lambda blob: base64.b64encode(
+        b"fake-image-bytes"
+    ).decode("utf-8")
 
     written_paths: list[Path] = []
 
@@ -289,9 +289,9 @@ async def test_button_download_photos_exif_parsing_error(
 
     mock_api = mock_fmd_api.create.return_value
     mock_api.get_pictures.return_value = ["invalid_blob"]
-    mock_api.decrypt_data_blob.return_value = base64.b64encode(b"invalid").decode(
-        "utf-8"
-    )
+    mock_api.decrypt_data_blob.side_effect = lambda blob: base64.b64encode(
+        b"fake-image-bytes"
+    ).decode("utf-8")
 
     async def run_executor(func, *args):
         return func(*args)
