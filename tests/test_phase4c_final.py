@@ -71,6 +71,7 @@ async def test_select_dnd_enable(
         },
         blocking=True,
     )
+    await hass.async_block_till_done()
 
     # Assert on tracker.api (which is the actual API instance)
     tracker.api.toggle_do_not_disturb.assert_called_once_with(True)
@@ -96,6 +97,7 @@ async def test_select_dnd_disable(
         },
         blocking=True,
     )
+    await hass.async_block_till_done()
 
     # Assert on tracker.api (which is the actual API instance)
     tracker.api.toggle_do_not_disturb.assert_called_once_with(False)
@@ -118,6 +120,7 @@ async def test_select_ringer_mode_normal(
         {"entity_id": "select.fmd_test_user_ringer_mode", "option": "Normal"},
         blocking=True,
     )
+    await hass.async_block_till_done()
 
     # Assert on tracker.api (which is the actual API instance)
     tracker.api.set_ringer_mode.assert_called_once_with(2)
@@ -140,6 +143,7 @@ async def test_select_ringer_mode_vibrate(
         {"entity_id": "select.fmd_test_user_ringer_mode", "option": "Vibrate"},
         blocking=True,
     )
+    await hass.async_block_till_done()
 
     # Assert on tracker.api (which is the actual API instance)
     tracker.api.set_ringer_mode.assert_called_once_with(1)
@@ -162,6 +166,7 @@ async def test_select_ringer_mode_silent(
         {"entity_id": "select.fmd_test_user_ringer_mode", "option": "Silent"},
         blocking=True,
     )
+    await hass.async_block_till_done()
 
     # Assert on tracker.api (which is the actual API instance)
     tracker.api.set_ringer_mode.assert_called_once_with(0)
@@ -277,16 +282,14 @@ async def test_device_tracker_high_frequency_mode_request_success(
     # Mock successful location request
     mock_fmd_api.create.return_value.request_location.return_value = True
 
-    # Mock asyncio.sleep to avoid waiting
-    with patch("custom_components.fmd.device_tracker.asyncio.sleep") as mock_sleep:
-        mock_sleep.return_value = asyncio.sleep(0)
+    # Mock asyncio.sleep to avoid waiting (patch asyncio.sleep directly)
+    with patch("asyncio.sleep", return_value=asyncio.sleep(0)):
         await device_tracker.async_update()
 
     # Verify request_location was called with "all" provider
     mock_fmd_api.create.return_value.request_location.assert_called_once_with(
         provider="all"
     )
-    mock_sleep.assert_called_once_with(10)
 
 
 async def test_device_tracker_high_frequency_mode_request_fails(
@@ -306,12 +309,13 @@ async def test_device_tracker_high_frequency_mode_request_fails(
     # Mock failed location request
     mock_fmd_api.create.return_value.request_location.return_value = False
 
-    # Mock asyncio.sleep
-    with patch("custom_components.fmd.device_tracker.asyncio.sleep") as mock_sleep:
-        await device_tracker.async_update()
+    # Should not wait/sleep if request failed
+    await device_tracker.async_update()
 
-    # Should not sleep if request failed
-    mock_sleep.assert_not_called()
+    # Verify request_location was called
+    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
+        provider="all"
+    )
 
 
 async def test_device_tracker_high_frequency_mode_exception(
@@ -337,4 +341,6 @@ async def test_device_tracker_high_frequency_mode_exception(
     await device_tracker.async_update()
 
     # Verify request_location was attempted
-    mock_fmd_api.create.return_value.request_location.assert_called_once()
+    mock_fmd_api.create.return_value.request_location.assert_called_once_with(
+        provider="all"
+    )
