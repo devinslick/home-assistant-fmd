@@ -156,7 +156,7 @@ async def test_lock_button_api_error(
     await hass.services.async_call(
         "button",
         "press",
-        {"entity_id": "button.fmd_test_user_volume_lock_device"},
+        {"entity_id": "button.fmd_test_user_lock_device"},
         blocking=True,
     )
     await hass.async_block_till_done()
@@ -182,7 +182,7 @@ async def test_capture_front_camera_button_api_error(
     await hass.services.async_call(
         "button",
         "press",
-        {"entity_id": "button.fmd_test_user_camera_capture_front"},
+        {"entity_id": "button.fmd_test_user_photo_capture_front"},
         blocking=True,
     )
     await hass.async_block_till_done()
@@ -208,7 +208,7 @@ async def test_capture_rear_camera_button_api_error(
     await hass.services.async_call(
         "button",
         "press",
-        {"entity_id": "button.fmd_test_user_camera_capture_rear"},
+        {"entity_id": "button.fmd_test_user_photo_capture_rear"},
         blocking=True,
     )
     await hass.async_block_till_done()
