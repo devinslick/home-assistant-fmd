@@ -11,7 +11,7 @@ Targeting remaining uncovered lines:
 """
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from conftest import setup_integration
@@ -56,13 +56,13 @@ async def test_select_dnd_placeholder(
     """Test DND select with placeholder option (covers line 184)."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Select the placeholder option "-- Select DND Action --"
+    # Select the placeholder option "Send Command..."
     await hass.services.async_call(
         "select",
         "select_option",
         {
             "entity_id": "select.fmd_test_user_volume_do_not_disturb",
-            "option": "-- Select DND Action --",
+            "option": "Send Command...",
         },
         blocking=True,
     )
@@ -162,24 +162,25 @@ async def test_device_tracker_config_entry_not_ready(
     """Test ConfigEntryNotReady on failure (covers lines 68-71)."""
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    # Mock the tracker's async_update to raise an exception
-    with patch(
-        "custom_components.fmd.device_tracker.FmdDeviceTracker.async_update",
-        side_effect=Exception("Network timeout"),
-    ):
-        entry = MockConfigEntry(
-            domain=DOMAIN,
-            data={
-                "fmd_id": "test_user_config_error",
-                "password": "test_password",
-            },
-            unique_id="test_user_config_error",
-        )
-        entry.add_to_hass(hass)
+    # Set up the entry but make FmdApi.create fail
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "fmd_id": "test_user_config_error",
+            "password": "test_password",
+        },
+        unique_id="test_user_config_error",
+    )
+    entry.add_to_hass(hass)
 
-        # Should raise ConfigEntryNotReady
-        with pytest.raises(ConfigEntryNotReady):
-            await hass.config_entries.async_setup(entry.entry_id)
+    # Mock api.get_all_locations to raise exception during initial fetch
+    mock_fmd_api.create.return_value.get_all_locations.side_effect = Exception(
+        "Network timeout"
+    )
+
+    # Should raise ConfigEntryNotReady
+    with pytest.raises(ConfigEntryNotReady):
+        await hass.config_entries.async_setup(entry.entry_id)
 
 
 async def test_device_tracker_imperial_altitude(
@@ -187,17 +188,17 @@ async def test_device_tracker_imperial_altitude(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker altitude in imperial units (covers lines 299-300)."""
-    # Create entry with imperial units
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+    # Create entry with imperial units in options
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "fmd_id": "test_user_imperial",
+            "fmd_id": "test_user",
             "password": "test_password",
         },
-        options={"use_imperial": True},  # Enable imperial units
-        unique_id="test_user_imperial",
+        options={"use_imperial": True},
+        unique_id="test_user",
     )
     entry.add_to_hass(hass)
 
@@ -205,7 +206,8 @@ async def test_device_tracker_imperial_altitude(
     await hass.async_block_till_done()
 
     # Get the device tracker
-    device_tracker = hass.data[DOMAIN][entry.entry_id]["tracker"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     # Set location data with altitude (100 meters)
     device_tracker._location = {
@@ -236,18 +238,19 @@ async def test_device_tracker_imperial_speed(
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "fmd_id": "test_user_imperial_speed",
+            "fmd_id": "test_user",
             "password": "test_password",
         },
         options={"use_imperial": True},
-        unique_id="test_user_imperial_speed",
+        unique_id="test_user_speed",
     )
     entry.add_to_hass(hass)
 
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    device_tracker = hass.data[DOMAIN][entry.entry_id]["tracker"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     # Set location data with speed (10 m/s)
     device_tracker._location = {
@@ -272,37 +275,33 @@ async def test_device_tracker_empty_blob_warning(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test empty blob warning in location history (covers lines 404-405)."""
+    """Test empty blob warning in location fetch (covers lines 404-405)."""
     await setup_integration(hass, mock_fmd_api)
 
     # Get the device tracker
     entry_id = list(hass.data[DOMAIN].keys())[0]
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
-    # Mock get_encrypted_locations to return a mix of valid and empty blobs
-    mock_fmd_api.create.return_value.get_encrypted_locations.return_value = {
-        "blobs": [
-            b"valid_encrypted_data_here",
-            b"",  # Empty blob - should trigger warning
-            None,  # Also empty - should trigger warning
-        ]
-    }
+    # Mock get_all_locations to return a mix of valid and empty blobs
+    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+        b"valid_encrypted_data_here",
+        b"",  # Empty blob - should trigger warning on line 404
+        None,  # Also empty - should trigger continue path
+    ]
 
     # Mock decrypt to return valid data for non-empty blobs
     json_data = (
         b'{"lat": 47.6062, "lon": -122.3321, "time": "2025-10-23T12:00:00Z", '
         b'"provider": "gps", "bat": 85, "accuracy": 10.0}'
     )
-    with patch.object(
-        device_tracker,
-        "_async_decrypt_data_blob",
-        side_effect=[
-            json_data,
-            # Empty blobs won't reach decrypt
-        ],
-    ):
-        result = await device_tracker._get_location_history()
+    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = [
+        json_data,
+        # Empty blobs won't reach decrypt
+    ]
 
-        # Should return only the 1 valid location (2 empty ones skipped)
-        assert len(result) == 1
-        assert result[0]["lat"] == 47.6062
+    # Call async_update which calls get_all_locations
+    await device_tracker.async_update()
+
+    # Should have processed only the 1 valid location (2 empty ones skipped)
+    assert device_tracker._location is not None
+    assert device_tracker._location["lat"] == 47.6062
