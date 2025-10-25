@@ -58,6 +58,10 @@ async def test_select_dnd_enable(
     """Test DND select sends enable command (covers lines 120, 132-134)."""
     await setup_integration(hass, mock_fmd_api)
 
+    # Get the tracker to access its API
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    tracker = hass.data[DOMAIN][entry_id]["tracker"]
+
     await hass.services.async_call(
         "select",
         "select_option",
@@ -68,7 +72,8 @@ async def test_select_dnd_enable(
         blocking=True,
     )
 
-    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(True)
+    # Assert on tracker.api (which is the actual API instance)
+    tracker.api.toggle_do_not_disturb.assert_called_once_with(True)
 
 
 async def test_select_dnd_disable(
@@ -77,6 +82,10 @@ async def test_select_dnd_disable(
 ) -> None:
     """Test DND select sends disable command."""
     await setup_integration(hass, mock_fmd_api)
+
+    # Get the tracker to access its API
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     await hass.services.async_call(
         "select",
@@ -88,9 +97,8 @@ async def test_select_dnd_disable(
         blocking=True,
     )
 
-    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(
-        False
-    )
+    # Assert on tracker.api (which is the actual API instance)
+    tracker.api.toggle_do_not_disturb.assert_called_once_with(False)
 
 
 async def test_select_ringer_mode_normal(
@@ -100,6 +108,10 @@ async def test_select_ringer_mode_normal(
     """Test ringer mode normal command (covers lines 184, 196-198)."""
     await setup_integration(hass, mock_fmd_api)
 
+    # Get the tracker to access its API
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    tracker = hass.data[DOMAIN][entry_id]["tracker"]
+
     await hass.services.async_call(
         "select",
         "select_option",
@@ -107,7 +119,8 @@ async def test_select_ringer_mode_normal(
         blocking=True,
     )
 
-    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with(2)
+    # Assert on tracker.api (which is the actual API instance)
+    tracker.api.set_ringer_mode.assert_called_once_with(2)
 
 
 async def test_select_ringer_mode_vibrate(
@@ -117,6 +130,10 @@ async def test_select_ringer_mode_vibrate(
     """Test ringer mode vibrate command (covers line 249)."""
     await setup_integration(hass, mock_fmd_api)
 
+    # Get the tracker to access its API
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    tracker = hass.data[DOMAIN][entry_id]["tracker"]
+
     await hass.services.async_call(
         "select",
         "select_option",
@@ -124,7 +141,8 @@ async def test_select_ringer_mode_vibrate(
         blocking=True,
     )
 
-    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with(1)
+    # Assert on tracker.api (which is the actual API instance)
+    tracker.api.set_ringer_mode.assert_called_once_with(1)
 
 
 async def test_select_ringer_mode_silent(
@@ -134,6 +152,10 @@ async def test_select_ringer_mode_silent(
     """Test ringer mode silent command."""
     await setup_integration(hass, mock_fmd_api)
 
+    # Get the tracker to access its API
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    tracker = hass.data[DOMAIN][entry_id]["tracker"]
+
     await hass.services.async_call(
         "select",
         "select_option",
@@ -141,7 +163,8 @@ async def test_select_ringer_mode_silent(
         blocking=True,
     )
 
-    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with(0)
+    # Assert on tracker.api (which is the actual API instance)
+    tracker.api.set_ringer_mode.assert_called_once_with(0)
 
 
 async def test_switch_wipe_safety_auto_disable_task_cancellation(
@@ -186,9 +209,9 @@ async def test_device_tracker_altitude_attribute_metric(
     """Test device tracker includes altitude attribute (covers lines 299-300)."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the device tracker
+    # Get the device tracker (stored as "tracker" not "device_tracker")
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     # Set location data with altitude
     device_tracker._location = {
@@ -215,9 +238,9 @@ async def test_device_tracker_speed_attribute_metric(
     """Test device tracker includes speed attribute (covers lines 309-310)."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the device tracker
+    # Get the device tracker (stored as "tracker" not "device_tracker")
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     # Set location data with speed
     device_tracker._location = {
@@ -244,9 +267,9 @@ async def test_device_tracker_high_frequency_mode_request_success(
     """Test high-frequency mode requests location (covers lines 131-153)."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the device tracker
+    # Get the device tracker (stored as "tracker" not "device_tracker")
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
@@ -273,9 +296,9 @@ async def test_device_tracker_high_frequency_mode_request_fails(
     """Test high-frequency mode handles request failure."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the device tracker
+    # Get the device tracker (stored as "tracker" not "device_tracker")
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
@@ -298,9 +321,9 @@ async def test_device_tracker_high_frequency_mode_exception(
     """Test high-frequency mode handles exceptions gracefully."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the device tracker
+    # Get the device tracker (stored as "tracker" not "device_tracker")
     entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["device_tracker"]
+    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
     # Enable high-frequency mode
     device_tracker._high_frequency_mode = True
