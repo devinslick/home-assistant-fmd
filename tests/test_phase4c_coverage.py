@@ -255,8 +255,8 @@ async def test_button_download_photos_with_exif_timestamp(
 
     def run_executor(func, *args):
         if func.__name__ == "write_bytes":
-            fake_write_bytes(args[0], args[1])
-        return len(args[1])
+            fake_write_bytes(func.__self__, args[0])
+        return len(args[0])
 
     fake_exif: dict[int, str] = {36867: "2025:10:19 15:30:45"}
     fake_image = MagicMock()
@@ -301,7 +301,7 @@ async def test_button_download_photos_exif_parsing_error(
     def run_executor(func, *args):
         if func.__name__ == "write_bytes":
             mock_write(*args)
-        return len(args[1])
+        return len(args[0])
 
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
         "pathlib.Path.mkdir"
