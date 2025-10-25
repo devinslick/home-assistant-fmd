@@ -245,7 +245,8 @@ async def test_button_download_photos_with_exif_timestamp(
     written_paths: list[Path] = []
 
     def fake_exists(path: Path) -> bool:
-        return not path.name.startswith("photo_")
+        # Always return False so no file is skipped as duplicate
+        return False
 
     def fake_write_bytes(path: Path, data: bytes) -> int:
         written_paths.append(path)
@@ -275,6 +276,8 @@ async def test_button_download_photos_with_exif_timestamp(
         )
 
     mock_api.get_pictures.assert_awaited_once()
+    if not any("20251019_153045" in path.name for path in written_paths):
+        print(f"DEBUG: written_paths = {[str(p) for p in written_paths]}")
     assert any("20251019_153045" in path.name for path in written_paths)
 
 
