@@ -9,7 +9,7 @@ from typing import Any
 from fmd_api import FmdApi
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
 from homeassistant.components.device_tracker.const import SourceType
-from homeassistant.config_entries import ConfigEntry, ConfigEntryNotReady
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
@@ -61,16 +61,17 @@ async def async_setup_entry(
     hass.data[DOMAIN][entry.entry_id]["tracker"] = tracker
 
     # Fetch initial location before adding the entity
+    # Note: We don't raise ConfigEntryNotReady here because this is platform-level setup.
+    # Platform failures should be handled gracefully - the tracker will be added with
+    # "unknown" state and will retry during normal polling.
     _LOGGER.info("Fetching initial location data...")
     try:
-        await tracker.async_update(raise_on_error=True)
+        await tracker.async_update()
         _LOGGER.info("Initial location: %s", tracker._location)
     except Exception as err:
-        # If initial location fetch fails, raise ConfigEntryNotReady
-        # This allows Home Assistant to retry with exponential backoff
-        raise ConfigEntryNotReady(
-            f"Failed to fetch initial location from FMD server: {err}"
-        ) from err
+        _LOGGER.warning(
+            "Failed to fetch initial location (will retry during polling): %s", err
+        )
 
     async_add_entities([tracker])
     _LOGGER.info("FMD device tracker added")
@@ -359,13 +360,8 @@ class FmdDeviceTracker(TrackerEntity):
         )
         return False
 
-    async def async_update(self, raise_on_error: bool = False) -> None:
-        """Update the device location.
-
-        Args:
-            raise_on_error: If True, exceptions will be raised instead of being caught
-                          and logged. Used during initial setup to allow ConfigEntryNotReady.
-        """
+    async def async_update(self) -> None:
+        """Update the device location."""
         try:
             _LOGGER.info("=== Starting location update ===")
 
@@ -480,6 +476,3 @@ class FmdDeviceTracker(TrackerEntity):
                 _LOGGER.warning("No location blobs returned from API")
         except Exception as e:
             _LOGGER.error("Error getting location: %s", e, exc_info=True)
-            # Re-raise exception during initial setup to allow ConfigEntryNotReady
-            if raise_on_error:
-                raise

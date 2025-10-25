@@ -1,12 +1,10 @@
 """Phase 3d advanced device_tracker tests - complex location provider logic."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from conftest import setup_integration
 from homeassistant.core import HomeAssistant
-
-from custom_components.fmd.const import DOMAIN
 
 
 async def test_device_tracker_location_provider_gps_accurate(
@@ -266,44 +264,20 @@ async def test_device_tracker_decrypt_error_in_update(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test device tracker handles decryption error during setup.
+    """Test device tracker handles decryption error during update.
 
-    When decryption errors occur during initial setup, ConfigEntryNotReady is raised
-    to allow Home Assistant to retry with exponential backoff.
+    Platform-level errors should be handled gracefully.
     """
-    from homeassistant.config_entries import ConfigEntryState
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
     mock_fmd_api.create.return_value.get_all_locations.return_value = ["corrupted_blob"]
     mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = Exception(
         "Decryption failed"
     )
 
-    config_entry = MockConfigEntry(
-        version=1,
-        minor_version=1,
-        domain=DOMAIN,
-        title="test_user",
-        data={
-            "url": "https://fmd.example.com",
-            "id": "test_user",
-            "password": "test_password",
-            "polling_interval": 30,
-            "allow_inaccurate_locations": False,
-            "use_imperial": False,
-        },
-        entry_id="test_entry_id",
-        unique_id="test_user",
-    )
-    config_entry.add_to_hass(hass)
+    await setup_integration(hass, mock_fmd_api)
 
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
-        result = await hass.config_entries.async_setup(config_entry.entry_id)
-        await hass.async_block_till_done()
-
-    # Setup should fail with SETUP_RETRY due to decryption error
-    assert not result
-    assert config_entry.state == ConfigEntryState.SETUP_RETRY
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
+    # Should handle error gracefully
 
 
 async def test_device_tracker_battery_invalid_value(

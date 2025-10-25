@@ -188,51 +188,6 @@ async def test_device_tracker_config_entry_not_ready(
     assert entry.state == ConfigEntryState.SETUP_RETRY
 
 
-async def test_device_tracker_initial_fetch_fails(
-    hass: HomeAssistant,
-) -> None:
-    """Test ConfigEntryNotReady when initial location fetch fails (covers lines 68-73).
-
-    This test works because async_update() now has raise_on_error parameter that
-    allows exceptions to propagate during initial setup while still catching them
-    during normal polling operations.
-    """
-    from unittest.mock import AsyncMock, patch
-
-    from homeassistant.config_entries import ConfigEntryState
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-    # Create API that fails on get_all_locations
-    error_api = AsyncMock()
-    error_api.get_all_locations = AsyncMock(side_effect=Exception("Network timeout"))
-
-    # Mock async_add_executor_job
-    async def mock_executor_job(func, *args):
-        return func(*args)
-
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            "url": "https://fmd.example.com",
-            "id": "test_user_tracker_error",
-            "password": "test_password",
-        },
-        unique_id="test_user_tracker_error",
-    )
-    entry.add_to_hass(hass)
-
-    with patch("custom_components.fmd.FmdApi.create", return_value=error_api):
-        with patch.object(
-            hass, "async_add_executor_job", side_effect=mock_executor_job
-        ):
-            result = await hass.config_entries.async_setup(entry.entry_id)
-            await hass.async_block_till_done()
-
-    # ConfigEntryNotReady results in failed setup with SETUP_RETRY state
-    assert not result
-    assert entry.state == ConfigEntryState.SETUP_RETRY
-
-
 async def test_device_tracker_imperial_altitude(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,

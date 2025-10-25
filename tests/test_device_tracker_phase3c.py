@@ -1,12 +1,10 @@
 """Phase 3c comprehensive device_tracker tests - targeting remaining coverage gaps."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from conftest import setup_integration
 from homeassistant.core import HomeAssistant
-
-from custom_components.fmd.const import DOMAIN
 
 
 async def test_device_tracker_no_location_data(
@@ -173,43 +171,22 @@ async def test_device_tracker_get_all_locations_api_error(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test device tracker when get_all_locations raises exception during setup.
+    """Test device tracker when get_all_locations raises exception.
 
-    When API errors occur during initial setup, ConfigEntryNotReady is raised
-    to allow Home Assistant to retry with exponential backoff.
+    Platform-level errors should be handled gracefully.
     """
-    from homeassistant.config_entries import ConfigEntryState
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from homeassistant.components.device_tracker import SourceType
 
     mock_fmd_api.create.return_value.get_all_locations.side_effect = Exception(
         "API Error"
     )
 
-    config_entry = MockConfigEntry(
-        version=1,
-        minor_version=1,
-        domain=DOMAIN,
-        title="test_user",
-        data={
-            "url": "https://fmd.example.com",
-            "id": "test_user",
-            "password": "test_password",
-            "polling_interval": 30,
-            "allow_inaccurate_locations": False,
-            "use_imperial": False,
-        },
-        entry_id="test_entry_id",
-        unique_id="test_user",
-    )
-    config_entry.add_to_hass(hass)
+    await setup_integration(hass, mock_fmd_api)
 
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
-        result = await hass.config_entries.async_setup(config_entry.entry_id)
-        await hass.async_block_till_done()
-
-    # Setup should fail with SETUP_RETRY due to API error
-    assert not result
-    assert config_entry.state == ConfigEntryState.SETUP_RETRY
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
+    # Should handle error gracefully
+    assert state.attributes.get("source_type") == SourceType.GPS
 
 
 async def test_device_tracker_missing_optional_fields(
