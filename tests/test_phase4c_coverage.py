@@ -253,7 +253,7 @@ async def test_button_download_photos_with_exif_timestamp(
         written_paths.append(path)
         return len(data)
 
-    async def run_executor(func, *args):
+    def run_executor(func, *args):
         return func(*args)
 
     fake_exif: dict[int, str] = {36867: "2025:10:19 15:30:45"}
@@ -298,7 +298,7 @@ async def test_button_download_photos_exif_parsing_error(
         b"fake-image-bytes"
     ).decode("utf-8")
 
-    async def run_executor(func, *args):
+    def run_executor(func, *args):
         return func(*args)
 
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
@@ -344,7 +344,7 @@ async def test_button_download_photos_updates_sensor(
         img_bytes.getvalue()
     ).decode("utf-8")
 
-    async def run_executor(func, *args):
+    def run_executor(func, *args):
         return func(*args)
 
     # Press the button
