@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from conftest import setup_integration
-from homeassistant.const import STATE_NOT_HOME
+from homeassistant.const import STATE_NOT_HOME, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from PIL import Image
 
@@ -219,8 +219,8 @@ async def test_device_tracker_empty_blob_warning(
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
     await device_tracker.async_update()
 
-    # Should not crash, state should be unavailable
-    assert device_tracker.state == STATE_NOT_HOME
+    # Should not crash, state should remain unknown
+    assert device_tracker.state == STATE_UNKNOWN
 
 
 @pytest.mark.asyncio
@@ -240,7 +240,7 @@ async def test_button_download_photos_with_exif_timestamp(
     exif_data = img.getexif()
     exif_data[36867] = "2025:10:19 15:30:45"
     img_bytes = io.BytesIO()
-    img.save(img_bytes, format="JPEG", exif=exif_data)
+    img.save(img_bytes, format="JPEG", exif=exif_data.tobytes())
     encoded_image = base64.b64encode(img_bytes.getvalue()).decode("utf-8")
     mock_api.decrypt_data_blob.return_value = encoded_image
 
@@ -458,7 +458,7 @@ async def test_button_wipe_device_success(
     await safety_switch.async_turn_on()
 
     # Mock successful wipe
-    mock_fmd_api.create.return_value.wipe_device.return_value = True
+    mock_fmd_api.create.return_value.send_command.return_value = True
 
     # Press the wipe button
     await hass.services.async_call(
@@ -469,7 +469,7 @@ async def test_button_wipe_device_success(
     )
 
     # Verify wipe was called
-    mock_fmd_api.create.return_value.wipe_device.assert_called_once()
+    mock_fmd_api.create.return_value.send_command.assert_called_once_with("delete")
 
     # Safety switch should be automatically disabled
     assert safety_switch.is_on is False
@@ -540,7 +540,7 @@ async def test_select_dnd_enable_command(
     )
 
     # Verify API was called
-    mock_fmd_api.create.return_value.toggle_dnd.assert_called_once_with(True)
+    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(True)
 
 
 @pytest.mark.asyncio
@@ -562,7 +562,9 @@ async def test_select_dnd_disable_command(
     )
 
     # Verify API was called
-    mock_fmd_api.create.return_value.toggle_dnd.assert_called_once_with(False)
+    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(
+        False
+    )
 
 
 @pytest.mark.asyncio
@@ -576,12 +578,15 @@ async def test_select_ringer_mode_normal(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": "select.fmd_test_user_volume_ringer_mode", "option": "Normal"},
+        {
+            "entity_id": "select.fmd_test_user_volume_ringer_mode",
+            "option": "Normal (Sound + Vibrate)",
+        },
         blocking=True,
     )
 
-    # Verify API was called with mode 2
-    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with(2)
+    # Verify API was called with string mode
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with("normal")
 
 
 @pytest.mark.asyncio
@@ -595,12 +600,15 @@ async def test_select_ringer_mode_vibrate(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": "select.fmd_test_user_volume_ringer_mode", "option": "Vibrate"},
+        {
+            "entity_id": "select.fmd_test_user_volume_ringer_mode",
+            "option": "Vibrate Only",
+        },
         blocking=True,
     )
 
-    # Verify API was called with mode 1
-    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with(1)
+    # Verify API was called with string mode
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with("vibrate")
 
 
 @pytest.mark.asyncio
@@ -614,12 +622,15 @@ async def test_select_ringer_mode_silent(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": "select.fmd_test_user_volume_ringer_mode", "option": "Silent"},
+        {
+            "entity_id": "select.fmd_test_user_volume_ringer_mode",
+            "option": "Silent",
+        },
         blocking=True,
     )
 
-    # Verify API was called with mode 0
-    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with(0)
+    # Verify API was called with string mode
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_called_once_with("silent")
 
 
 @pytest.mark.asyncio
