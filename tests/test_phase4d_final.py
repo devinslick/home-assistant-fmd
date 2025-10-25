@@ -158,12 +158,43 @@ async def test_switch_wipe_safety_cancelled_error_handling(
 async def test_device_tracker_config_entry_not_ready(
     hass: HomeAssistant,
 ) -> None:
-    """Test ConfigEntryNotReady on failure (covers lines 68-71)."""
+    """Test ConfigEntryNotReady on FmdApi.create failure (covers __init__.py)."""
+    from unittest.mock import patch
+
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    # Mock FmdApi.create to raise an exception
+    async def mock_create_error(*args, **kwargs):
+        raise Exception("Network timeout")
+
+    # Mock FmdApi.create to fail during connection
+    with patch("custom_components.fmd.FmdApi.create", side_effect=mock_create_error):
+        # Set up the entry - should fail during API creation
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                "url": "https://fmd.example.com",
+                "id": "test_user_config_error",
+                "password": "test_password",
+            },
+            unique_id="test_user_config_error",
+        )
+        entry.add_to_hass(hass)
+
+        # Should raise ConfigEntryNotReady
+        with pytest.raises(ConfigEntryNotReady):
+            await hass.config_entries.async_setup(entry.entry_id)
+
+
+async def test_device_tracker_initial_fetch_fails(
+    hass: HomeAssistant,
+) -> None:
+    """Test device tracker when initial location fetch fails (lines 68-71)."""
     from unittest.mock import AsyncMock, patch
 
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    # Create a fresh mock that will always raise an exception
+    # Create API that succeeds initially but fails on get_all_locations
     error_api = AsyncMock()
     error_api.get_all_locations = AsyncMock(side_effect=Exception("Network timeout"))
 
@@ -171,24 +202,22 @@ async def test_device_tracker_config_entry_not_ready(
     async def mock_executor_job(func, *args):
         return func(*args)
 
-    # Mock FmdApi.create to return the error_api
     with patch("custom_components.fmd.FmdApi.create", return_value=error_api):
         with patch.object(
             hass, "async_add_executor_job", side_effect=mock_executor_job
         ):
-            # Set up the entry - should fail during initial location fetch
             entry = MockConfigEntry(
                 domain=DOMAIN,
                 data={
                     "url": "https://fmd.example.com",
-                    "id": "test_user_config_error",
+                    "id": "test_user_tracker_error",
                     "password": "test_password",
                 },
-                unique_id="test_user_config_error",
+                unique_id="test_user_tracker_error",
             )
             entry.add_to_hass(hass)
 
-            # Should raise ConfigEntryNotReady
+            # Should raise ConfigEntryNotReady from device_tracker setup
             with pytest.raises(ConfigEntryNotReady):
                 await hass.config_entries.async_setup(entry.entry_id)
 
