@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from conftest import setup_integration
@@ -218,9 +218,13 @@ async def test_device_tracker_empty_blob_warning(
     entry_id = list(hass.data[DOMAIN].keys())[0]
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
     await device_tracker.async_update()
+    device_tracker.async_write_ha_state()
+    await hass.async_block_till_done()
 
     # Should not crash, state should remain unknown
-    assert device_tracker.state == STATE_UNKNOWN
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
+    assert state.state == STATE_UNKNOWN
 
 
 @pytest.mark.asyncio
@@ -235,13 +239,7 @@ async def test_button_download_photos_with_exif_timestamp(
     mock_api = mock_fmd_api.create.return_value
     mock_api.get_pictures.return_value = ["encrypted_photo"]
 
-    # Create a mock image with EXIF data and encode as base64 string
-    img = Image.new("RGB", (100, 100), color="red")
-    exif_data = img.getexif()
-    exif_data[36867] = "2025:10:19 15:30:45"
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format="JPEG", exif=exif_data.tobytes())
-    encoded_image = base64.b64encode(img_bytes.getvalue()).decode("utf-8")
+    encoded_image = base64.b64encode(b"fake-image-bytes").decode("utf-8")
     mock_api.decrypt_data_blob.return_value = encoded_image
 
     written_paths: list[Path] = []
@@ -256,12 +254,18 @@ async def test_button_download_photos_with_exif_timestamp(
     async def run_executor(func, *args):
         return func(*args)
 
+    fake_exif: dict[int, str] = {36867: "2025:10:19 15:30:45"}
+    fake_image = MagicMock()
+    fake_image.getexif.return_value = fake_exif
+
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
         "pathlib.Path.mkdir"
     ), patch("pathlib.Path.is_dir", return_value=True), patch(
         "pathlib.Path.exists", side_effect=fake_exists
     ), patch(
         "pathlib.Path.write_bytes", side_effect=fake_write_bytes
+    ), patch(
+        "custom_components.fmd.button.Image.open", return_value=fake_image
     ):
         await hass.services.async_call(
             "button",
@@ -285,9 +289,9 @@ async def test_button_download_photos_exif_parsing_error(
 
     mock_api = mock_fmd_api.create.return_value
     mock_api.get_pictures.return_value = ["invalid_blob"]
-    mock_api.decrypt_data_blob.return_value = base64.b64encode(
-        b"not a valid jpeg image"
-    ).decode("utf-8")
+    mock_api.decrypt_data_blob.return_value = base64.b64encode(b"invalid").decode(
+        "utf-8"
+    )
 
     async def run_executor(func, *args):
         return func(*args)
@@ -298,7 +302,10 @@ async def test_button_download_photos_exif_parsing_error(
         "pathlib.Path.exists", return_value=False
     ), patch(
         "pathlib.Path.write_bytes"
-    ) as mock_write:
+    ) as mock_write, patch(
+        "custom_components.fmd.button.Image.open",
+        side_effect=OSError("Invalid EXIF"),
+    ):
         await hass.services.async_call(
             "button",
             "press",
