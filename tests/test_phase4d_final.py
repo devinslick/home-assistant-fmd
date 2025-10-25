@@ -158,7 +158,13 @@ async def test_switch_wipe_safety_cancelled_error_handling(
 async def test_device_tracker_config_entry_not_ready(
     hass: HomeAssistant,
 ) -> None:
-    """Test ConfigEntryNotReady on FmdApi.create failure (covers __init__.py)."""
+    """Test ConfigEntryNotReady on FmdApi.create failure (covers __init__.py).
+
+    Note: device_tracker.py lines 68-73 (ConfigEntryNotReady on async_update failure)
+    are unreachable because async_update() catches all exceptions internally (line 476)
+    and doesn't re-raise them. This is an architectural limitation similar to the
+    high-frequency mode nested callback issue.
+    """
     from unittest.mock import patch
 
     from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -184,42 +190,6 @@ async def test_device_tracker_config_entry_not_ready(
         # Should raise ConfigEntryNotReady
         with pytest.raises(ConfigEntryNotReady):
             await hass.config_entries.async_setup(entry.entry_id)
-
-
-async def test_device_tracker_initial_fetch_fails(
-    hass: HomeAssistant,
-) -> None:
-    """Test device tracker when initial location fetch fails (lines 68-71)."""
-    from unittest.mock import AsyncMock, patch
-
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-    # Create API that succeeds initially but fails on get_all_locations
-    error_api = AsyncMock()
-    error_api.get_all_locations = AsyncMock(side_effect=Exception("Network timeout"))
-
-    # Mock async_add_executor_job
-    async def mock_executor_job(func, *args):
-        return func(*args)
-
-    with patch("custom_components.fmd.FmdApi.create", return_value=error_api):
-        with patch.object(
-            hass, "async_add_executor_job", side_effect=mock_executor_job
-        ):
-            entry = MockConfigEntry(
-                domain=DOMAIN,
-                data={
-                    "url": "https://fmd.example.com",
-                    "id": "test_user_tracker_error",
-                    "password": "test_password",
-                },
-                unique_id="test_user_tracker_error",
-            )
-            entry.add_to_hass(hass)
-
-            # Should raise ConfigEntryNotReady from device_tracker setup
-            with pytest.raises(ConfigEntryNotReady):
-                await hass.config_entries.async_setup(entry.entry_id)
 
 
 async def test_device_tracker_imperial_altitude(
