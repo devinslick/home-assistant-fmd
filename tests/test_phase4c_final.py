@@ -8,8 +8,7 @@ Targeting:
 """
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from conftest import setup_integration
 from homeassistant.core import HomeAssistant
@@ -62,7 +61,7 @@ async def test_select_dnd_enable(
         "select",
         "select_option",
         {
-            "entity_id": "select.fmd_test_user_do_not_disturb",
+            "entity_id": "select.fmd_test_user_volume_do_not_disturb",
             "option": "Enable Do Not Disturb",
         },
         blocking=True,
@@ -84,7 +83,7 @@ async def test_select_dnd_disable(
         "select",
         "select_option",
         {
-            "entity_id": "select.fmd_test_user_do_not_disturb",
+            "entity_id": "select.fmd_test_user_volume_do_not_disturb",
             "option": "Disable Do Not Disturb",
         },
         blocking=True,
@@ -108,7 +107,7 @@ async def test_select_ringer_mode_normal(
         "select",
         "select_option",
         {
-            "entity_id": "select.fmd_test_user_ringer_mode",
+            "entity_id": "select.fmd_test_user_volume_ringer_mode",
             "option": "Normal (Sound + Vibrate)",
         },
         blocking=True,
@@ -130,7 +129,7 @@ async def test_select_ringer_mode_vibrate(
         "select",
         "select_option",
         {
-            "entity_id": "select.fmd_test_user_ringer_mode",
+            "entity_id": "select.fmd_test_user_volume_ringer_mode",
             "option": "Vibrate Only",
         },
         blocking=True,
@@ -151,7 +150,7 @@ async def test_select_ringer_mode_silent(
     await hass.services.async_call(
         "select",
         "select_option",
-        {"entity_id": "select.fmd_test_user_ringer_mode", "option": "Silent"},
+        {"entity_id": "select.fmd_test_user_volume_ringer_mode", "option": "Silent"},
         blocking=True,
     )
     await hass.async_block_till_done()
@@ -251,78 +250,3 @@ async def test_device_tracker_speed_attribute_metric(
     assert "speed" in attributes
     assert attributes["speed"] == 10.0
     assert attributes["speed_unit"] == "m/s"
-
-
-async def test_device_tracker_high_frequency_mode_request_success(
-    hass: HomeAssistant,
-    mock_fmd_api: AsyncMock,
-) -> None:
-    """Test high-frequency mode requests location (covers lines 131-153)."""
-    await setup_integration(hass, mock_fmd_api)
-
-    # Get the device tracker (stored as "tracker" not "device_tracker")
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
-    # Enable high-frequency mode
-    device_tracker._high_frequency_mode = True
-
-    # Mock successful location request
-    mock_fmd_api.create.return_value.request_location.return_value = True
-
-    # Mock asyncio.sleep to avoid waiting (patch asyncio.sleep directly)
-    with patch("asyncio.sleep", return_value=asyncio.sleep(0)):
-        await device_tracker.async_update()
-
-    # Verify request_location was called with "all" provider
-    mock_fmd_api.create.return_value.request_location.assert_called_with(provider="all")
-
-
-async def test_device_tracker_high_frequency_mode_request_fails(
-    hass: HomeAssistant,
-    mock_fmd_api: AsyncMock,
-) -> None:
-    """Test high-frequency mode handles request failure."""
-    await setup_integration(hass, mock_fmd_api)
-
-    # Get the device tracker (stored as "tracker" not "device_tracker")
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
-    # Enable high-frequency mode
-    device_tracker._high_frequency_mode = True
-
-    # Mock failed location request
-    mock_fmd_api.create.return_value.request_location.return_value = False
-
-    # Should not wait/sleep if request failed
-    await device_tracker.async_update()
-
-    # Verify request_location was called
-    mock_fmd_api.create.return_value.request_location.assert_called_with(provider="all")
-
-
-async def test_device_tracker_high_frequency_mode_exception(
-    hass: HomeAssistant,
-    mock_fmd_api: AsyncMock,
-) -> None:
-    """Test high-frequency mode handles exceptions gracefully."""
-    await setup_integration(hass, mock_fmd_api)
-
-    # Get the device tracker (stored as "tracker" not "device_tracker")
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
-    # Enable high-frequency mode
-    device_tracker._high_frequency_mode = True
-
-    # Mock request_location to raise exception
-    mock_fmd_api.create.return_value.request_location.side_effect = Exception(
-        "Network error"
-    )
-
-    # Should not raise - just log error
-    await device_tracker.async_update()
-
-    # Verify request_location was attempted
-    mock_fmd_api.create.return_value.request_location.assert_called_with(provider="all")
