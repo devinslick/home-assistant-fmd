@@ -169,12 +169,10 @@ async def test_device_tracker_setup_initial_location_fetch_failure(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test device tracker setup handles initial location fetch failures gracefully.
+    """Test device tracker setup handles initial location fetch failures.
 
-    When the initial location fetch fails, the device tracker should still be set up
-    but without location data. ConfigEntryNotReady is NOT raised for location fetch
-    failures during device_tracker.async_setup_platform since that's a platform-level
-    setup, not the integration-level setup.
+    When the initial location fetch fails due to server/network errors,
+    ConfigEntryNotReady is raised to allow Home Assistant to retry with exponential backoff.
     """
     config_entry = MockConfigEntry(
         version=1,
@@ -203,15 +201,10 @@ async def test_device_tracker_setup_initial_location_fetch_failure(
         result = await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
 
-    # Setup should succeed despite location fetch failure
-    # (only integration setup errors trigger ConfigEntryNotReady)
-    assert result
-    assert config_entry.state == ConfigEntryState.LOADED
-
-    # Device tracker should be added but without location data (state = "unknown")
-    state = hass.states.get("device_tracker.fmd_test_user")
-    assert state is not None
-    assert state.state == "unknown"
+    # Setup should fail with SETUP_RETRY due to server unreachable error
+    # This allows Home Assistant to retry with exponential backoff
+    assert not result
+    assert config_entry.state == ConfigEntryState.SETUP_RETRY
 
 
 # Phase 3 error handling tests
