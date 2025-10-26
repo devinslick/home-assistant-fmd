@@ -254,9 +254,12 @@ async def test_button_download_photos_with_exif_timestamp(
         return len(data)
 
     def run_executor(func, *args):
+        print(f"DEBUG: run_executor called with func={func}, args={args}")
         if func.__name__ == "write_bytes":
+            print("DEBUG: Detected write_bytes call in executor")
             fake_write_bytes(func.__self__, args[0])
-        return len(args[0])
+            return len(args[0])
+        return func(*args)
 
     fake_exif: dict[int, str] = {36867: "2025:10:19 15:30:45"}
     fake_image = MagicMock()
@@ -299,9 +302,12 @@ async def test_button_download_photos_exif_parsing_error(
     ).decode("utf-8")
 
     def run_executor(func, *args):
+        print(f"DEBUG: run_executor called with func={func}, args={args}")
         if func.__name__ == "write_bytes":
+            print("DEBUG: Detected write_bytes call in executor (EXIF error test)")
             mock_write(*args)
-        return len(args[0])
+            return len(args[0])
+        return func(*args)
 
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
         "pathlib.Path.mkdir"
