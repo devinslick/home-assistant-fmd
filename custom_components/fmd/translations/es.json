@@ -1,0 +1,23 @@
+{
+  "title": "Integración FMD",
+  "description": "Integración para Find My Device (FMD) para rastreo y control remoto de dispositivos.",
+  "option_enable": "Habilitar",
+  "option_disable": "Deshabilitar",
+  "option_send_command": "Enviar comando...",
+  "option_normal": "Normal (Sonido + Vibración)",
+  "option_vibrate": "Solo vibración",
+  "option_silent": "Silencio",
+  "option_enable_dnd": "Activar No molestar",
+  "option_disable_dnd": "Desactivar No molestar",
+  "option_enable_bluetooth": "Activar Bluetooth",
+  "option_disable_bluetooth": "Desactivar Bluetooth",
+  "option_cleanup": "Activar limpieza automática",
+  "option_no_cleanup": "Desactivar limpieza automática",
+  "option_wipe": "Borrar dispositivo (Restablecer)",
+  "option_photo_download": "Descargar fotos",
+  "option_take_picture": "Tomar foto",
+  "option_lock_device": "Bloquear dispositivo",
+  "option_unlock_device": "Desbloquear dispositivo",
+  "option_alarm": "Activar alarma",
+  "option_location": "Obtener ubicación"
+}
