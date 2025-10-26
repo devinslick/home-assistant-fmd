@@ -268,8 +268,8 @@ async def test_button_download_photos_with_exif_timestamp(
 
     with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
         "pathlib.Path.mkdir"
-    ), patch.object(Path, "is_dir", return_value=True), patch.object(
-        Path, "exists", side_effect=fake_exists
+    ), patch.object(Path, "is_dir", return_value=True), patch(
+        "pathlib.Path.exists", side_effect=fake_exists
     ), patch(
         "custom_components.fmd.button.Image.open", return_value=fake_image
     ):
