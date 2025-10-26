@@ -6,6 +6,7 @@ import pytest
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
 from homeassistant.core import HomeAssistant
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fmd.const import DEFAULT_POLLING_INTERVAL, DOMAIN
 
@@ -13,10 +14,11 @@ from custom_components.fmd.const import DEFAULT_POLLING_INTERVAL, DOMAIN
 @pytest.mark.asyncio
 async def test_reauth_flow_success(hass):
     """Test the reauthentication flow succeeds and updates the entry."""
-    entry = hass.config_entries.async_add(
+    entry = MockConfigEntry(
         domain=DOMAIN,
         data={"url": "http://test", "id": "user", "password": "oldpass"},
     )
+    entry.add_to_hass(hass)
     entry_id = entry.entry_id
 
     with patch(
@@ -45,10 +47,11 @@ async def test_reauth_flow_success(hass):
 @pytest.mark.asyncio
 async def test_reauth_flow_failure(hass):
     """Test the reauthentication flow fails with invalid credentials."""
-    entry = hass.config_entries.async_add(
+    entry = MockConfigEntry(
         domain=DOMAIN,
         data={"url": "http://test", "id": "user", "password": "oldpass"},
     )
+    entry.add_to_hass(hass)
     entry_id = entry.entry_id
 
     with patch(
