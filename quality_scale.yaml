@@ -32,10 +32,9 @@ rules:
   log-when-unavailable: done
   parallel-updates: done
   reauthentication-flow:
-    status: incomplete
+    status: done
     comment: |
-      Reauthentication flow is not implemented; the integration currently does not
-      require reauthentication as credentials are static.
+      Reauthentication flow was just implemented and is being tested in version 0.9.6
   test-coverage: done
 
   # Gold

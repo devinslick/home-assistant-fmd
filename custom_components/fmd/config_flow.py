@@ -24,10 +24,15 @@ async def authenticate_and_get_locations(
 
 
 class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    async def async_step_reauth(self, entry_data: dict[str, Any]) -> FlowResult:
+    async def async_step_reauth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Handle re-authentication with new credentials."""
         errors: dict[str, str] = {}
-        user_input = self.context.get("user_input")
+        entry_id = self.context.get("entry_id")
+        entry = self.hass.config_entries.async_get_entry(entry_id) if entry_id else None
+        entry_data = entry.data if entry else {}
+
         if user_input is not None:
             try:
                 await authenticate_and_get_locations(
@@ -36,9 +41,6 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     user_input["password"],
                 )
                 # Update the config entry with new credentials
-                entry = self.hass.config_entries.async_get_entry(
-                    self.context["entry_id"]
-                )
                 if entry:
                     self.hass.config_entries.async_update_entry(entry, data=user_input)
                 return self.async_abort(reason="reauth_successful")
