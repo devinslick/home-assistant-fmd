@@ -254,11 +254,9 @@ async def test_button_download_photos_with_exif_timestamp(
         return len(data)
 
     def run_executor(func, *args):
-        print(f"DEBUG: run_executor called with func={func}, args={args}")
-        if func.__name__ == "write_bytes":
-            print("DEBUG: Detected write_bytes call in executor")
-            fake_write_bytes(func.__self__, args[0])
-            return len(args[0])
+        name = getattr(func, "__name__", None)
+        if name == "write_bytes":
+            written_paths.append(args[0])
         return func(*args)
 
     fake_exif: dict[int, str] = {36867: "2025:10:19 15:30:45"}
@@ -305,7 +303,8 @@ async def test_button_download_photos_exif_parsing_error(
 
     def run_executor(func, *args):
         print(f"DEBUG: run_executor called with func={func}, args={args}")
-        if func.__name__ == "write_bytes":
+        name = getattr(func, "__name__", None)
+        if name == "write_bytes":
             print("DEBUG: Detected write_bytes call in executor (EXIF error test)")
             write_called.append(True)
             return len(args[0])
@@ -317,7 +316,7 @@ async def test_button_download_photos_exif_parsing_error(
         Path, "exists", return_value=False
     ), patch.object(
         Path, "write_bytes"
-    ), patch(
+    ) as mock_write, patch(
         "custom_components.fmd.button.Image.open",
         side_effect=OSError("Invalid EXIF"),
     ):
@@ -330,7 +329,7 @@ async def test_button_download_photos_exif_parsing_error(
 
     mock_api.get_pictures.assert_awaited_once()
     # Even with parsing issues, we should attempt to write bytes
-    assert write_called, "write_bytes was not called"
+    assert mock_write.called
 
 
 @pytest.mark.asyncio
