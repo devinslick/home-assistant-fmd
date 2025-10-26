@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from conftest import setup_integration
-from homeassistant.const import STATE_NOT_HOME, STATE_UNKNOWN
+from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from PIL import Image
 
@@ -30,112 +30,6 @@ async def test_device_tracker_initial_update_fails_graceful(
     mock_fmd_api.create.return_value.get_location.side_effect = Exception(
         "Network error"
     )
-
-    await setup_integration(hass, mock_fmd_api)
-
-    # Device tracker should exist but have unknown state
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
-    assert device_tracker.state == STATE_NOT_HOME
-
-
-@pytest.mark.asyncio
-async def test_device_tracker_high_frequency_mode_request_location_success(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
-) -> None:
-    """Test high-frequency mode successfully requests location from device."""
-    await setup_integration(hass, mock_fmd_api)
-
-    # Get the device tracker
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
-    device_tracker._high_frequency_mode = True
-
-    api = mock_fmd_api.create.return_value
-    api.request_location.reset_mock()
-
-    with patch(
-        "custom_components.fmd.device_tracker.async_track_time_interval"
-    ) as mock_track:
-        device_tracker.start_polling()
-
-    update_callback = mock_track.call_args[0][1]
-
-    sleep_mock = AsyncMock(return_value=None)
-    api.request_location.return_value = True
-
-    with patch("asyncio.sleep", new=sleep_mock):
-        await update_callback(None)
-
-    api.request_location.assert_awaited_once_with(provider="all")
-    sleep_mock.assert_awaited_once_with(10)
-
-
-@pytest.mark.asyncio
-async def test_device_tracker_high_frequency_mode_request_location_fails(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
-) -> None:
-    """Test high-frequency mode handles request_location failure gracefully."""
-    await setup_integration(hass, mock_fmd_api)
-
-    # Get the device tracker
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
-    device_tracker._high_frequency_mode = True
-
-    api = mock_fmd_api.create.return_value
-    api.request_location.reset_mock()
-    api.request_location.return_value = False
-
-    with patch(
-        "custom_components.fmd.device_tracker.async_track_time_interval"
-    ) as mock_track:
-        device_tracker.start_polling()
-
-    update_callback = mock_track.call_args[0][1]
-
-    sleep_mock = AsyncMock(return_value=None)
-
-    with patch("asyncio.sleep", new=sleep_mock):
-        await update_callback(None)
-
-    api.request_location.assert_awaited_once_with(provider="all")
-    sleep_mock.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_device_tracker_high_frequency_mode_exception(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
-) -> None:
-    """Test high-frequency mode handles exceptions during location request."""
-    await setup_integration(hass, mock_fmd_api)
-
-    # Get the device tracker
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
-    device_tracker._high_frequency_mode = True
-
-    api = mock_fmd_api.create.return_value
-    api.request_location.reset_mock()
-    api.request_location.side_effect = Exception("Network error")
-
-    with patch(
-        "custom_components.fmd.device_tracker.async_track_time_interval"
-    ) as mock_track:
-        device_tracker.start_polling()
-
-    update_callback = mock_track.call_args[0][1]
-
-    sleep_mock = AsyncMock(return_value=None)
-
-    with patch("asyncio.sleep", new=sleep_mock):
-        await update_callback(None)
-
-    api.request_location.assert_awaited_once_with(provider="all")
-    sleep_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio

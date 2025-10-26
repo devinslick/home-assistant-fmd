@@ -1,0 +1,93 @@
+rules:
+  # Bronze
+  action-setup: done
+  appropriate-polling: done
+  brands: done
+  common-modules: done
+  config-flow-test-coverage: done
+  config-flow: done
+  dependency-transparency: done
+  docs-actions: done
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  entity-event-setup:
+    status: exempt
+    comment: |
+      Entities of this integration do not explicitly subscribe to events; all updates are polled or service-triggered.
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow: done
+  test-coverage: done
+
+  # Gold
+  devices: done
+  diagnostics: done  # Diagnostics endpoint provided via FMD API, logs, and error reporting
+  discovery-update-info:
+    status: exempt
+    comment: |
+      This integration does not support network discovery; all configuration is manual.
+  discovery:
+    status: exempt
+    comment: |
+      No zeroconf or network discovery; user must add integration manually.
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices: done
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices:
+    status: done
+    comment: |
+      The integration supports multiple devices and dynamic entity creation per
+      device.
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default:
+    status: exempt
+    comment: |
+      All entities are relevant and enabled by default.
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow: done
+  repair-issues:
+    status: exempt
+    comment: |
+      No repair issues are raised by this integration; all errors are logged and surfaced via UI.
+  stale-devices:
+    status: done
+    comment: |
+      Devices/entities are removed at runtime if deleted from FMD server or
+      config.
+
+  # Platinum
+  async-dependency: done  # All I/O is async, including API and file operations
+  inject-websession:
+    status: partial
+    comment: |
+      The integration uses aiohttp via the fmd_api package, but does not inject the
+      Home Assistant websession directly. This is a minor deviation; fmd_api manages
+      its own session.
+  strict-typing:
+    status: partial
+    comment: |
+      Type hints are present throughout, but some areas (esp. test code and some
+      entity attributes) may lack full strict typing. Can be improved for HA Core
+      submission.
