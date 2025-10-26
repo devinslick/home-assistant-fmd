@@ -38,8 +38,10 @@ class FmdLocationSourceSelect(SelectEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_location_source"
         self._attr_name = "Location source"
-        # Default to "All Providers"
-        self._attr_current_option = "All Providers (Default)"
+        # Restore from config entry or default to "All Providers"
+        self._attr_current_option = entry.data.get(
+            "location_source_current_option", "All Providers (Default)"
+        )
 
     @property
     def device_info(self) -> dict[str, Any]:
@@ -52,10 +54,15 @@ class FmdLocationSourceSelect(SelectEntity):
         }
 
     async def async_select_option(self, option: str) -> None:
-        """Handle location source selection."""
+        """Handle location source selection and persist state."""
         _LOGGER.info(f"Location source changed to: {option}")
         self._attr_current_option = option
         self.async_write_ha_state()
+
+        # Persist to config entry
+        new_data = dict(self._entry.data)
+        new_data["location_source_current_option"] = option
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)
 
     def get_provider_value(self) -> str:
         """Convert the selected option to the API provider parameter.

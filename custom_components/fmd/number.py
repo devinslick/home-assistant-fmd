@@ -55,7 +55,8 @@ class FmdUpdateIntervalNumber(NumberEntity):
         self._attr_unique_id = f"{entry.entry_id}_update_interval"
         self._attr_name = "Update interval"
         self._attr_native_value = entry.data.get(
-            "polling_interval", DEFAULT_UPDATE_INTERVAL
+            "update_interval_native_value",
+            entry.data.get("polling_interval", DEFAULT_UPDATE_INTERVAL),
         )
         self._attr_icon = "mdi:timer-outline"
 
@@ -70,10 +71,15 @@ class FmdUpdateIntervalNumber(NumberEntity):
         }
 
     async def async_set_native_value(self, value: float) -> None:
-        """Update the interval value."""
+        """Update the interval value and persist it."""
         _LOGGER.info("Update interval changed to %s minutes", value)
         self._attr_native_value = value
         self.async_write_ha_state()
+
+        # Persist to config entry
+        new_data = dict(self._entry.data)
+        new_data["update_interval_native_value"] = value
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)
 
         # Update the actual polling interval in device_tracker
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
@@ -104,7 +110,9 @@ class FmdHighFrequencyIntervalNumber(NumberEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_high_frequency_interval"
         self._attr_name = "High frequency interval"
-        self._attr_native_value = DEFAULT_HIGH_FREQUENCY_INTERVAL
+        self._attr_native_value = entry.data.get(
+            "high_frequency_interval_native_value", DEFAULT_HIGH_FREQUENCY_INTERVAL
+        )
 
     @property
     def device_info(self) -> dict[str, Any]:
@@ -117,10 +125,15 @@ class FmdHighFrequencyIntervalNumber(NumberEntity):
         }
 
     async def async_set_native_value(self, value: float) -> None:
-        """Update the interval value."""
+        """Update the interval value and persist it."""
         _LOGGER.info("High frequency interval changed to %s minutes", value)
         self._attr_native_value = value
         self.async_write_ha_state()
+
+        # Persist to config entry
+        new_data = dict(self._entry.data)
+        new_data["high_frequency_interval_native_value"] = value
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)
 
         # Update the high-frequency interval in the tracker
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
@@ -151,7 +164,7 @@ class FmdMaxPhotosNumber(NumberEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_max_photos"
         self._attr_name = "Photo: Max to retain"
-        self._attr_native_value = 10  # Default to 10 photos
+        self._attr_native_value = entry.data.get("photo_max_to_retain_native_value", 10)
 
     @property
     def icon(self):
@@ -169,7 +182,12 @@ class FmdMaxPhotosNumber(NumberEntity):
         }
 
     async def async_set_native_value(self, value: float) -> None:
-        """Update the max photos to retain value."""
+        """Update the max photos to retain value and persist it."""
         _LOGGER.info("Photo: Max to retain changed to %s", value)
         self._attr_native_value = value
         self.async_write_ha_state()
+
+        # Persist to config entry
+        new_data = dict(self._entry.data)
+        new_data["photo_max_to_retain_native_value"] = value
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)

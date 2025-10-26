@@ -52,7 +52,7 @@ class FmdHighFrequencyModeSwitch(SwitchEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_high_frequency_mode"
         self._attr_name = "High frequency mode"
-        self._attr_is_on = False
+        self._attr_is_on = entry.data.get("high_frequency_mode_is_on", False)
         self._attr_icon = "mdi:run-fast"
 
     @property
@@ -66,10 +66,15 @@ class FmdHighFrequencyModeSwitch(SwitchEntity):
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn on high-frequency mode."""
+        """Turn on high-frequency mode and persist state."""
         _LOGGER.info("High frequency mode enabled")
         self._attr_is_on = True
         self.async_write_ha_state()
+
+        # Persist to config entry
+        new_data = dict(self._entry.data)
+        new_data["high_frequency_mode_is_on"] = True
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)
 
         # Enable high-frequency mode in the tracker
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
@@ -80,10 +85,15 @@ class FmdHighFrequencyModeSwitch(SwitchEntity):
             _LOGGER.error("Could not find tracker to enable high-frequency mode")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn off high-frequency mode."""
+        """Turn off high-frequency mode and persist state."""
         _LOGGER.info("High frequency mode disabled")
         self._attr_is_on = False
         self.async_write_ha_state()
+
+        # Persist to config entry
+        new_data = dict(self._entry.data)
+        new_data["high_frequency_mode_is_on"] = False
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)
 
         # Disable high-frequency mode in the tracker
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
@@ -107,12 +117,13 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_allow_inaccurate"
         self._attr_name = "Location: allow inaccurate updates"
-        # Get allow_inaccurate setting, defaulting to False (blocking enabled, switch off)
-        # For backward compatibility, also check old "block_inaccurate" key
-        allow_inaccurate = entry.data.get(
-            "allow_inaccurate_locations", not entry.data.get("block_inaccurate", True)
+        self._attr_is_on = entry.data.get(
+            "location_allow_inaccurate_is_on",
+            entry.data.get(
+                "allow_inaccurate_locations",
+                not entry.data.get("block_inaccurate", True),
+            ),
         )
-        self._attr_is_on = allow_inaccurate
 
     @property
     def device_info(self) -> dict[str, Any]:
@@ -125,10 +136,15 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Allow inaccurate location updates."""
+        """Allow inaccurate location updates and persist state."""
         _LOGGER.info("Inaccurate locations allowed (blocking disabled)")
         self._attr_is_on = True
         self.async_write_ha_state()
+
+        # Persist to config entry
+        new_data = dict(self._entry.data)
+        new_data["location_allow_inaccurate_is_on"] = True
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)
 
         # Update the tracker to disable filtering
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
@@ -139,10 +155,15 @@ class FmdAllowInaccurateSwitch(SwitchEntity):
             _LOGGER.error("Could not find tracker to update filtering setting")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Disallow inaccurate location updates."""
+        """Disallow inaccurate location updates and persist state."""
         _LOGGER.info("Inaccurate locations disallowed (blocking enabled)")
         self._attr_is_on = False
         self.async_write_ha_state()
+
+        # Persist to config entry
+        new_data = dict(self._entry.data)
+        new_data["location_allow_inaccurate_is_on"] = False
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)
 
         # Update the tracker to enable filtering
         tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
@@ -258,7 +279,7 @@ class FmdPhotoAutoCleanupSwitch(SwitchEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_photo_auto_cleanup"
         self._attr_name = "Photo: Auto-cleanup"
-        self._attr_is_on = False  # Default to OFF for safety
+        self._attr_is_on = entry.data.get("photo_auto_cleanup_is_on", False)
 
     @property
     def device_info(self) -> dict[str, Any]:
@@ -271,7 +292,7 @@ class FmdPhotoAutoCleanupSwitch(SwitchEntity):
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Enable automatic photo cleanup."""
+        """Enable automatic photo cleanup and persist state."""
         _LOGGER.info(
             "Photo auto-cleanup ENABLED - Old photos will be deleted when limit exceeded"
         )
@@ -281,10 +302,20 @@ class FmdPhotoAutoCleanupSwitch(SwitchEntity):
         self._attr_is_on = True
         self.async_write_ha_state()
 
+        # Persist to config entry
+        new_data = dict(self._entry.data)
+        new_data["photo_auto_cleanup_is_on"] = True
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)
+
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Disable automatic photo cleanup."""
+        """Disable automatic photo cleanup and persist state."""
         _LOGGER.info(
             "Photo auto-cleanup DISABLED - Photos will not be automatically deleted"
         )
         self._attr_is_on = False
         self.async_write_ha_state()
+
+        # Persist to config entry
+        new_data = dict(self._entry.data)
+        new_data["photo_auto_cleanup_is_on"] = False
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)

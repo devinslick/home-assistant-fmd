@@ -338,16 +338,16 @@ _Note: Hyphens in your FMD account ID will be converted to underscores in entity
 
 ### Polling Intervals
 
-**Normal Mode** (default: 30 minutes)
+**Normal Mode** (default: 15 minutes)
 - Minimal battery drain on device
 - Queries FMD server for existing location data
-- Does NOT request new device location
-- Recommended for stationary devices
+- Does NOT request new device location from the android device
+- Recommended for stationary devices and those that are sensitive to battery drain
 
 **High Frequency Mode** (default: 5 minutes)
 - ⚠️ **Higher battery drain** - requests new location each poll
-- Actively asks device for fresh GPS data
-- Best for: lost device tracking, active travel
+- Actively asks device for new location information from a configured source
+- Best for: lost device tracking, active travel while charging
 - Auto-disable after tracking session
 
 ### Battery Impact on Android Device
@@ -441,7 +441,7 @@ Configure which location provider the Location Update button uses:
 
 Use the Location Source select entity to change the provider. The setting persists and will be used by the Location Update button.
 
-**Example automation for battery-conscious tracking:**
+**Example automation for enabling battery-conscious location tracking:**
 ```yaml
 automation:
   - alias: "FMD: Use GPS when charging, Cell when on battery"
@@ -459,6 +459,9 @@ automation:
             {% else %}
               Cell Only (Fast)
             {% endif %}
+    action: switch.turn_on
+      target:
+        entity_id: switch.fmd_test_user_high_frequency_mode
 ```
 
 ### Bluetooth Control
@@ -875,11 +878,6 @@ To be included in Home Assistant Core, the following items must be completed:
 - [ ] **hassfest** - Pass Home Assistant validation tool
 - [ ] **Quality scale** - Achieve Bronze quality scale minimum (Silver preferred)
 
-**Legal & Licensing:**
-- [ ] **Code ownership** - Verify all code is original or properly attributed
-- [ ] **CLA** - Sign Home Assistant Contributor License Agreement
-- [ ] **License compatibility** - Verify FMD GPL/AGPL compatibility with Apache 2.0
-
 **Additional Requirements:**
 - [x] **Branding** - ✅ Merged to Home Assistant brands repository
   - Official FMD icon now available globally
@@ -887,27 +885,6 @@ To be included in Home Assistant Core, the following items must be completed:
 - [ ] **IoT class** - Verify "cloud_polling" classification is appropriate
 - [ ] **Breaking changes** - Document any breaking changes for migration
 - [ ] **Performance** - Ensure efficient polling and minimal resource usage
-
-### Estimated Timeline
-
-- **Phase 1** ~~(1-2 months)~~ ✅ COMPLETE: Extract FMD client library, refactor to use PyPI package
-- **Phase 2** (1-2 months): Add type hints, write comprehensive tests, improve code quality
-- **Phase 3** (1 month): Documentation, translations, quality improvements
-- **Phase 3** (1-2 months): Code review, revisions, final approval
-
-**Total estimated effort:** 3-5 months of active development
-
-## TODO & Planned Features
-
-### Known Issues
-- None currently
-
-### UX Improvements
-- [ ] **Entity naming consistency** - "High frequency mode" → "Tracking mode"
-  - Consider renaming for better clarity
-  - Priority: Medium
-- [ ] **EXIF Data** - "Consider ways to make more EXIF data, like geolocation usable from Home Assistant"
-  - Priority: Low
 
 ### Planned Features
 
@@ -974,12 +951,24 @@ To be included in Home Assistant Core, the following items must be completed:
 ## Version History
 
 
-### v0.9.6 (Testing) - October 26, 2025
-**Entity state persistence**
-- ✅ Working on fixing issue #1 that results in entity state being lost after Home Assistant restarts
+### v0.9.8 - October 26, 2025
+**Test entity state restore**
+- ✅ Extended solution for entity state to all that store values needing restored!
 - Total entities: **20 per device**
 
-### v0.9.5 (Current) - October 25, 2025
+### v0.9.7 - October 26, 2025
+**Test entity state restore**
+- ✅ Tested solution for entity state restore on restart/reload (Issue #1)
+- Total entities: **20 per device**
+
+### v0.9.6 - October 25, 2025
+**Translations and code coverage**
+- ✅ Added translation files for several languages
+- ✅ Improved code testing coverage
+- ✅ Initial work on reauthentication flow
+- Total entities: **20 per device**
+
+### v0.9.5 (Current) - October 24, 2025
 **Graceful Error Handling & Linting**
 - ✅ Added ConfigEntryNotReady exception for graceful handling of temporary service outages
 - ✅ Fixed pre-commit pipeline with dynamic Python version support
@@ -1059,37 +1048,41 @@ To be included in Home Assistant Core, the following items must be completed:
 ## Frequently Asked Questions (FAQ)
 
 **Q: Do I need to run my own FMD server?**
-A: Yes, this integration requires a self-hosted or hosted FMD server. The integration connects to YOUR server, not a centralized service. See [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
+A: Hosting your own is preferred but this integration can be used with a publically hosted FMD server, like the one hosted by [Nulide](https://fmd.nulide.de/).  To host your own please see [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
 
 **Q: Does this work without the FMD Android app?**
-A: No, you must install the FMD Android app on the device you want to track. The app communicates with the FMD server.
+A: No, you must install the FMD Android app on the device you want to track. The app communicates with the FMD server though, not directly with the android app!
 
 **Q: Can I track multiple devices?**
-A: Yes! Add a new integration instance for each device. Each device gets its own set of 20 entities.
+A: Yes! Add a new integration instance for each device. Each device gets its own set of entities.
 
 **Q: Why is my location not updating?**
-A: Check: 1) Device has internet, 2) FMD app is running, 3) Location permissions granted, 4) Device is sending data to server (check FMD server logs).
+A: Check: 1) Device has internet, 2) FMD app is running, 3) Location permissions granted, 4) Device is sending data to server (check FMD server logs).  If you aren't seeing location data with this integration, first login to the FMD server directly to see if the data has actually been sent there.
 
 **Q: How do I know if a command was received?**
 A: Commands are fire-and-forget. Check device physically or use another method to confirm. There's no acknowledgment from the device.
 
 **Q: Can I see Bluetooth/DND state in Home Assistant?**
-A: No, FMD doesn't support querying device state. Commands are one-way only.
+A: No, FMD doesn't support querying device state. Commands are one-way only.  You can, however, configure the official Home Assistant App to enable sensors so it collects this information.
 
-**Q: How much battery does this use?**
-A: Normal mode: minimal (just checks server). High frequency mode: significant (actively requests GPS). See [Performance](#performance--resource-usage).
+**Q: How much battery will this use on my android device?**
+A: Normal mode: None, since it just polls the FMD server.
+High-frequency mode: Can use significant battery depending on the location update type that is configured.  This will actively wake up the device every X minutes to request new or cached location information. See [Performance](#performance--resource-usage).
 
 **Q: Where are photos stored?**
 A: `/media/fmd/<device-id>/` (Docker/Core) or `/config/media/fmd/<device-id>/` (HAOS). Photos appear in Media Browser automatically.
+They will not populate here automatically.  You'll need to click the Download button entity first.  If photos exist for that user, you'll see the photo_count entity reflect the number of saved photos.
 
 **Q: Can I download photos older than the configured max?**
 A: No, increase "Max Photos to Download" setting before pressing "Download Photos" to get more history.
+If your photo_max_to_retain entity is configured with a value of 10 and you have 12 photos in your FMD account then the oldest 2 will be deleted when you click the Download button in Home Assistant.  This will only delete the copies in Home Assistant.  No changes will be made to your FMD account or the data stored there.
 
 **Q: Is my data encrypted?**
-A: Yes! Location and photos are encrypted end-to-end using RSA-3072 + AES-GCM. Only your Home Assistant instance can decrypt.
+A: It is encrypted on the FMD server but is not encrypted in Home Assistant.  Any users with access to Home Assistant will essentially have access to all of the features of FMD, including your photos and the ability to factory reset your device.  Use with caution!
 
 **Q: What happens if I accidentally press the wipe button?**
 A: Nothing! The safety switch must be enabled first. The wipe button is blocked by default.
+If the safety switch is turned On and the Wipe/Execute button is pressed, a timer will begin that will factory reset your device in 60 seconds.
 
 **Q: Can I undo a device wipe?**
 A: No, device wipe is permanent. All data is erased. This is an FMD feature, not controllable by this integration.
@@ -1109,6 +1102,7 @@ This integration would not exist without the excellent work of the **FMD-FOSS te
 - **Maintained by**: [Thore](https://thore.io) and the FMD-FOSS team
 - **FMD Android App**: https://gitlab.com/fmd-foss/fmd-android
 - **FMD Server**: https://gitlab.com/fmd-foss/fmd-server
+- **FMD Home Assistant Integration**: https://github.com/devinslick/home-assistant-fmd
 
 **Thank you** to Nulide, Thore, and all FMD contributors for creating this privacy-respecting, open source device tracking solution!
 
