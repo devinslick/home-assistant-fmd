@@ -24,6 +24,41 @@ async def authenticate_and_get_locations(
 
 
 class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> FlowResult:
+        """Handle re-authentication with new credentials."""
+        errors: dict[str, str] = {}
+        user_input = self.context.get("user_input")
+        if user_input is not None:
+            try:
+                await authenticate_and_get_locations(
+                    user_input["url"],
+                    user_input["id"],
+                    user_input["password"],
+                )
+                # Update the config entry with new credentials
+                entry = self.hass.config_entries.async_get_entry(
+                    self.context["entry_id"]
+                )
+                if entry:
+                    self.hass.config_entries.async_update_entry(entry, data=user_input)
+                return self.async_abort(reason="reauth_successful")
+            except Exception:
+                errors["base"] = "cannot_connect"
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("url", default=entry_data.get("url", "")): str,
+                vol.Required("id", default=entry_data.get("id", "")): str,
+                vol.Required("password"): str,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="reauth",
+            data_schema=data_schema,
+            errors=errors,
+        )
+
     """Handle a config flow for FMD."""
 
     VERSION = 1

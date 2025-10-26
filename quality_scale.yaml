@@ -31,7 +31,11 @@ rules:
   integration-owner: done
   log-when-unavailable: done
   parallel-updates: done
-  reauthentication-flow: done
+  reauthentication-flow:
+    status: incomplete
+    comment: |
+      Reauthentication flow is not implemented; the integration currently does not
+      require reauthentication as credentials are static.
   test-coverage: done
 
   # Gold
@@ -44,7 +48,7 @@ rules:
   discovery:
     status: exempt
     comment: |
-      No zeroconf or network discovery; user must add integration manually.
+      No zeroconf or network discovery supported by FMD; user must add integration manually.
   docs-data-update: done
   docs-examples: done
   docs-known-limitations: done

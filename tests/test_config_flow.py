@@ -1,13 +1,77 @@
-"""Test FMD config flow."""
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
 from homeassistant.core import HomeAssistant
 
 from custom_components.fmd.const import DEFAULT_POLLING_INTERVAL, DOMAIN
+
+
+@pytest.mark.asyncio
+async def test_reauth_flow_success(hass):
+    """Test the reauthentication flow succeeds and updates the entry."""
+    entry = hass.config_entries.async_add(
+        domain=DOMAIN,
+        data={"url": "http://test", "id": "user", "password": "oldpass"},
+    )
+    entry_id = entry.entry_id
+
+    with patch(
+        "custom_components.fmd.config_flow.authenticate_and_get_locations",
+        return_value=AsyncMock(),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "reauth", "entry_id": entry_id}
+        )
+        assert result["type"] == "form"
+        assert result["step_id"] == "reauth"
+
+        # Submit new credentials
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                "url": "http://test",
+                "id": "user",
+                "password": "newpass",
+            },
+        )
+        assert result2["type"] == "abort"
+        assert result2["reason"] == "reauth_successful"
+
+
+@pytest.mark.asyncio
+async def test_reauth_flow_failure(hass):
+    """Test the reauthentication flow fails with invalid credentials."""
+    entry = hass.config_entries.async_add(
+        domain=DOMAIN,
+        data={"url": "http://test", "id": "user", "password": "oldpass"},
+    )
+    entry_id = entry.entry_id
+
+    with patch(
+        "custom_components.fmd.config_flow.authenticate_and_get_locations",
+        side_effect=Exception("fail"),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "reauth", "entry_id": entry_id}
+        )
+        assert result["type"] == "form"
+        assert result["step_id"] == "reauth"
+
+        # Submit invalid credentials
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                "url": "http://test",
+                "id": "user",
+                "password": "badpass",
+            },
+        )
+        assert result2["type"] == "form"
+        assert result2["errors"]["base"] == "cannot_connect"
 
 
 async def test_form(hass: HomeAssistant, mock_fmd_api: AsyncMock) -> None:
