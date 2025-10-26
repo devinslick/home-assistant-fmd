@@ -32,7 +32,7 @@ rules:
   log-when-unavailable: done
   parallel-updates: done
   reauthentication-flow:
-    status: done
+    status: In Progress
     comment: |
       Reauthentication flow was just implemented and is being tested in version 0.9.6
   test-coverage: done

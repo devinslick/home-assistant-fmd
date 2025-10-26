@@ -973,7 +973,13 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Version History
 
-### v0.9.5 (Current) - October 24, 2025
+
+### v0.9.6 (Testing) - October 26, 2025
+**Entity state persistence**
+- ✅ Working on fixing issue #1 that results in entity state being lost after Home Assistant restarts
+- Total entities: **20 per device**
+
+### v0.9.5 (Current) - October 25, 2025
 **Graceful Error Handling & Linting**
 - ✅ Added ConfigEntryNotReady exception for graceful handling of temporary service outages
 - ✅ Fixed pre-commit pipeline with dynamic Python version support

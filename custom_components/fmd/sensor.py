@@ -59,9 +59,20 @@ class FmdPhotoCountSensor(SensorEntity):
         self._attr_device_info = device_info
         self._attr_unique_id = f"{entry.entry_id}_photo_count"
 
-        self._photos_in_media_folder = 0  # Total photos stored (primary value)
-        self._last_download_count = 0  # Photos from last download
-        self._last_download_time = None
+        # Restore state from config entry if present
+        data = entry.data
+        self._photos_in_media_folder = data.get("photo_count_photos_in_media_folder", 0)
+        self._last_download_count = data.get("photo_count_last_download_count", 0)
+        last_time = data.get("photo_count_last_download_time")
+        if last_time:
+            try:
+                from datetime import datetime
+
+                self._last_download_time = datetime.fromisoformat(last_time)
+            except Exception:
+                self._last_download_time = None
+        else:
+            self._last_download_time = None
 
     @property
     def icon(self) -> str:
@@ -88,10 +99,19 @@ class FmdPhotoCountSensor(SensorEntity):
         }
 
     def update_photo_count(self, download_count: int) -> None:
-        """Update the photo count after a download."""
+        """Update the photo count after a download and persist state."""
         self._last_download_count = download_count
         self._last_download_time = datetime.now()
         self._update_media_folder_count()
+
+        # Persist state to config entry
+        new_data = dict(self.entry.data)
+        new_data["photo_count_photos_in_media_folder"] = self._photos_in_media_folder
+        new_data["photo_count_last_download_count"] = self._last_download_count
+        new_data["photo_count_last_download_time"] = (
+            self._last_download_time.isoformat() if self._last_download_time else None
+        )
+        self.hass.config_entries.async_update_entry(self.entry, data=new_data)
 
     def _update_media_folder_count(self) -> None:
         """Count photos in the media folder."""
