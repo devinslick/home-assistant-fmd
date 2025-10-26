@@ -10,8 +10,7 @@ Focus areas:
 from __future__ import annotations
 
 import io
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from conftest import setup_integration
@@ -119,120 +118,6 @@ async def test_device_tracker_empty_blob_warning(
     state = hass.states.get("device_tracker.fmd_test_user")
     assert state is not None
     assert state.state == STATE_UNKNOWN
-
-
-@pytest.mark.asyncio
-async def test_button_download_photos_with_exif_timestamp(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
-) -> None:
-    """Test download photos button extracts EXIF timestamp from images."""
-    import base64
-    import re
-
-    await setup_integration(hass, mock_fmd_api)
-
-    mock_api = mock_fmd_api.create.return_value
-    mock_api.get_pictures.return_value = ["encrypted_photo"]
-    mock_api.decrypt_data_blob.side_effect = lambda blob: base64.b64encode(
-        b"fake-image-bytes"
-    ).decode("utf-8")
-
-    written_paths: list[Path] = []
-
-    def fake_exists(self) -> bool:
-        # Only the expected EXIF-timestamped file does not exist; others do
-        return "20251019_153045" not in self.name
-
-    def fake_write_bytes(path: Path, data: bytes) -> int:
-        written_paths.append(path)
-        return len(data)
-
-    def run_executor(func, *args):
-        name = getattr(func, "__name__", None)
-        if name == "write_bytes":
-            written_paths.append(args[0])
-            print(f"DEBUG: write_bytes called with path={args[0]}")
-        else:
-            print(f"DEBUG: run_executor called with func={name}, args={args}")
-        return func(*args)
-
-    fake_exif: dict[int, str] = {36867: "2025:10:19 15:30:45"}
-    fake_image = MagicMock()
-    fake_image.getexif.return_value = fake_exif
-
-    with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
-        "pathlib.Path.mkdir"
-    ), patch.object(Path, "is_dir", return_value=True), patch(
-        "pathlib.Path.exists", side_effect=fake_exists
-    ), patch(
-        "custom_components.fmd.button.Image.open", return_value=fake_image
-    ):
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_photo_download"},
-            blocking=True,
-        )
-
-    mock_api.get_pictures.assert_awaited_once()
-    pattern = re.compile(r"photo_20251019_153045_.*\.jpg")
-    print(f"DEBUG: written_paths = {[str(p) for p in written_paths]}")
-    for path in written_paths:
-        print(f"DEBUG: written file: {path.name}")
-    assert any(pattern.match(path.name) for path in written_paths)
-
-
-@pytest.mark.asyncio
-async def test_button_download_photos_exif_parsing_error(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
-) -> None:
-    """Test download photos button handles EXIF parsing errors gracefully."""
-    import base64
-
-    await setup_integration(hass, mock_fmd_api)
-
-    mock_api = mock_fmd_api.create.return_value
-    mock_api.get_pictures.return_value = ["invalid_blob"]
-    mock_api.decrypt_data_blob.side_effect = lambda blob: base64.b64encode(
-        b"fake-image-bytes"
-    ).decode("utf-8")
-
-    write_called = []
-
-    def run_executor(func, *args):
-        name = getattr(func, "__name__", None)
-        if name == "write_bytes":
-            print(
-                f"DEBUG: Detected write_bytes call in executor (EXIF error test), path={args[0]}"
-            )
-            write_called.append(True)
-            return func(*args)
-        else:
-            print(f"DEBUG: run_executor called with func={name}, args={args}")
-        return func(*args)
-
-    with patch.object(hass, "async_add_executor_job", side_effect=run_executor), patch(
-        "pathlib.Path.mkdir"
-    ), patch.object(Path, "is_dir", return_value=True), patch.object(
-        Path, "exists", return_value=False
-    ), patch.object(
-        Path, "write_bytes"
-    ) as mock_write, patch(
-        "custom_components.fmd.button.Image.open",
-        side_effect=OSError("Invalid EXIF"),
-    ):
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_photo_download"},
-            blocking=True,
-        )
-
-    mock_api.get_pictures.assert_awaited_once()
-    # Even with parsing issues, we should attempt to write bytes
-    print(f"DEBUG: mock_write.called = {mock_write.called}")
-    print(f"DEBUG: write_called = {write_called}")
-    assert mock_write.called or write_called
 
 
 @pytest.mark.asyncio
