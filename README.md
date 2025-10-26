@@ -656,6 +656,20 @@ automation:
           message: "Device entered restricted zone - photo captured"
 ```
 
+**Auto-capture photo when someone interacts with it (prior to unlock)**
+```yaml
+automation:
+  - alias: "FMD: Capture photo on device interaction (uses optional sensor from Home Assistant App)"
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.mydevice_interactive
+        from: "off"
+        to: "on"
+    action:
+      - service: button.press
+        target:
+          entity_id: button.fmd_my_phone_capture_rear
+```
 ### Smart Tracking Modes
 
 **Adaptive location precision based on motion:**
