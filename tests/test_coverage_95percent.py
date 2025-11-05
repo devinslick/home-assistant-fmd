@@ -180,7 +180,7 @@ async def test_allow_inaccurate_location_switch_toggle_and_tracker_missing(
     """Test toggling allow inaccurate location switch and tracker missing error path."""
     await setup_integration(hass, mock_fmd_api)
 
-    entity_id = "switch.fmd_test_user_location_allow_inaccurate"
+    entity_id = "switch.fmd_test_user_location_allow_inaccurate_updates"
     # Turn on
     await hass.services.async_call(
         "switch",
