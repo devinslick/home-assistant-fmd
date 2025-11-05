@@ -1,6 +1,6 @@
 # Home Assistant FMD Integration
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![Tests](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/devinslick/home-assistant-fmd/branch/main/graph/badge.svg?token=W04KEUVQ8W)](https://codecov.io/gh/devinslick/home-assistant-fmd)
 
@@ -102,7 +102,7 @@ Before installing this integration, you need:
 3.  Search for "FMD" and select it.
 4.  Enter your FMD server URL, ID, and password.
 5.  Configure the polling interval (in minutes) and location accuracy filtering.
-    - **Allow inaccurate locations** (default: disabled) - When unchecked, filters out low-accuracy location updates from providers like BeaconDB. Only Fused, GPS, and network locations will be accepted.
+    - **Allow inaccurate locations** (default: disabled) - When unchecked, filters out low-accuracy location updates from providers like BeaconDB. By default only Fused, GPS, and network locations will be accepted.
     - **Use imperial units** (default: disabled) - When checked, converts metric measurements to imperial (meters → feet, m/s → mph)
 6.  Click **Submit**.
 
@@ -183,7 +183,7 @@ The integration will create the following entities for each configured FMD devic
 - **Photo: Download** - Download photos from server to media folder
   - Entity ID example: `button.fmd_test_user_download_photos`
   - Fetches the N most recent photos from server (N = "Max Photos to Download" setting)
-  - Decrypts and saves photos to `/config/media/fmd/` folder
+  - Decrypts and saves photos to `/config/media/fmd/device_name` folder
   - Photos automatically appear in Home Assistant's Media Browser
   - Updates the "Photo Count" sensor
   - ✅ **Fully implemented** - Downloads photos to media browser
