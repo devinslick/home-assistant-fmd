@@ -255,28 +255,31 @@ async def test_photo_sensor_media_directory_not_exists(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count sensor when media directory doesn't exist."""
+    import base64
+
+    # Return encrypted blob
+    mock_fmd_api.create.return_value.get_pictures.return_value = ["encrypted_blob_1"]
+    fake_image = base64.b64encode(b"fake_jpeg_data").decode("utf-8")
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
+
     await setup_integration(hass, mock_fmd_api)
 
-    # Mock Path to simulate non-existent directory
-    with patch("custom_components.fmd.sensor.Path") as mock_path:
-        mock_dir = Mock(spec=Path)
-        mock_dir.exists.return_value = False
-        mock_dir.is_dir.return_value = False
-        mock_path.return_value = mock_dir
-
-        # Trigger sensor update
+    # Mock Path operations - directory doesn't exist
+    with patch("pathlib.Path.mkdir"), patch("pathlib.Path.write_bytes"), patch(
+        "pathlib.Path.is_dir", return_value=False
+    ), patch("pathlib.Path.exists", return_value=False):
+        # Trigger download which will call _update_media_folder_count
         await hass.services.async_call(
-            "homeassistant",
-            "update_entity",
-            {"entity_id": "sensor.fmd_test_user_photo_count"},
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
         await hass.async_block_till_done()
 
     # Sensor should show 0 photos when directory doesn't exist
-    state = hass.states.get("sensor.fmd_test_user_photo_count")
-    assert state is not None
-    assert state.state == "0"
+    sensor = hass.data["fmd"][list(hass.data["fmd"].keys())[0]]["photo_count_sensor"]
+    assert sensor._photos_in_media_folder == 0
 
 
 async def test_photo_sensor_permission_error(
@@ -284,25 +287,28 @@ async def test_photo_sensor_permission_error(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count sensor when directory access fails."""
+    import base64
+
+    # Return encrypted blob
+    mock_fmd_api.create.return_value.get_pictures.return_value = ["encrypted_blob_1"]
+    fake_image = base64.b64encode(b"fake_jpeg_data").decode("utf-8")
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
+
     await setup_integration(hass, mock_fmd_api)
 
-    # Mock Path to simulate permission error
-    with patch("custom_components.fmd.sensor.Path") as mock_path:
-        mock_dir = Mock(spec=Path)
-        mock_dir.exists.return_value = True
-        mock_dir.is_dir.return_value = True
-        mock_dir.glob.side_effect = PermissionError("Access denied")
-        mock_path.return_value = mock_dir
-
-        # Trigger sensor update
+    # Mock Path operations - glob raises PermissionError
+    with patch("pathlib.Path.mkdir"), patch("pathlib.Path.write_bytes"), patch(
+        "pathlib.Path.is_dir", return_value=True
+    ), patch("pathlib.Path.glob", side_effect=PermissionError("Access denied")):
+        # Trigger download which will call _update_media_folder_count
         await hass.services.async_call(
-            "homeassistant",
-            "update_entity",
-            {"entity_id": "sensor.fmd_test_user_photo_count"},
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
             blocking=True,
         )
         await hass.async_block_till_done()
 
     # Sensor should handle error gracefully
-    state = hass.states.get("sensor.fmd_test_user_photo_count")
-    assert state is not None
+    sensor = hass.data["fmd"][list(hass.data["fmd"].keys())[0]]["photo_count_sensor"]
+    assert sensor._photos_in_media_folder == 0
