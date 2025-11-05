@@ -30,7 +30,7 @@ async def test_select_bluetooth_enable(
         blocking=True,
     )
 
-    mock_fmd_api.create.return_value.toggle_bluetooth.assert_called_once_with(True)
+    mock_fmd_api.create.return_value.set_bluetooth.assert_called_once_with(True)
 
 
 async def test_select_bluetooth_disable(
@@ -47,7 +47,7 @@ async def test_select_bluetooth_disable(
         blocking=True,
     )
 
-    mock_fmd_api.create.return_value.toggle_bluetooth.assert_called_once_with(False)
+    mock_fmd_api.create.return_value.set_bluetooth.assert_called_once_with(False)
 
 
 async def test_select_dnd_enable(
@@ -69,7 +69,7 @@ async def test_select_dnd_enable(
     await hass.async_block_till_done()
 
     # Assert on the mocked API instance
-    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(True)
+    mock_fmd_api.create.return_value.set_do_not_disturb.assert_called_once_with(True)
 
 
 async def test_select_dnd_disable(
@@ -91,9 +91,7 @@ async def test_select_dnd_disable(
     await hass.async_block_till_done()
 
     # Assert on the mocked API instance
-    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(
-        False
-    )
+    mock_fmd_api.create.return_value.set_do_not_disturb.assert_called_once_with(False)
 
 
 async def test_select_ringer_mode_normal(

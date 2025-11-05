@@ -350,7 +350,7 @@ class FmdDownloadPhotosButton(ButtonEntity):
         """Decrypt a data blob in an executor to avoid blocking the event loop.
 
         Args:
-            api: The FmdApi instance
+            api: The FmdClient instance
             blob: Base64-encoded encrypted blob from the server
 
         Returns:

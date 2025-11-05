@@ -3,8 +3,10 @@
 pytest>=7.3.1
 pytest-asyncio>=0.20.3
 pytest-cov>=3.0.0
+pytest-homeassistant-custom-component>=0.13.0
 # Use a slightly older HA version that might have better wheel support
 homeassistant>=2024.1.0,<2024.11.0
 
 # Integration dependencies
-fmd-api==0.1.0
+fmd-api==2.0.1
+Pillow>=10.0.0

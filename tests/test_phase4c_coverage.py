@@ -40,7 +40,7 @@ async def test_device_tracker_attributes_with_altitude_imperial(
     hass.config.units.name = "us_customary"
 
     mock_api = mock_fmd_api.create.return_value
-    mock_api.get_all_locations.return_value = [
+    mock_api.get_locations.return_value = [
         {
             "lat": 47.6062,
             "lon": -122.3321,
@@ -74,7 +74,7 @@ async def test_device_tracker_attributes_with_speed_imperial(
     hass.config.units.name = "us_customary"
 
     mock_api = mock_fmd_api.create.return_value
-    mock_api.get_all_locations.return_value = [
+    mock_api.get_locations.return_value = [
         {
             "lat": 47.6062,
             "lon": -122.3321,
@@ -104,7 +104,7 @@ async def test_device_tracker_empty_blob_warning(
     hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
     """Test device tracker logs warning for empty location blobs."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [None, b""]
+    mock_fmd_api.create.return_value.get_locations.return_value = [None, b""]
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -304,7 +304,7 @@ async def test_select_bluetooth_enable_command(
     )
 
     # Verify API was called
-    mock_fmd_api.create.return_value.toggle_bluetooth.assert_called_once_with(True)
+    mock_fmd_api.create.return_value.set_bluetooth.assert_called_once_with(True)
 
 
 @pytest.mark.asyncio
@@ -327,7 +327,7 @@ async def test_select_bluetooth_disable_command(
     )
 
     # Verify API was called
-    mock_fmd_api.create.return_value.toggle_bluetooth.assert_called_once_with(False)
+    mock_fmd_api.create.return_value.set_bluetooth.assert_called_once_with(False)
 
 
 @pytest.mark.asyncio
@@ -349,7 +349,7 @@ async def test_select_dnd_enable_command(
     )
 
     # Verify API was called
-    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(True)
+    mock_fmd_api.create.return_value.set_do_not_disturb.assert_called_once_with(True)
 
 
 @pytest.mark.asyncio
@@ -371,9 +371,7 @@ async def test_select_dnd_disable_command(
     )
 
     # Verify API was called
-    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(
-        False
-    )
+    mock_fmd_api.create.return_value.set_do_not_disturb.assert_called_once_with(False)
 
 
 @pytest.mark.asyncio

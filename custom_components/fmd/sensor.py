@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from fmd_api import FmdApi
+    from fmd_api import FmdClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up FMD sensor entities."""
-    api: FmdApi = hass.data[DOMAIN][entry.entry_id]["api"]
+    api: FmdClient = hass.data[DOMAIN][entry.entry_id]["api"]
     device_info = hass.data[DOMAIN][entry.entry_id]["device_info"]
 
     sensors = [
@@ -49,7 +49,7 @@ class FmdPhotoCountSensor(SensorEntity):
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
-        api: FmdApi,
+        api: FmdClient,
         device_info: dict,
     ) -> None:
         """Initialize the photo count sensor."""

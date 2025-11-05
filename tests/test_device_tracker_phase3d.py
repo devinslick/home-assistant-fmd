@@ -12,7 +12,7 @@ async def test_device_tracker_location_provider_gps_accurate(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker correctly identifies GPS as accurate provider."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -38,7 +38,7 @@ async def test_device_tracker_location_provider_cell_inaccurate(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker correctly identifies cell as inaccurate."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -63,7 +63,7 @@ async def test_device_tracker_location_provider_beacon_inaccurate(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker correctly identifies beacon as inaccurate."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -85,7 +85,7 @@ async def test_device_tracker_location_provider_wifi_accurate(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker with network provider with low accuracy."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -112,7 +112,7 @@ async def test_device_tracker_unknown_provider(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker with unknown location provider."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -135,7 +135,7 @@ async def test_device_tracker_high_frequency_mode_with_location_request(
 ) -> None:
     """Test high-frequency mode requests fresh location from device."""
     mock_fmd_api.create.return_value.request_location.return_value = True
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -165,7 +165,7 @@ async def test_device_tracker_high_frequency_mode_location_request_fails(
 ) -> None:
     """Test high-frequency mode handles location request failure gracefully."""
     mock_fmd_api.create.return_value.request_location.return_value = False
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -197,7 +197,7 @@ async def test_device_tracker_high_frequency_mode_location_request_error(
     mock_fmd_api.create.return_value.request_location.side_effect = Exception(
         "API Error"
     )
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -225,7 +225,7 @@ async def test_device_tracker_multiple_locations_filtering_enabled(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker filters multiple locations when enabled."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.6,
             "lon": -122.5,
@@ -268,7 +268,7 @@ async def test_device_tracker_decrypt_error_in_update(
 
     Platform-level errors should be handled gracefully.
     """
-    mock_fmd_api.create.return_value.get_all_locations.return_value = ["corrupted_blob"]
+    mock_fmd_api.create.return_value.get_locations.return_value = ["corrupted_blob"]
     mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = Exception(
         "Decryption failed"
     )
@@ -285,7 +285,7 @@ async def test_device_tracker_battery_invalid_value(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker handles invalid battery value."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,

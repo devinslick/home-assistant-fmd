@@ -30,7 +30,7 @@ async def test_setup_multiple_entries(
     )
     entry1.add_to_hass(hass)
 
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
+    with patch("custom_components.fmd.__init__.FmdClient", mock_fmd_api):
         # Setup first entry
         assert await hass.config_entries.async_setup(entry1.entry_id)
         await hass.async_block_till_done()
@@ -57,7 +57,7 @@ async def test_unload_entry_with_platforms(
     )
     entry.add_to_hass(hass)
 
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
+    with patch("custom_components.fmd.__init__.FmdClient", mock_fmd_api):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
@@ -90,7 +90,7 @@ async def test_setup_entry_partial_unload(
     )
     entry.add_to_hass(hass)
 
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
+    with patch("custom_components.fmd.__init__.FmdClient", mock_fmd_api):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
@@ -235,7 +235,7 @@ async def test_data_entry_not_ready_retry(
     entry.add_to_hass(hass)
 
     with patch(
-        "custom_components.fmd.__init__.FmdApi.create",
+        "custom_components.fmd.__init__.FmdClient.create",
         side_effect=ConfigEntryNotReady("Server temporarily unavailable"),
     ):
         result = await hass.config_entries.async_setup(entry.entry_id)
@@ -266,7 +266,7 @@ async def test_entry_data_persistence(
     )
     entry.add_to_hass(hass)
 
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
+    with patch("custom_components.fmd.__init__.FmdClient", mock_fmd_api):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 

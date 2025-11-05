@@ -218,14 +218,14 @@ async def test_authenticate_and_get_locations_success(mock_fmd_api: AsyncMock) -
     from custom_components.fmd.config_flow import authenticate_and_get_locations
 
     # Mock FmdApi.create to return our mock instance (it's async, so use AsyncMock)
-    mock_fmd_api.get_all_locations = AsyncMock(
+    mock_fmd_api.get_locations = AsyncMock(
         return_value=[
             {"lat": 37.7749, "lon": -122.4194, "time": "2025-10-24T13:20:00Z"}
         ]
     )
 
     with patch(
-        "custom_components.fmd.config_flow.FmdApi.create", return_value=mock_fmd_api
+        "custom_components.fmd.config_flow.FmdClient.create", return_value=mock_fmd_api
     ):
         locations = await authenticate_and_get_locations(
             "https://fmd.example.com", "test_user", "test_password"
@@ -233,6 +233,4 @@ async def test_authenticate_and_get_locations_success(mock_fmd_api: AsyncMock) -
 
     assert len(locations) == 1
     assert locations[0]["lat"] == 37.7749
-    mock_fmd_api.get_all_locations.assert_called_once_with(
-        num_to_get=1, skip_empty=True
-    )
+    mock_fmd_api.get_locations.assert_called_once_with(1)

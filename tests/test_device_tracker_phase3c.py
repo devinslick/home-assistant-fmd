@@ -11,8 +11,8 @@ async def test_device_tracker_no_location_data(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test device tracker when get_all_locations returns empty list."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = []
+    """Test device tracker when get_locations returns empty list."""
+    mock_fmd_api.create.return_value.get_locations.return_value = []
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -27,7 +27,7 @@ async def test_device_tracker_with_altitude_speed_heading(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker with altitude, speed, and heading data."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -56,7 +56,7 @@ async def test_device_tracker_inaccurate_location_filtering_enabled(
 ) -> None:
     """Test device tracker filters inaccurate locations when enabled."""
     # Return two locations - first inaccurate, second accurate
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -93,7 +93,7 @@ async def test_device_tracker_zero_accuracy(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker handles zero accuracy gracefully."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -120,7 +120,7 @@ async def test_device_tracker_negative_battery(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker with unusual battery percentage."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -146,7 +146,7 @@ async def test_device_tracker_very_high_battery(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker with maximum battery percentage."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -167,19 +167,17 @@ async def test_device_tracker_very_high_battery(
     assert state.attributes.get("battery_level") == 100
 
 
-async def test_device_tracker_get_all_locations_api_error(
+async def test_device_tracker_get_locations_api_error(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test device tracker when get_all_locations raises exception.
+    """Test device tracker when get_locations raises exception.
 
     Platform-level errors should be handled gracefully.
     """
     from homeassistant.components.device_tracker import SourceType
 
-    mock_fmd_api.create.return_value.get_all_locations.side_effect = Exception(
-        "API Error"
-    )
+    mock_fmd_api.create.return_value.get_locations.side_effect = Exception("API Error")
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -194,7 +192,7 @@ async def test_device_tracker_missing_optional_fields(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker with missing optional location fields."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -258,7 +256,7 @@ async def test_device_tracker_timestamp_parsing(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker parses various timestamp formats."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,

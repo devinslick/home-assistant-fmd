@@ -30,7 +30,7 @@ async def test_device_tracker_location_update(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker updates location."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -142,7 +142,7 @@ async def test_device_tracker_location_filtering(
     }
 
     # Mock returns "encrypted" blobs (we'll mock decrypt to handle both)
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         "encrypted_beacondb_blob",
         "encrypted_gps_blob",
     ]
@@ -193,11 +193,11 @@ async def test_device_tracker_setup_initial_location_fetch_failure(
     config_entry.add_to_hass(hass)
 
     # Mock the API to fail on location fetch
-    mock_fmd_api.create.return_value.get_all_locations.side_effect = Exception(
+    mock_fmd_api.create.return_value.get_locations.side_effect = Exception(
         "Server unreachable"
     )
 
-    with patch("custom_components.fmd.__init__.FmdApi", mock_fmd_api):
+    with patch("custom_components.fmd.FmdClient.create", mock_fmd_api.create):
         result = await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
 
@@ -220,7 +220,7 @@ async def test_device_tracker_no_location_data(
     await setup_integration(hass, mock_fmd_api)
 
     # Update to empty locations
-    mock_fmd_api.create.return_value.get_all_locations.return_value = []
+    mock_fmd_api.create.return_value.get_locations.return_value = []
 
     # Trigger a manual update by calling the tracker's async_update method
     tracker = hass.data[DOMAIN][list(hass.data[DOMAIN].keys())[0]]["tracker"]
@@ -238,7 +238,7 @@ async def test_device_tracker_missing_attributes(
 ) -> None:
     """Test device tracker handles missing optional location attributes."""
     # Location with only required fields
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -261,7 +261,7 @@ async def test_device_tracker_with_altitude_speed_heading(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker includes altitude, speed, and heading when available."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -295,7 +295,7 @@ async def test_device_tracker_inaccurate_location_filtering_enabled(
 ) -> None:
     """Test inaccurate location filtering blocks low-accuracy providers."""
     # First set up with accurate location
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -314,7 +314,7 @@ async def test_device_tracker_inaccurate_location_filtering_enabled(
 
     # Now test that inaccurate provider (beacondb with high inaccuracy) is filtered
     # Update to inaccurate location only
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 40.0,
             "lon": -120.0,
@@ -342,8 +342,8 @@ async def test_device_tracker_zero_accuracy(
 ) -> None:
     """Test device tracker handles zero accuracy value."""
     # Start fresh with zero accuracy from the beginning
-    mock_fmd_api.create.return_value.get_all_locations.reset_mock()
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.reset_mock()
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -366,7 +366,7 @@ async def test_device_tracker_with_date_timestamp(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker includes date timestamp when available."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -391,7 +391,7 @@ async def test_device_tracker_battery_level_invalid(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker handles invalid battery value gracefully."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,
@@ -415,7 +415,7 @@ async def test_device_tracker_imperial_altitude_speed(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker with altitude and speed attributes."""
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         {
             "lat": 37.7749,
             "lon": -122.4194,

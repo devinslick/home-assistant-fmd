@@ -16,7 +16,7 @@ This Integration:
 """
 from __future__ import annotations
 
-from fmd_api import FmdApi
+from fmd_api import FmdClient
 from homeassistant.config_entries import ConfigEntry, ConfigEntryNotReady
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -44,8 +44,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {}
 
     try:
-        # Create API instance and device info that all platforms can use
-        api = await FmdApi.create(
+        # Create API client instance and device info that all platforms can use
+        api = await FmdClient.create(
             entry.data["url"], entry.data["id"], entry.data["password"]
         )
     except Exception as err:

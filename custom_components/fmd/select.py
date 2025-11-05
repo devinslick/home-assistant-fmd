@@ -134,10 +134,10 @@ class FmdBluetoothSelect(SelectEntity):
 
         try:
             if option == "Enable Bluetooth":
-                await tracker.api.toggle_bluetooth(True)
+                await tracker.api.set_bluetooth(True)
                 _LOGGER.info("Sent Bluetooth enable command to device")
             elif option == "Disable Bluetooth":
-                await tracker.api.toggle_bluetooth(False)
+                await tracker.api.set_bluetooth(False)
                 _LOGGER.info("Sent Bluetooth disable command to device")
 
             # Update state to show selection temporarily
@@ -198,10 +198,10 @@ class FmdDoNotDisturbSelect(SelectEntity):
 
         try:
             if option == "Enable Do Not Disturb":
-                await tracker.api.toggle_do_not_disturb(True)
+                await tracker.api.set_do_not_disturb(True)
                 _LOGGER.info("Sent DND enable command to device")
             elif option == "Disable Do Not Disturb":
-                await tracker.api.toggle_do_not_disturb(False)
+                await tracker.api.set_do_not_disturb(False)
                 _LOGGER.info("Sent DND disable command to device")
 
             # Update state to show selection temporarily

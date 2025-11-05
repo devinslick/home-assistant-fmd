@@ -5,7 +5,7 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from fmd_api import FmdApi
+from fmd_api import FmdClient
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 
@@ -18,8 +18,9 @@ async def authenticate_and_get_locations(
     url: str, fmd_id: str, password: str
 ) -> list[dict[str, Any]]:
     """Create FMD API instance and validate connection."""
-    api = await FmdApi.create(url, fmd_id, password)
-    locations = await api.get_all_locations(num_to_get=1, skip_empty=True)
+    api = await FmdClient.create(url, fmd_id, password)
+    locations = await api.get_locations(1)
+    locations = [loc for loc in locations if loc]
     return locations
 
 

@@ -75,7 +75,7 @@ async def test_bluetooth_select(
         blocking=True,
     )
 
-    mock_fmd_api.create.return_value.toggle_bluetooth.assert_called_once_with(True)
+    mock_fmd_api.create.return_value.set_bluetooth.assert_called_once_with(True)
 
 
 async def test_dnd_select(
@@ -97,7 +97,7 @@ async def test_dnd_select(
         blocking=True,
     )
 
-    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_called_once_with(True)
+    mock_fmd_api.create.return_value.set_do_not_disturb.assert_called_once_with(True)
 
 
 async def test_ringer_mode_select(
@@ -243,7 +243,7 @@ async def test_bluetooth_command_api_error(
     await setup_integration(hass, mock_fmd_api)
 
     # Make API raise an error
-    mock_fmd_api.create.return_value.toggle_bluetooth.side_effect = RuntimeError(
+    mock_fmd_api.create.return_value.set_bluetooth.side_effect = RuntimeError(
         "API error"
     )
 
@@ -270,7 +270,7 @@ async def test_dnd_command_api_error(
     await setup_integration(hass, mock_fmd_api)
 
     # Make API raise an error
-    mock_fmd_api.create.return_value.toggle_do_not_disturb.side_effect = RuntimeError(
+    mock_fmd_api.create.return_value.set_do_not_disturb.side_effect = RuntimeError(
         "API error"
     )
 

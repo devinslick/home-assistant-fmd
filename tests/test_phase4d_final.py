@@ -67,7 +67,7 @@ async def test_select_dnd_placeholder(
     await hass.async_block_till_done()
 
     # Should return early without calling API
-    mock_fmd_api.create.return_value.toggle_do_not_disturb.assert_not_called()
+    mock_fmd_api.create.return_value.set_do_not_disturb.assert_not_called()
 
 
 async def test_select_ringer_tracker_not_found(
@@ -156,13 +156,13 @@ async def test_switch_wipe_safety_cancelled_error_handling(
 async def test_device_tracker_config_entry_not_ready(
     hass: HomeAssistant,
 ) -> None:
-    """Test ConfigEntryNotReady on FmdApi.create failure (covers __init__.py)."""
+    """Test ConfigEntryNotReady on FmdClient.create failure (covers __init__.py)."""
     from unittest.mock import patch
 
     from homeassistant.config_entries import ConfigEntryState
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    # Mock FmdApi.create to raise an exception
+    # Mock FmdClient.create to raise an exception
     async def mock_create_error(*args, **kwargs):
         raise Exception("Network timeout")
 
@@ -178,8 +178,8 @@ async def test_device_tracker_config_entry_not_ready(
     )
     entry.add_to_hass(hass)
 
-    # Mock FmdApi.create to fail during connection
-    with patch("custom_components.fmd.FmdApi.create", side_effect=mock_create_error):
+    # Mock FmdClient.create to fail during connection
+    with patch("custom_components.fmd.FmdClient.create", side_effect=mock_create_error):
         result = await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
@@ -303,8 +303,8 @@ async def test_device_tracker_empty_blob_warning(
     entry_id = list(hass.data[DOMAIN].keys())[0]
     device_tracker = hass.data[DOMAIN][entry_id]["tracker"]
 
-    # Mock get_all_locations to return a mix of valid and empty blobs
-    mock_fmd_api.create.return_value.get_all_locations.return_value = [
+    # Mock get_locations to return a mix of valid and empty blobs
+    mock_fmd_api.create.return_value.get_locations.return_value = [
         b"valid_encrypted_data_here",
         b"",  # Empty blob - should trigger warning on line 404
         None,  # Also empty - should trigger continue path
@@ -320,7 +320,7 @@ async def test_device_tracker_empty_blob_warning(
         # Empty blobs won't reach decrypt
     ]
 
-    # Call async_update which calls get_all_locations
+    # Call async_update which calls get_locations
     await device_tracker.async_update()
 
     # Should have processed only the 1 valid location (2 empty ones skipped)

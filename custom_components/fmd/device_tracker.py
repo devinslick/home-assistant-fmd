@@ -4,9 +4,11 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fmd_api import FmdApi
+if TYPE_CHECKING:
+    from fmd_api import FmdClient
+
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
 from homeassistant.components.device_tracker.const import SourceType
 from homeassistant.config_entries import ConfigEntry
@@ -92,7 +94,7 @@ class FmdDeviceTracker(TrackerEntity):
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
-        api: FmdApi,
+        api: FmdClient,
         polling_interval: int,
         block_inaccurate: bool,
         use_imperial: bool,
@@ -379,9 +381,7 @@ class FmdDeviceTracker(TrackerEntity):
                 num_locations_to_check,
                 "enabled" if self._block_inaccurate else "disabled",
             )
-            location_blobs = await self.api.get_all_locations(
-                num_to_get=num_locations_to_check, skip_empty=True
-            )
+            location_blobs = await self.api.get_locations(num_locations_to_check)
             _LOGGER.info(f"=== Received {len(location_blobs)} location blob(s) ===")
             _LOGGER.debug(
                 "Received %d location blobs",
