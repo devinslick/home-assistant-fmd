@@ -7,6 +7,10 @@ pytest-homeassistant-custom-component>=0.13.0
 # Use a slightly older HA version that might have better wheel support
 homeassistant>=2024.1.0,<2024.11.0
 
+# Fix josepy/acme incompatibility
+josepy<1.15.0
+acme<3.0.0
+
 # Integration dependencies
 fmd-api==2.0.1
 Pillow>=10.0.0
