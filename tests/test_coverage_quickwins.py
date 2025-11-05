@@ -9,49 +9,8 @@ import base64
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
-import pytest
+from conftest import setup_integration
 from homeassistant.core import HomeAssistant
-
-
-@pytest.fixture
-def mock_fmd_api():
-    """Mock FmdClient API."""
-    with patch("custom_components.fmd.FmdClient") as mock:
-        api_instance = AsyncMock()
-        api_instance.get_locations = AsyncMock(return_value=[])
-        api_instance.get_pictures = AsyncMock(return_value=[])
-        api_instance.send_command = AsyncMock()
-        api_instance.request_location = AsyncMock()
-        api_instance.set_bluetooth = AsyncMock()
-        api_instance.set_do_not_disturb = AsyncMock()
-        api_instance.set_ringer_mode = AsyncMock()
-        mock.create = AsyncMock(return_value=api_instance)
-        yield mock
-
-
-async def setup_integration(hass: HomeAssistant, mock_api: AsyncMock):
-    """Set up the FMD integration with mocked API."""
-    from homeassistant.setup import async_setup_component
-
-    # Mock the FmdClient in the integration's __init__.py
-    with patch("custom_components.fmd.FmdClient", mock_api):
-        result = await async_setup_component(
-            hass,
-            "fmd",
-            {
-                "fmd": {
-                    "url": "https://test.fmd.server",
-                    "id": "test-user",
-                    "password": "test-password",
-                    "update_interval": 15,
-                    "allow_inaccurate": False,
-                    "use_imperial": False,
-                }
-            },
-        )
-        await hass.async_block_till_done()
-        assert result
-
 
 # =============================================================================
 # button.py Error Path Tests (Target: 12+ lines)
@@ -252,10 +211,11 @@ async def test_device_tracker_empty_locations(
     await setup_integration(hass, mock_fmd_api)
     await hass.async_block_till_done()
 
-    # Tracker should be created but show unknown state
+    # Tracker should be created but show unknown/unavailable state
     state = hass.states.get("device_tracker.fmd_test_user")
-    # State might be 'unknown' or 'unavailable' depending on implementation
     assert state is not None
+    # State is "unknown" or "unavailable" when no location data
+    assert state.state in ("unknown", "unavailable")
 
 
 async def test_device_tracker_decryption_failure(
@@ -263,7 +223,7 @@ async def test_device_tracker_decryption_failure(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test device tracker when location decryption fails."""
-    # Return a location with corrupt blob
+    # Return a location with data/key that will need decryption
     mock_location = {
         "date": 1234567890000,
         "bat": 75,
@@ -272,18 +232,17 @@ async def test_device_tracker_decryption_failure(
     }
     mock_fmd_api.create.return_value.get_locations.return_value = [mock_location]
 
-    # Mock decrypt_data_blob to raise exception
-    with patch(
-        "custom_components.fmd.device_tracker.decrypt_data_blob"
-    ) as mock_decrypt:
-        mock_decrypt.side_effect = Exception("Decryption failed")
+    # Mock decrypt_data_blob on the API instance to raise exception
+    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = Exception(
+        "Decryption failed"
+    )
 
-        await setup_integration(hass, mock_fmd_api)
-        await hass.async_block_till_done()
+    await setup_integration(hass, mock_fmd_api)
+    await hass.async_block_till_done()
 
-        # Should handle error gracefully
-        state = hass.states.get("device_tracker.fmd_test_user")
-        assert state is not None
+    # Should handle error gracefully
+    state = hass.states.get("device_tracker.fmd_test_user")
+    assert state is not None
 
 
 # =============================================================================
