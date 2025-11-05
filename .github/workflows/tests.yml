@@ -31,7 +31,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements_test.txt
+          pip install -r requirements_test.txt \
+            -c https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/package_constraints.txt
 
       - name: Add custom_components to Python path
         run: |
