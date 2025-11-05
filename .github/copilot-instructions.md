@@ -8,7 +8,7 @@
 ## Key Architectural Patterns
 - **Entity-Driven:** Each device is represented by a set of Home Assistant entities (see README for full list and entity ID conventions).
 - **Async/Await:** All I/O and Home Assistant API calls are async; use `async def` and `await` for all entity methods and setup.
-- **API Abstraction:** All FMD server communication is abstracted via the `FmdApi` class (mocked in tests).
+- **API Abstraction:** All FMD server communication is abstracted via the `FmdClient` class (mocked in tests).
 - **Config Flow:** User configuration is handled via Home Assistant's config flow system (`config_flow.py`).
 - **Media Handling:** Photos are downloaded, decrypted, and stored in `/media/fmd/<device-id>/` or `/config/media/fmd/<device-id>/` with EXIF timestamp extraction.
 - **Safety Mechanisms:** Destructive actions (e.g., device wipe) require a safety switch and are logged with CRITICAL severity.
@@ -48,7 +48,7 @@
 
 ## Examples
 - To add a new entity, subclass the appropriate Home Assistant entity class and register in `async_setup_entry`.
-- To test a new API command, add a method to the `FmdApi` mock in `conftest.py` and write a test in `tests/`.
+- To test a new API command, add a method to the `FmdClient` mock in `conftest.py` and write a test in `tests/`.
 - To update photo handling, adjust EXIF logic in `button.py` and update tests to patch `Image.open`.
 
 ---

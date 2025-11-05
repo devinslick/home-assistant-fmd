@@ -55,7 +55,7 @@ def _windows_selector_event_loop_policy():
 
 @pytest.fixture
 def mock_fmd_api():
-    """Mock FmdApi for testing."""
+    """Mock FmdClient for testing."""
     api_instance = AsyncMock()
 
     # Mock async methods - these should match the actual fmd-api v2 methods
