@@ -52,10 +52,10 @@ Before installing this integration, you need:
 
 ### Required:
 1. ✅ **Home Assistant** (2023.1 or newer recommended)
-2. ✅ **FMD Server** (v012.0 or compatible)
+2. ✅ **FMD Server** (v012.0 recommended)
    - Self-hosted or hosted instance
-   - HTTPS recommended (not HTTP)
-   - Network accessible from Home Assistant
+   - TLS certificate - HTTPS is required, not just HTTP
+   - FMD server must be  accessible from Home Assistant
    - **Compatibility**: This integration is designed to maintain compatibility with fmd-server and has been tested with versions 0.11.0 and 0.12.0. It will seek to maintain compatibility with the latest versions of fmd-server but cannot guarantee backwards compatibility.
 3. ✅ **Android Device** with FMD app installed
    - Android 8.0 or newer
@@ -72,8 +72,8 @@ Before installing this integration, you need:
 - **Photos**: Camera permissions granted to FMD app
 
 ### Not Required:
-- ❌ FMD web interface (integration connects directly to API)
-- ❌ Public IP address (works on local network)
+- ❌ User access to the FMD server - this integration connects directly to the FMD API
+- ❌ Public IP address (works on your local network if you are self-hosting FMD)
 - ❌ Cloud services (fully self-hosted)
 
 ## Installation
@@ -81,11 +81,14 @@ Before installing this integration, you need:
 ### HACS Installation (Recommended)
 
 1.  Open HACS in Home Assistant
-2.  Click on "Integrations"
-3.  Click the "+" button
-4.  Search for "FMD" or "Find My Device"
-5.  Click "Download"
-6.  Restart Home Assistant
+2.  Click the three dots in the top right corner and select **Custom repositories**
+3.  Add this repository URL: `https://github.com/devinslick/home-assistant-fmd`
+4.  Select **Integration** as the category
+5.  Click **Add**
+6.  Click the "+" button in HACS
+7.  Search for "FMD" or "Find My Device"
+8.  Click "Download"
+9.  Restart Home Assistant
 
 ### Manual Installation
 
@@ -966,6 +969,65 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Version History
 
+### v0.9.9 - November 4, 2025
+**🚀 MAJOR REWRITE: fmd-api v2.0.1 Migration**
+
+This is a **major architectural overhaul** that completely modernizes the integration's communication with FMD servers. While not labeled v1.0.0, this release represents the most significant internal change since the project's inception.
+
+**⚠️ Important:** This is a beta release. Version 1.0.0 will be released after community testing and any necessary fixes.
+
+**Breaking Changes:**
+- 🔧 **Complete API rewrite** - Migrated from `fmd-api v1.x` to `fmd-api v2.0.1`
+  - All FMD server communication now uses the new `FmdClient` class
+  - Improved async/await patterns throughout
+  - Enhanced error handling and connection management
+- 📦 **Updated dependencies** - Now requires `fmd-api==2.0.1`
+- 🔄 **Config flow improvements** - Added reauthentication flow support
+- ⚙️ **State persistence** - All configuration entities (numbers, switches, selects) now properly restore state across restarts
+- 🧪 **Test infrastructure overhaul** - Full test suite rewritten for new API patterns
+
+**New Features:**
+- ✅ **Reauthentication flow** - Update credentials without removing/re-adding integration
+- ✅ **Persistent settings** - Entity configurations survive Home Assistant restarts
+- ✅ **Improved location updates** - High-frequency mode now more reliable with better request handling
+- ✅ **Better error handling** - ConfigEntryNotReady for graceful service outage handling
+
+**Under the Hood:**
+- 🏗️ **Modern API patterns** - `FmdClient.create()` factory method for async initialization
+- 🔐 **Enhanced security** - Improved encryption and decryption handling via executor
+- 📊 **Type safety** - Comprehensive type hints with TYPE_CHECKING guards
+- 🧪 **Test coverage** - Maintained ~94% coverage with all 193 tests passing
+- 🔧 **CI/CD improvements** - Resolved dependency conflicts (josepy/acme, aiohttp)
+- 📝 **Code quality** - Removed migration comments, unified type hints, strict imports
+
+**Migration Guide:**
+1. Backup your configuration (Settings → System → Backups)
+2. Update the integration via HACS
+3. Restart Home Assistant
+4. Verify all entities are working correctly
+5. If you experience authentication errors, use the new reauthentication flow:
+   - Go to Settings → Devices & Services → FMD
+   - Click the three dots → Reconfigure
+   - Enter your credentials again
+
+**Known Issues:**
+- None currently - please report any issues on GitHub!
+
+**What's Next:**
+- 📋 Community testing and feedback period
+- 🐛 Bug fixes based on real-world usage
+- 🎯 Version 1.0.0 release with stability improvements
+
+**Technical Details:**
+- All code strictly imports `FmdClient` (no fallback imports)
+- Tests updated to mock `FmdClient` instead of legacy `FmdApi`
+- Photo downloads use executor for decryption (non-blocking)
+- Location polling respects configured intervals and sources
+- Total entities: **20 per device**
+
+**Credits:**
+- Huge thanks to the FMD-FOSS team for the excellent FMD ecosystem
+- Special thanks to beta testers and contributors
 
 ### v0.9.8 - October 26, 2025
 **Test entity state restore**
@@ -984,7 +1046,7 @@ To be included in Home Assistant Core, the following items must be completed:
 - ✅ Initial work on reauthentication flow
 - Total entities: **20 per device**
 
-### v0.9.5 (Current) - October 24, 2025
+### v0.9.5 - October 24, 2025
 **Graceful Error Handling & Linting**
 - ✅ Added ConfigEntryNotReady exception for graceful handling of temporary service outages
 - ✅ Fixed pre-commit pipeline with dynamic Python version support
