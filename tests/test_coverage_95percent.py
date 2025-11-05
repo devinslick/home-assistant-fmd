@@ -11,6 +11,39 @@ from unittest.mock import AsyncMock, patch
 from conftest import setup_integration
 from homeassistant.core import HomeAssistant
 
+###############################################################################
+# FINAL: Config Entry Unload/Cleanup Test (should run last)
+###############################################################################
+
+
+async def test_config_entry_unload_cleans_up_entities_and_data(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test unloading a config entry cleans up entities and hass.data."""
+    await setup_integration(hass, mock_fmd_api)
+
+    entry = hass.config_entries.async_entries("fmd")[0]
+    entry_id = entry.entry_id
+
+    # Confirm entities exist before unload
+    assert hass.states.get("switch.fmd_test_user_photo_auto_cleanup") is not None
+    assert hass.states.get("sensor.fmd_test_user_photo_count") is not None
+    assert "fmd" in hass.data and entry_id in hass.data["fmd"]
+
+    # Unload the config entry
+    result = await hass.config_entries.async_unload(entry_id)
+    await hass.async_block_till_done()
+    assert result is True
+
+    # Entities should be removed
+    assert hass.states.get("switch.fmd_test_user_photo_auto_cleanup") is None
+    assert hass.states.get("sensor.fmd_test_user_photo_count") is None
+
+    # hass.data for this entry should be cleaned up
+    assert entry_id not in hass.data["fmd"]
+
+
 # =============================================================================
 # sensor.py Coverage Tests
 # =============================================================================
@@ -64,6 +97,148 @@ async def test_photo_sensor_invalid_datetime_restoration(
 # =============================================================================
 # switch.py Coverage Tests
 # =============================================================================
+
+
+async def test_photo_auto_cleanup_switch_toggle_and_persistence(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test toggling photo auto-cleanup switch and persistence."""
+    await setup_integration(hass, mock_fmd_api)
+
+    entity_id = "switch.fmd_test_user_photo_auto_cleanup"
+    # Turn on
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get(entity_id)
+    assert state.state == "on"
+
+    # Turn off
+    await hass.services.async_call(
+        "switch",
+        "turn_off",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get(entity_id)
+    assert state.state == "off"
+
+    # Check persistence in config entry
+    entry = hass.config_entries.async_entries("fmd")[0]
+    assert entry.data["photo_auto_cleanup_is_on"] is False
+
+
+async def test_high_frequency_mode_switch_toggle_and_tracker_missing(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test toggling high-frequency mode switch and error when tracker missing."""
+    await setup_integration(hass, mock_fmd_api)
+
+    entity_id = "switch.fmd_test_user_high_frequency_mode"
+    # Turn on
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get(entity_id)
+    assert state.state == "on"
+
+    # Remove tracker and turn off (should log error, not raise)
+    hass.data["fmd"]["test_entry_id"].pop("tracker", None)
+    await hass.services.async_call(
+        "switch",
+        "turn_off",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get(entity_id)
+    assert state.state == "off"
+
+
+async def test_allow_inaccurate_location_switch_toggle_and_tracker_missing(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test toggling allow inaccurate location switch and tracker missing error path."""
+    await setup_integration(hass, mock_fmd_api)
+
+    entity_id = "switch.fmd_test_user_location_allow_inaccurate"
+    # Turn on
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get(entity_id)
+    assert state.state == "on"
+
+    # Remove tracker and turn off (should log error, not raise)
+    hass.data["fmd"]["test_entry_id"].pop("tracker", None)
+    await hass.services.async_call(
+        "switch",
+        "turn_off",
+        {"entity_id": entity_id},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get(entity_id)
+    assert state.state == "off"
+
+
+# =============================================================================
+# Additional Coverage Tests
+# =============================================================================
+
+
+async def test_device_tracker_polling_interval_switch(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test switching between normal and high-frequency polling intervals."""
+    await setup_integration(hass, mock_fmd_api)
+
+    tracker = hass.data["fmd"]["test_entry_id"]["tracker"]
+    # Initial interval should be normal
+    assert tracker.polling_interval == tracker._normal_interval
+
+    # Set high-frequency interval and enable high-frequency mode
+    tracker.set_high_frequency_interval(1)
+    await tracker.set_high_frequency_mode(True)
+    assert tracker.polling_interval == 1
+
+    # Disable high-frequency mode, should revert to normal
+    await tracker.set_high_frequency_mode(False)
+    assert tracker.polling_interval == tracker._normal_interval
+
+
+async def test_sensor_update_media_folder_count_error_handling(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test sensor error handling in _update_media_folder_count."""
+    await setup_integration(hass, mock_fmd_api)
+
+    sensor = hass.data["fmd"]["test_entry_id"]["photo_count_sensor"]
+
+    # Patch Path.exists to raise an exception
+    from unittest.mock import patch
+
+    with patch("pathlib.Path.exists", side_effect=Exception("fail")):
+        sensor._update_media_folder_count()
+        assert sensor._photos_in_media_folder == 0
 
 
 async def test_device_wipe_safety_cancel_auto_disable(
