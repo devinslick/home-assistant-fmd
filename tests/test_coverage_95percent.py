@@ -77,7 +77,7 @@ async def test_device_wipe_safety_cancel_auto_disable(
     await hass.services.async_call(
         "switch",
         "turn_on",
-        {"entity_id": "switch.fmd_test_user_device_wipe_safety"},
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
         blocking=True,
     )
     await hass.async_block_till_done()
@@ -91,7 +91,7 @@ async def test_device_wipe_safety_cancel_auto_disable(
     await hass.services.async_call(
         "switch",
         "turn_off",
-        {"entity_id": "switch.fmd_test_user_device_wipe_safety"},
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
         blocking=True,
     )
     await hass.async_block_till_done()
@@ -111,7 +111,7 @@ async def test_device_wipe_safety_auto_disable_cancelled(
     await hass.services.async_call(
         "switch",
         "turn_on",
-        {"entity_id": "switch.fmd_test_user_device_wipe_safety"},
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
         blocking=True,
     )
     await hass.async_block_till_done()
@@ -129,7 +129,7 @@ async def test_device_wipe_safety_auto_disable_cancelled(
         pass  # Expected
 
     # Switch should still be on (task was cancelled before timeout)
-    state = hass.states.get("switch.fmd_test_user_device_wipe_safety")
+    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
     assert state.state == "on"
 
 
@@ -143,18 +143,35 @@ async def test_location_source_invalid_option_fallback(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test location source returns 'all' for invalid/unmapped options."""
-    await setup_integration(hass, mock_fmd_api)
+    # Unit-style test of the mapping logic via the public method
+    from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    # Get the location source select entity
-    location_source = hass.data["fmd"]["test_entry_id"]["location_source_select"]
+    from custom_components.fmd.const import DOMAIN
+    from custom_components.fmd.select import FmdLocationSourceSelect
 
-    # Manually set an invalid option to test fallback
+    # Minimal config entry for constructing the entity
+    config_entry = MockConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="test_user",
+        data={
+            CONF_URL: "https://fmd.example.com",
+            CONF_ID: "test_user",
+            CONF_PASSWORD: "test_password",
+        },
+        entry_id="test_entry_id",
+        unique_id="test_user",
+    )
+    config_entry.add_to_hass(hass)
+
+    # Instantiate select and set an invalid option
+    location_source = FmdLocationSourceSelect(hass, config_entry)
     location_source._attr_current_option = "Invalid Option Not In Map"
 
-    # Call the method that uses provider_map.get() with fallback
-    provider = location_source._get_provider_from_option()
-
-    # Should fallback to "all"
+    # Public API should fallback to "all"
+    provider = location_source.get_provider_value()
     assert provider == "all"
 
 
@@ -173,7 +190,7 @@ async def test_bluetooth_select_tracker_not_found(
         "select",
         "select_option",
         {
-            "entity_id": "select.fmd_test_user_bluetooth_command",
+            "entity_id": "select.fmd_test_user_bluetooth",
             "option": "Enable Bluetooth",
         },
         blocking=True,
@@ -198,7 +215,7 @@ async def test_ringer_mode_select_tracker_not_found(
         "select",
         "select_option",
         {
-            "entity_id": "select.fmd_test_user_ringer_mode_command",
+            "entity_id": "select.fmd_test_user_volume_ringer_mode",
             "option": "Normal (Sound + Vibrate)",
         },
         blocking=True,
@@ -223,7 +240,7 @@ async def test_dnd_select_tracker_not_found(
         "select",
         "select_option",
         {
-            "entity_id": "select.fmd_test_user_do_not_disturb_command",
+            "entity_id": "select.fmd_test_user_volume_do_not_disturb",
             "option": "Enable Do Not Disturb",
         },
         blocking=True,
