@@ -7,10 +7,7 @@ from typing import Any
 import voluptuous as vol
 
 # Prefer v2 client; fall back to v1 name for CI or environments with older fmd_api
-try:
-    from fmd_api import FmdClient  # type: ignore
-except Exception:  # pragma: no cover - fallback for older environments only
-    from fmd_api import FmdApi as FmdClient  # type: ignore
+from fmd_api import FmdClient
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 
