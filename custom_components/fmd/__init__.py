@@ -16,7 +16,11 @@ This Integration:
 """
 from __future__ import annotations
 
-from fmd_api import FmdClient
+# Prefer v2 client; fall back to v1 name for CI or environments with older fmd_api
+try:
+    from fmd_api import FmdClient  # type: ignore
+except Exception:  # pragma: no cover - fallback for older environments only
+    from fmd_api import FmdApi as FmdClient  # type: ignore
 from homeassistant.config_entries import ConfigEntry, ConfigEntryNotReady
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant

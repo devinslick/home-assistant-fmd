@@ -11,6 +11,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 10
     strategy:
       matrix:
@@ -21,17 +24,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install pytest>=7.3.1 pytest-asyncio>=0.20.3 pytest-cov>=3.0.0
-          pip install pytest-homeassistant-custom-component>=0.13.200
-          pip install fmd-api==0.1.0
-          pip install Pillow>=10.0.0
+          pip install -r requirements_test.txt
 
       - name: Add custom_components to Python path
         run: |
@@ -46,10 +46,12 @@ jobs:
         run: |
           pytest --cov=custom_components.fmd --cov-report=xml --cov-report=term-missing
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          file: ./coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          slug: devinslick/home-assistant-fmd
           flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
+          name: codecov-coverage
+          fail_ci_if_error: true
