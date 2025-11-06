@@ -926,15 +926,15 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
     original_exists = RealPath.exists
     original_is_dir = RealPath.is_dir
 
-    def exists_side_effect(self):
-        if str(self) == "/media":
+    def exists_side_effect(path_self):
+        if str(path_self) == "/media":
             return False
-        return original_exists(self)
+        return original_exists(path_self)
 
-    def is_dir_side_effect(self):
-        if str(self) == "/media":
+    def is_dir_side_effect(path_self):
+        if str(path_self) == "/media":
             return False
-        return original_is_dir(self)
+        return original_is_dir(path_self)
 
     with patch("pathlib.Path.exists", side_effect=exists_side_effect), patch(
         "pathlib.Path.is_dir", side_effect=is_dir_side_effect
