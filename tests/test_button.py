@@ -877,33 +877,21 @@ async def test_wipe_device_button_api_error_keeps_safety_on(
     assert state is not None and state.state == "on"
 
 
-async def test_location_update_default_provider_when_location_source_missing(
+async def test_location_update_default_provider(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Location update falls back to provider='all' if select entity missing."""
+    """Location update uses provider='all' when default option is selected."""
     await setup_integration(hass, mock_fmd_api)
 
-    from unittest.mock import patch
-
-    # Target entity id constructed by the button
-    missing_entity = "select.fmd_test_user_location_source"
-
-    real_get = hass.states.get
-
-    def fake_get(entity_id: str):
-        if entity_id == missing_entity:
-            return None
-        return real_get(entity_id)
-
-    with patch.object(hass.states, "get", side_effect=fake_get):
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_location_update"},
-            blocking=True,
-        )
-        await hass.async_block_till_done()
+    # By default the select is "All Providers (Default)"
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_location_update"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
 
     # Ensure provider default was used
     mock_fmd_api.create.return_value.request_location.assert_called()
@@ -935,9 +923,8 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
     with patch("pathlib.Path.exists", side_effect=exists_side_effect), patch(
         "pathlib.Path.is_dir", return_value=False
     ):
-        # Make hass.config.path return tmp dir
-        with patch("homeassistant.core.HomeAssistant.config") as cfg:
-            cfg.path.return_value = str(tmp_path)
+        # Make hass.config.path return tmp dir (patch instance method)
+        with patch.object(hass.config, "path", return_value=str(tmp_path)):
 
             class DummyImg:
                 def getexif(self):

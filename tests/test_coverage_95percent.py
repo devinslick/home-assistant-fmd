@@ -633,20 +633,27 @@ async def test_wipe_safety_switch_auto_disables_after_timeout(
     """Patch timeout to zero and verify auto-disable executes and turns switch off."""
     await setup_integration(hass, mock_fmd_api)
 
-    with patch("custom_components.fmd.switch.WIPE_SAFETY_TIMEOUT", 0):
-        with patch("asyncio.sleep", new=AsyncMock()):
-            # Turn on
-            await hass.services.async_call(
-                "switch",
-                "turn_on",
-                {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
-                blocking=True,
-            )
-            await hass.async_block_till_done()
+    with patch("custom_components.fmd.switch.WIPE_SAFETY_TIMEOUT", 0), patch(
+        "asyncio.sleep", new=AsyncMock()
+    ):
+        # Turn on
+        await hass.services.async_call(
+            "switch",
+            "turn_on",
+            {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
 
-            # Let auto-disable run
-            await hass.async_block_till_done()
+        # Await the auto-disable task to completion
+        switch = hass.data["fmd"]["test_entry_id"]["wipe_safety_switch"]
+        if switch._auto_disable_task:
+            try:
+                await switch._auto_disable_task
+            except Exception:
+                pass
 
+    # After auto-disable, state should be off
     state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
     assert state is not None and state.state == "off"
 
@@ -669,9 +676,7 @@ async def test_download_photos_exif_timestamp_filename(
     ).decode()
 
     # Patch media base to a temporary directory
-    with patch("homeassistant.core.HomeAssistant.config") as cfg:
-        cfg.path.return_value = str(tmp_path)
-
+    with patch.object(hass.config, "path", return_value=str(tmp_path)):
         # Patch PIL Image.open to yield EXIF DateTimeOriginal
         class DummyImg:
             def getexif(self):
@@ -711,8 +716,7 @@ async def test_download_photos_duplicate_skip(
     mock_fmd_api.create.return_value.decrypt_data_blob.return_value = decrypted
 
     # Use tmp media path and no EXIF
-    with patch("homeassistant.core.HomeAssistant.config") as cfg:
-        cfg.path.return_value = str(tmp_path)
+    with patch.object(hass.config, "path", return_value=str(tmp_path)):
         with patch("PIL.Image.open", side_effect=Exception("no exif")):
             await setup_integration(hass, mock_fmd_api)
 
