@@ -684,30 +684,22 @@ async def test_download_photos_exif_timestamp_filename(
     # Setup integration first
     await setup_integration(hass, mock_fmd_api)
 
-    # Force using config/media by making /media appear missing
-    # But let real paths in tmp_path work normally
+    # Force using config/media by making /media path construction return a fake path
+    # that doesn't exist, so the code falls back to hass.config.path("media")
     from pathlib import Path as RealPath
 
-    original_exists = RealPath.exists
-    original_is_dir = RealPath.is_dir
-
-    def exists_side_effect(path_self):
-        if str(path_self) == "/media":
-            return False
-        return original_exists(path_self)
-
-    def is_dir_side_effect(path_self):
-        if str(path_self) == "/media":
-            return False
-        return original_is_dir(path_self)
+    def path_constructor(path_str):
+        """Custom Path constructor that returns a non-existent path for /media."""
+        if path_str == "/media":
+            # Return a Path that doesn't exist and isn't a directory
+            fake_media = RealPath("/nonexistent_media_path")
+            return fake_media
+        return RealPath(path_str)
 
     # Patch media base to a temporary directory; patch Path in the fmd.button module
     with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
-        with patch(
-            "custom_components.fmd.button.Path.exists", side_effect=exists_side_effect
-        ), patch(
-            "custom_components.fmd.button.Path.is_dir", side_effect=is_dir_side_effect
-        ):
+        # Patch the Path constructor in the button module
+        with patch("custom_components.fmd.button.Path", side_effect=path_constructor):
             with patch.object(hass.config, "path", return_value=str(tmp_path)):
                 # Patch PIL Image.open to yield EXIF DateTimeOriginal
                 class DummyImg:
@@ -725,8 +717,14 @@ async def test_download_photos_exif_timestamp_filename(
 
     # Verify file with expected timestamp exists
     device_dir = tmp_path / "fmd" / "test_user"
+    # Debug: check if directory was created
+    assert device_dir.exists(), f"Device directory not created: {device_dir}"
+    all_files = list(device_dir.glob("*.jpg"))
+    assert all_files, f"No JPG files found in {device_dir}"
     files = list(device_dir.glob("photo_20251019_150034_*.jpg"))
-    assert files, "Expected a photo file with EXIF timestamp in name"
+    assert (
+        files
+    ), f"Expected a photo file with EXIF timestamp in name. Found: {[f.name for f in all_files]}"
 
 
 async def test_download_photos_duplicate_skip(

@@ -925,29 +925,21 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
     # Setup integration first
     await setup_integration(hass, mock_fmd_api)
 
-    # Force using config/media by making /media appear missing
-    # But let real paths in tmp_path work normally
+    # Force using config/media by making /media path construction return a fake path
+    # that doesn't exist, so the code falls back to hass.config.path("media")
     from pathlib import Path as RealPath
 
-    original_exists = RealPath.exists
-    original_is_dir = RealPath.is_dir
-
-    def exists_side_effect(path_self):
-        if str(path_self) == "/media":
-            return False
-        return original_exists(path_self)
-
-    def is_dir_side_effect(path_self):
-        if str(path_self) == "/media":
-            return False
-        return original_is_dir(path_self)
+    def path_constructor(path_str):
+        """Custom Path constructor that returns a non-existent path for /media."""
+        if path_str == "/media":
+            # Return a Path that doesn't exist and isn't a directory
+            fake_media = RealPath("/nonexistent_media_path")
+            return fake_media
+        return RealPath(path_str)
 
     with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
-        with patch(
-            "custom_components.fmd.button.Path.exists", side_effect=exists_side_effect
-        ), patch(
-            "custom_components.fmd.button.Path.is_dir", side_effect=is_dir_side_effect
-        ):
+        # Patch the Path constructor in the button module
+        with patch("custom_components.fmd.button.Path", side_effect=path_constructor):
             # Make hass.config.path return tmp dir (patch instance method)
             with patch.object(hass.config, "path", return_value=str(tmp_path)):
 
@@ -967,8 +959,12 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
 
     # Should have one jpg with hash-only naming
     device_dir = tmp_path / "fmd" / "test_user"
+    # Debug: check if directory was created
+    assert device_dir.exists(), f"Device directory not created: {device_dir}"
     photos = list(device_dir.glob("photo_*.jpg"))
-    assert len(photos) == 1
+    assert (
+        len(photos) == 1
+    ), f"Expected 1 photo, found {len(photos)}: {[p.name for p in photos]}"
     assert "_" not in photos[0].name.split("photo_")[1][:15]  # no timestamp prefix
 
     # Now enable the safety switch (turn it on)
