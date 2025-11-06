@@ -603,3 +603,161 @@ async def test_high_frequency_mode_request_location_error(
     await tracker.set_high_frequency_mode(True)
     # Disable again to restore interval
     await tracker.set_high_frequency_mode(False)
+
+
+async def test_high_frequency_mode_success_path(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Cover success branch in set_high_frequency_mode (request+sleep+update)."""
+    await setup_integration(hass, mock_fmd_api)
+
+    tracker = hass.data["fmd"]["test_entry_id"]["tracker"]
+    tracker.api.request_location = AsyncMock(return_value=True)
+
+    # Avoid real sleeping and heavy work
+    with patch("asyncio.sleep", new=AsyncMock()) as sleep_mock:
+        with patch.object(tracker, "async_update", new=AsyncMock()) as upd_mock:
+            await tracker.set_high_frequency_mode(True)
+            upd_mock.assert_called()
+            sleep_mock.assert_called()
+
+    # Disable again to restore interval (and cover disable branch)
+    await tracker.set_high_frequency_mode(False)
+
+
+async def test_wipe_safety_switch_auto_disables_after_timeout(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Patch timeout to zero and verify auto-disable executes and turns switch off."""
+    await setup_integration(hass, mock_fmd_api)
+
+    with patch("custom_components.fmd.switch.WIPE_SAFETY_TIMEOUT", 0):
+        with patch("asyncio.sleep", new=AsyncMock()):
+            # Turn on
+            await hass.services.async_call(
+                "switch",
+                "turn_on",
+                {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+                blocking=True,
+            )
+            await hass.async_block_till_done()
+
+            # Let auto-disable run
+            await hass.async_block_till_done()
+
+    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
+    assert state is not None and state.state == "off"
+
+
+async def test_download_photos_exif_timestamp_filename(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+    tmp_path,
+) -> None:
+    """Ensure EXIF timestamp is used in filename when present."""
+    import base64
+
+    # Configure get_pictures to return one blob
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
+        base64.b64encode(b"jpeg_bytes").decode()
+    ]
+    # Decrypt returns the same bytes (base64-encoded string expected by code)
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
+        b"jpeg_bytes"
+    ).decode()
+
+    # Patch media base to a temporary directory
+    with patch("homeassistant.core.HomeAssistant.config") as cfg:
+        cfg.path.return_value = str(tmp_path)
+
+        # Patch PIL Image.open to yield EXIF DateTimeOriginal
+        class DummyImg:
+            def getexif(self):
+                return {36867: "2025:10:19 15:00:34"}
+
+        with patch("PIL.Image.open", return_value=DummyImg()):
+            await setup_integration(hass, mock_fmd_api)
+
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+            await hass.async_block_till_done()
+
+    # Verify file with expected timestamp exists
+    device_dir = tmp_path / "fmd" / "test_user"
+    files = list(device_dir.glob("photo_20251019_150034_*.jpg"))
+    assert files, "Expected a photo file with EXIF timestamp in name"
+
+
+async def test_download_photos_duplicate_skip(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+    tmp_path,
+) -> None:
+    """Existing photo with same hash should be skipped (duplicate)."""
+    import base64
+    import hashlib
+
+    image_bytes = b"same_image_content"
+    decrypted = base64.b64encode(image_bytes).decode()
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
+        base64.b64encode(image_bytes).decode()
+    ]
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = decrypted
+
+    # Use tmp media path and no EXIF
+    with patch("homeassistant.core.HomeAssistant.config") as cfg:
+        cfg.path.return_value = str(tmp_path)
+        with patch("PIL.Image.open", side_effect=Exception("no exif")):
+            await setup_integration(hass, mock_fmd_api)
+
+            # Pre-create duplicate file using same content hash
+            h = hashlib.sha256(image_bytes).hexdigest()[:8]
+            device_dir = tmp_path / "fmd" / "test_user"
+            device_dir.mkdir(parents=True, exist_ok=True)
+            pre_file = device_dir / f"photo_{h}.jpg"
+            pre_file.write_bytes(image_bytes)
+
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+            await hass.async_block_till_done()
+
+    # Still only one file present
+    files = list((tmp_path / "fmd" / "test_user").glob("*.jpg"))
+    assert len(files) == 1
+
+
+async def test_download_photos_photo_sensor_missing(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Cover branch where photo_count_sensor is not found in hass.data."""
+    import base64
+
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
+        base64.b64encode(b"img").decode()
+    ]
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
+        b"img"
+    ).decode()
+
+    await setup_integration(hass, mock_fmd_api)
+    # Remove sensor reference to hit warning branch
+    hass.data["fmd"]["test_entry_id"].pop("photo_count_sensor", None)
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_download"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()

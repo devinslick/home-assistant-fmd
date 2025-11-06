@@ -448,6 +448,167 @@ async def test_wipe_button_tracker_not_found(
     mock_fmd_api.create.return_value.send_command.assert_not_called()
 
 
+async def test_wipe_button_tracker_not_found_keeps_safety_on(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """With safety on but tracker missing, wipe should not run and safety stays on."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Enable safety
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Remove tracker from hass.data
+    hass.data["fmd"][list(hass.data["fmd"].keys())[0]].pop("tracker", None)
+
+    # Try wipe
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_wipe_execute"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    mock_fmd_api.create.return_value.send_command.assert_not_called()
+    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
+    assert state is not None and state.state == "on"
+
+
+async def test_ring_button_returns_false(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """If ring command returns False, it should be handled without crash."""
+    await setup_integration(hass, mock_fmd_api)
+
+    mock_fmd_api.create.return_value.send_command.return_value = False
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_volume_ring_device"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    mock_fmd_api.create.return_value.send_command.assert_called_once_with("ring")
+
+
+async def test_lock_button_returns_false(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """If lock command returns False, it should be handled without crash."""
+    await setup_integration(hass, mock_fmd_api)
+
+    mock_fmd_api.create.return_value.send_command.return_value = False
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_lock_device"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    mock_fmd_api.create.return_value.send_command.assert_called_once_with("lock")
+
+
+async def test_capture_front_returns_false(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """If take_picture returns False, it should be handled without crash."""
+    await setup_integration(hass, mock_fmd_api)
+
+    mock_fmd_api.create.return_value.take_picture.return_value = False
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_capture_front"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    mock_fmd_api.create.return_value.take_picture.assert_called_once_with("front")
+
+
+async def test_download_photos_cleanup_noop_no_warnings(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+    caplog,
+) -> None:
+    """No cleanup warnings should be logged when count <= max_to_retain."""
+    import base64
+    from unittest.mock import MagicMock, patch
+
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
+        base64.b64encode(b"jpeg_data").decode()
+    ]
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
+        b"jpeg_data"
+    ).decode()
+
+    await setup_integration(hass, mock_fmd_api)
+
+    # Set retention higher than existing count
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": "number.fmd_test_user_photo_max_to_retain", "value": 5},
+        blocking=True,
+    )
+    # Enable auto-cleanup
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_photo_auto_cleanup"},
+        blocking=True,
+    )
+
+    photos = [MagicMock(), MagicMock()]
+
+    def exists_side_effect(self):
+        return "photo_" not in str(self)
+
+    caplog.clear()
+    with patch("pathlib.Path.mkdir"), patch("pathlib.Path.write_bytes"), patch(
+        "pathlib.Path.is_dir",
+        return_value=True,
+    ), patch("pathlib.Path.exists", exists_side_effect), patch(
+        "pathlib.Path.glob",
+        return_value=photos,
+    ):
+
+        async def mock_executor_job(func, *args):
+            return func(*args)
+
+        with patch.object(
+            hass, "async_add_executor_job", side_effect=mock_executor_job
+        ):
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+            await hass.async_block_till_done()
+
+    # Ensure no AUTO-CLEANUP warning entries present
+    assert not any(
+        "AUTO-CLEANUP" in r.getMessage() and r.levelname == "WARNING"
+        for r in caplog.records
+    )
+
+
 async def test_download_photos_success(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
@@ -514,6 +675,290 @@ async def test_wipe_button_blocked_by_safety(
 
     # Should not call send_command because safety is disabled
     mock_fmd_api.create.return_value.send_command.assert_not_called()
+
+
+async def test_wipe_device_button_failure_keeps_safety_on(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """If wipe command returns False, safety should remain on."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Enable safety switch
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Return False from API
+    mock_fmd_api.create.return_value.send_command.return_value = False
+
+    # Attempt wipe
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_wipe_execute"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Safety should still be ON after failure
+    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
+    assert state is not None and state.state == "on"
+
+
+async def test_location_update_uses_selected_provider_gps(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Selecting GPS Only should call request_location with provider='gps'."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Change select option to GPS Only (Accurate)
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {
+            "entity_id": "select.fmd_test_user_location_source",
+            "option": "GPS Only (Accurate)",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Press location update
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_location_update"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Verify provider mapping
+    assert mock_fmd_api.create.return_value.request_location.called
+    kwargs = mock_fmd_api.create.return_value.request_location.call_args.kwargs
+    assert kwargs.get("provider") == "gps"
+
+
+async def test_download_photos_cleanup_noop_when_within_limit(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Auto-cleanup returns early when photo_count <= max_to_retain."""
+    import base64
+    from unittest.mock import MagicMock, patch
+
+    # One picture to trigger download flow
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
+        base64.b64encode(b"jpeg_data").decode()
+    ]
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
+        b"jpeg_data"
+    ).decode()
+
+    await setup_integration(hass, mock_fmd_api)
+
+    # Set retention to 5
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": "number.fmd_test_user_photo_max_to_retain", "value": 5},
+        blocking=True,
+    )
+
+    # Enable auto-cleanup
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_photo_auto_cleanup"},
+        blocking=True,
+    )
+
+    # Prepare a small list of existing photos (<= 5)
+    photos = [MagicMock(), MagicMock()]  # 2 existing photos
+
+    def exists_side_effect(self):
+        return "photo_" not in str(self)
+
+    with patch("pathlib.Path.mkdir"), patch("pathlib.Path.write_bytes"), patch(
+        "pathlib.Path.is_dir",
+        return_value=True,
+    ), patch("pathlib.Path.exists", exists_side_effect), patch(
+        "pathlib.Path.glob",
+        return_value=photos,
+    ):
+        # Make executor jobs run
+        async def mock_executor_job(func, *args):
+            return func(*args)
+
+        with patch.object(
+            hass, "async_add_executor_job", side_effect=mock_executor_job
+        ):
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+            await hass.async_block_till_done()
+
+    # Ensure no deletions attempted
+    for p in photos:
+        p.unlink.assert_not_called()
+
+
+async def test_wipe_device_button_auto_disables_safety(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Wipe button should auto-disable safety switch after success."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Enable safety
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Ensure API returns success
+    mock_fmd_api.create.return_value.send_command.return_value = True
+
+    # Press wipe execute
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_wipe_execute"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Safety switch should be turned off by the button
+    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
+    assert state is not None and state.state == "off"
+
+
+async def test_wipe_device_button_api_error_keeps_safety_on(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """If wipe API raises, safety remains on (only disabled on success)."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Enable safety
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Make API raise
+    mock_fmd_api.create.return_value.send_command.side_effect = RuntimeError("boom")
+
+    # Press wipe execute (should handle error internally)
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_wipe_execute"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Safety should still be on
+    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
+    assert state is not None and state.state == "on"
+
+
+async def test_location_update_default_provider_when_location_source_missing(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Location update falls back to provider='all' if select entity missing."""
+    await setup_integration(hass, mock_fmd_api)
+
+    from unittest.mock import patch
+
+    # Target entity id constructed by the button
+    missing_entity = "select.fmd_test_user_location_source"
+
+    real_get = hass.states.get
+
+    def fake_get(entity_id: str):
+        if entity_id == missing_entity:
+            return None
+        return real_get(entity_id)
+
+    with patch.object(hass.states, "get", side_effect=fake_get):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_location_update"},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+    # Ensure provider default was used
+    mock_fmd_api.create.return_value.request_location.assert_called()
+    kwargs = mock_fmd_api.create.return_value.request_location.call_args.kwargs
+    assert kwargs.get("provider") == "all"
+
+
+async def test_download_photos_exif_present_but_no_timestamp_tags(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+    tmp_path,
+) -> None:
+    """With EXIF present but no datetime tags, fallback filename used."""
+    import base64
+    from unittest.mock import patch
+
+    image_bytes = b"img_no_tags"
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
+        base64.b64encode(image_bytes).decode()
+    ]
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
+        image_bytes
+    ).decode()
+
+    # Force using config/media by making /media appear missing
+    def exists_side_effect(self):
+        return str(self) != "/media"
+
+    with patch("pathlib.Path.exists", side_effect=exists_side_effect), patch(
+        "pathlib.Path.is_dir", return_value=False
+    ):
+        # Make hass.config.path return tmp dir
+        with patch("homeassistant.core.HomeAssistant.config") as cfg:
+            cfg.path.return_value = str(tmp_path)
+
+            class DummyImg:
+                def getexif(self):
+                    # EXIF present but no datetime tags
+                    return {1234: "something"}
+
+            with patch("PIL.Image.open", return_value=DummyImg()):
+                await setup_integration(hass, mock_fmd_api)
+                await hass.services.async_call(
+                    "button",
+                    "press",
+                    {"entity_id": "button.fmd_test_user_photo_download"},
+                    blocking=True,
+                )
+                await hass.async_block_till_done()
+
+    # Should have one jpg with hash-only naming
+    device_dir = tmp_path / "fmd" / "test_user"
+    photos = list(device_dir.glob("photo_*.jpg"))
+    assert len(photos) == 1
+    assert "_" not in photos[0].name.split("photo_")[1][:15]  # no timestamp prefix
 
     # Now enable the safety switch (turn it on)
     await hass.services.async_call(
