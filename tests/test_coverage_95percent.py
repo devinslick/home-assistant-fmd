@@ -675,6 +675,9 @@ async def test_download_photos_exif_timestamp_filename(
         b"jpeg_bytes"
     ).decode()
 
+    # Setup integration first
+    await setup_integration(hass, mock_fmd_api)
+
     # Patch media base to a temporary directory
     with patch.object(hass.config, "path", return_value=str(tmp_path)):
         # Patch PIL Image.open to yield EXIF DateTimeOriginal
@@ -683,8 +686,6 @@ async def test_download_photos_exif_timestamp_filename(
                 return {36867: "2025:10:19 15:00:34"}
 
         with patch("PIL.Image.open", return_value=DummyImg()):
-            await setup_integration(hass, mock_fmd_api)
-
             await hass.services.async_call(
                 "button",
                 "press",

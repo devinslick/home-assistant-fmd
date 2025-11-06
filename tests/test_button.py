@@ -916,6 +916,9 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
         image_bytes
     ).decode()
 
+    # Setup integration first
+    await setup_integration(hass, mock_fmd_api)
+
     # Force using config/media by making /media appear missing
     def exists_side_effect(self):
         return str(self) != "/media"
@@ -932,7 +935,6 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
                     return {1234: "something"}
 
             with patch("PIL.Image.open", return_value=DummyImg()):
-                await setup_integration(hass, mock_fmd_api)
                 await hass.services.async_call(
                     "button",
                     "press",
