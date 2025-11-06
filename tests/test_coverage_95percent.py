@@ -678,21 +678,41 @@ async def test_download_photos_exif_timestamp_filename(
     # Setup integration first
     await setup_integration(hass, mock_fmd_api)
 
-    # Patch media base to a temporary directory
-    with patch.object(hass.config, "path", return_value=str(tmp_path)):
-        # Patch PIL Image.open to yield EXIF DateTimeOriginal
-        class DummyImg:
-            def getexif(self):
-                return {36867: "2025:10:19 15:00:34"}
+    # Force using config/media by making /media appear missing
+    # But let real paths in tmp_path work normally
+    from pathlib import Path as RealPath
 
-        with patch("PIL.Image.open", return_value=DummyImg()):
-            await hass.services.async_call(
-                "button",
-                "press",
-                {"entity_id": "button.fmd_test_user_photo_download"},
-                blocking=True,
-            )
-            await hass.async_block_till_done()
+    original_exists = RealPath.exists
+    original_is_dir = RealPath.is_dir
+
+    def exists_side_effect(self):
+        if str(self) == "/media":
+            return False
+        return original_exists(self)
+
+    def is_dir_side_effect(self):
+        if str(self) == "/media":
+            return False
+        return original_is_dir(self)
+
+    # Patch media base to a temporary directory
+    with patch("pathlib.Path.exists", side_effect=exists_side_effect), patch(
+        "pathlib.Path.is_dir", side_effect=is_dir_side_effect
+    ):
+        with patch.object(hass.config, "path", return_value=str(tmp_path)):
+            # Patch PIL Image.open to yield EXIF DateTimeOriginal
+            class DummyImg:
+                def getexif(self):
+                    return {36867: "2025:10:19 15:00:34"}
+
+            with patch("PIL.Image.open", return_value=DummyImg()):
+                await hass.services.async_call(
+                    "button",
+                    "press",
+                    {"entity_id": "button.fmd_test_user_photo_download"},
+                    blocking=True,
+                )
+                await hass.async_block_till_done()
 
     # Verify file with expected timestamp exists
     device_dir = tmp_path / "fmd" / "test_user"

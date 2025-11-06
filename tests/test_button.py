@@ -920,11 +920,24 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
     await setup_integration(hass, mock_fmd_api)
 
     # Force using config/media by making /media appear missing
+    # But let real paths in tmp_path work normally
+    from pathlib import Path as RealPath
+
+    original_exists = RealPath.exists
+    original_is_dir = RealPath.is_dir
+
     def exists_side_effect(self):
-        return str(self) != "/media"
+        if str(self) == "/media":
+            return False
+        return original_exists(self)
+
+    def is_dir_side_effect(self):
+        if str(self) == "/media":
+            return False
+        return original_is_dir(self)
 
     with patch("pathlib.Path.exists", side_effect=exists_side_effect), patch(
-        "pathlib.Path.is_dir", return_value=False
+        "pathlib.Path.is_dir", side_effect=is_dir_side_effect
     ):
         # Make hass.config.path return tmp dir (patch instance method)
         with patch.object(hass.config, "path", return_value=str(tmp_path)):
