@@ -695,9 +695,11 @@ async def test_download_photos_exif_timestamp_filename(
             return False
         return original_is_dir(path_self)
 
-    # Patch media base to a temporary directory
-    with patch("pathlib.Path.exists", side_effect=exists_side_effect), patch(
-        "pathlib.Path.is_dir", side_effect=is_dir_side_effect
+    # Patch media base to a temporary directory; patch Path in the fmd.button module
+    with patch(
+        "custom_components.fmd.button.Path.exists", side_effect=exists_side_effect
+    ), patch(
+        "custom_components.fmd.button.Path.is_dir", side_effect=is_dir_side_effect
     ):
         with patch.object(hass.config, "path", return_value=str(tmp_path)):
             # Patch PIL Image.open to yield EXIF DateTimeOriginal

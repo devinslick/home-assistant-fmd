@@ -936,8 +936,10 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
             return False
         return original_is_dir(path_self)
 
-    with patch("pathlib.Path.exists", side_effect=exists_side_effect), patch(
-        "pathlib.Path.is_dir", side_effect=is_dir_side_effect
+    with patch(
+        "custom_components.fmd.button.Path.exists", side_effect=exists_side_effect
+    ), patch(
+        "custom_components.fmd.button.Path.is_dir", side_effect=is_dir_side_effect
     ):
         # Make hass.config.path return tmp dir (patch instance method)
         with patch.object(hass.config, "path", return_value=str(tmp_path)):
