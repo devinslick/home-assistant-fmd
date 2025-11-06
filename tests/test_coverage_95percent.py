@@ -670,7 +670,9 @@ async def test_download_photos_exif_timestamp_filename(
     mock_fmd_api.create.return_value.get_pictures.return_value = [
         base64.b64encode(b"jpeg_bytes").decode()
     ]
-    # Decrypt returns the same bytes (base64-encoded string expected by code)
+    # Decrypt returns the same bytes (base64-encoded string expected by code).
+    # Disable default side_effect from conftest and set a deterministic return_value.
+    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = None
     mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
         b"jpeg_bytes"
     ).decode()
