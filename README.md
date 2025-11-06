@@ -969,12 +969,37 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Version History
 
+### v1.0.0 - November 6, 2025 (Stable Release)
+**🎉 First Stable Release**
+
+This version marks the transition from beta to a stable, production-ready integration.
+
+**Highlights:**
+- 📦 Updated core dependency to `fmd-api==2.0.3` (performance & robustness improvements)
+- ✅ Declared stable: no known critical issues after extended beta test of 0.9.x line
+- 🧪 Maintains high test coverage (≥96%) across all entity platforms
+- 🔐 Improved photo/media handling reliability in varied Home Assistant environments
+- 🛠 Refined internal executor usage for non-blocking decrypt and file operations
+
+**Upgrade Notes:**
+1. Update via HACS (or pull latest release) and restart Home Assistant.
+2. No reconfiguration required; existing config entries migrate seamlessly.
+3. If you were on a pre-0.9.0 version, review the 0.9.x notes below for feature additions.
+
+**Post-Upgrade Validation Checklist (optional):**
+- Confirm device tracker updates within your configured interval.
+- Press Location Update button and verify fresh attributes (provider, timestamp).
+- (Optional) Capture and Download a photo to confirm media folder access.
+
+**Looking Ahead:**
+- Focus will shift to stablity and minor improvements to work towards inclusion in Home Assistant Core.
+
+**Thanks** to all testers who helped harden the 0.9.x series.
+
 ### v0.9.9 - November 4, 2025
-**🚀 MAJOR REWRITE: fmd-api v2.0.1 Migration**
+**🚀 MAJOR REWRITE: fmd-api v2.0.1 Migration (Beta)**
 
-This is a **major architectural overhaul** that completely modernizes the integration's communication with FMD servers. While not labeled v1.0.0, this release represents the most significant internal change since the project's inception.
-
-**⚠️ Important:** This is a beta release. Version 1.0.0 will be released after community testing and any necessary fixes.
+This was the final beta milestone preceding the stable 1.0.0 release and represented the most significant architectural overhaul since project inception.
 
 **Breaking Changes:**
 - 🔧 **Complete API rewrite** - Migrated from `fmd-api v1.x` to `fmd-api v2.0.1`
@@ -1013,10 +1038,7 @@ This is a **major architectural overhaul** that completely modernizes the integr
 **Known Issues:**
 - None currently - please report any issues on GitHub!
 
-**What's Next:**
-- 📋 Community testing and feedback period
-- 🐛 Bug fixes based on real-world usage
-- 🎯 Version 1.0.0 release with stability improvements
+**Transition:** Community testing of this version informed the stability designation in v1.0.0.
 
 **Technical Details:**
 - All code strictly imports `FmdClient` (no fallback imports)
