@@ -918,6 +918,10 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
         image_bytes
     ).decode()
 
+    # Mock executor to actually run sync functions
+    async def mock_executor_job(func, *args):
+        return func(*args)
+
     # Setup integration first
     await setup_integration(hass, mock_fmd_api)
 
@@ -938,27 +942,28 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
             return False
         return original_is_dir(path_self)
 
-    with patch(
-        "custom_components.fmd.button.Path.exists", side_effect=exists_side_effect
-    ), patch(
-        "custom_components.fmd.button.Path.is_dir", side_effect=is_dir_side_effect
-    ):
-        # Make hass.config.path return tmp dir (patch instance method)
-        with patch.object(hass.config, "path", return_value=str(tmp_path)):
+    with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
+        with patch(
+            "custom_components.fmd.button.Path.exists", side_effect=exists_side_effect
+        ), patch(
+            "custom_components.fmd.button.Path.is_dir", side_effect=is_dir_side_effect
+        ):
+            # Make hass.config.path return tmp dir (patch instance method)
+            with patch.object(hass.config, "path", return_value=str(tmp_path)):
 
-            class DummyImg:
-                def getexif(self):
-                    # EXIF present but no datetime tags
-                    return {1234: "something"}
+                class DummyImg:
+                    def getexif(self):
+                        # EXIF present but no datetime tags
+                        return {1234: "something"}
 
-            with patch("PIL.Image.open", return_value=DummyImg()):
-                await hass.services.async_call(
-                    "button",
-                    "press",
-                    {"entity_id": "button.fmd_test_user_photo_download"},
-                    blocking=True,
-                )
-                await hass.async_block_till_done()
+                with patch("PIL.Image.open", return_value=DummyImg()):
+                    await hass.services.async_call(
+                        "button",
+                        "press",
+                        {"entity_id": "button.fmd_test_user_photo_download"},
+                        blocking=True,
+                    )
+                    await hass.async_block_till_done()
 
     # Should have one jpg with hash-only naming
     device_dir = tmp_path / "fmd" / "test_user"

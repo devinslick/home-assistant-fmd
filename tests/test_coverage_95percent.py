@@ -677,6 +677,10 @@ async def test_download_photos_exif_timestamp_filename(
         b"jpeg_bytes"
     ).decode()
 
+    # Mock executor to actually run sync functions
+    async def mock_executor_job(func, *args):
+        return func(*args)
+
     # Setup integration first
     await setup_integration(hass, mock_fmd_api)
 
@@ -698,25 +702,26 @@ async def test_download_photos_exif_timestamp_filename(
         return original_is_dir(path_self)
 
     # Patch media base to a temporary directory; patch Path in the fmd.button module
-    with patch(
-        "custom_components.fmd.button.Path.exists", side_effect=exists_side_effect
-    ), patch(
-        "custom_components.fmd.button.Path.is_dir", side_effect=is_dir_side_effect
-    ):
-        with patch.object(hass.config, "path", return_value=str(tmp_path)):
-            # Patch PIL Image.open to yield EXIF DateTimeOriginal
-            class DummyImg:
-                def getexif(self):
-                    return {36867: "2025:10:19 15:00:34"}
+    with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
+        with patch(
+            "custom_components.fmd.button.Path.exists", side_effect=exists_side_effect
+        ), patch(
+            "custom_components.fmd.button.Path.is_dir", side_effect=is_dir_side_effect
+        ):
+            with patch.object(hass.config, "path", return_value=str(tmp_path)):
+                # Patch PIL Image.open to yield EXIF DateTimeOriginal
+                class DummyImg:
+                    def getexif(self):
+                        return {36867: "2025:10:19 15:00:34"}
 
-            with patch("PIL.Image.open", return_value=DummyImg()):
-                await hass.services.async_call(
-                    "button",
-                    "press",
-                    {"entity_id": "button.fmd_test_user_photo_download"},
-                    blocking=True,
-                )
-                await hass.async_block_till_done()
+                with patch("PIL.Image.open", return_value=DummyImg()):
+                    await hass.services.async_call(
+                        "button",
+                        "press",
+                        {"entity_id": "button.fmd_test_user_photo_download"},
+                        blocking=True,
+                    )
+                    await hass.async_block_till_done()
 
     # Verify file with expected timestamp exists
     device_dir = tmp_path / "fmd" / "test_user"
