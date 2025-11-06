@@ -431,3 +431,175 @@ async def test_dnd_select_tracker_not_found(
     await hass.async_block_till_done()
 
     # Should complete without error (logs error internally)
+
+
+async def test_select_placeholder_noops(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Selecting the placeholder should be a no-op for all selects."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Reset API mocks to isolate
+    mock_fmd_api.create.return_value.set_bluetooth.reset_mock()
+    mock_fmd_api.create.return_value.set_do_not_disturb.reset_mock()
+    mock_fmd_api.create.return_value.set_ringer_mode.reset_mock()
+
+    # Bluetooth placeholder
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {
+            "entity_id": "select.fmd_test_user_bluetooth",
+            "option": "Send Command...",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get("select.fmd_test_user_bluetooth")
+    assert state is not None and state.state == "Send Command..."
+    mock_fmd_api.create.return_value.set_bluetooth.assert_not_called()
+
+    # DND placeholder
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {
+            "entity_id": "select.fmd_test_user_volume_do_not_disturb",
+            "option": "Send Command...",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get("select.fmd_test_user_volume_do_not_disturb")
+    assert state is not None and state.state == "Send Command..."
+    mock_fmd_api.create.return_value.set_do_not_disturb.assert_not_called()
+
+    # Ringer placeholder
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {
+            "entity_id": "select.fmd_test_user_volume_ringer_mode",
+            "option": "Send Command...",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get("select.fmd_test_user_volume_ringer_mode")
+    assert state is not None and state.state == "Send Command..."
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_not_called()
+
+
+# =============================================================================
+# button.py additional Coverage Tests
+# =============================================================================
+
+
+async def test_download_photos_no_tracker(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Download Photos button returns early if tracker missing."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Remove tracker
+    hass.data["fmd"]["test_entry_id"].pop("tracker", None)
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_download"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+
+async def test_download_photos_missing_max_photos_number(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Download Photos button returns early if max_photos_number missing."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Remove max_photos_number entity reference
+    hass.data["fmd"]["test_entry_id"].pop("max_photos_number", None)
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_download"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+
+async def test_download_photos_no_pictures(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Download Photos button handles empty picture list."""
+    # Ensure no pictures returned
+    mock_fmd_api.create.return_value.get_pictures.return_value = []
+
+    await setup_integration(hass, mock_fmd_api)
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_download"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    mock_fmd_api.create.return_value.get_pictures.assert_called()
+
+
+async def test_download_photos_media_dir_creation_failure(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Download Photos button handles media directory creation failure."""
+    import base64
+    from unittest.mock import patch
+
+    # Return one fake picture to reach dir creation
+    mock_fmd_api.create.return_value.get_pictures.return_value = [
+        base64.b64encode(b"fake_image").decode()
+    ]
+    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
+        b"jpeg_data"
+    ).decode()
+
+    await setup_integration(hass, mock_fmd_api)
+
+    # Force mkdir to fail
+    with patch("pathlib.Path.mkdir", side_effect=OSError("mkdir fail")):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+
+# =============================================================================
+# device_tracker.py additional Coverage Tests
+# =============================================================================
+
+
+async def test_high_frequency_mode_request_location_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """set_high_frequency_mode handles request_location exceptions."""
+    await setup_integration(hass, mock_fmd_api)
+
+    tracker = hass.data["fmd"]["test_entry_id"]["tracker"]
+    # Make API raise during request
+    tracker.api.request_location = AsyncMock(side_effect=RuntimeError("boom"))
+
+    # Should not raise
+    await tracker.set_high_frequency_mode(True)
+    # Disable again to restore interval
+    await tracker.set_high_frequency_mode(False)
