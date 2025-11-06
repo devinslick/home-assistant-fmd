@@ -5,10 +5,10 @@
   "issue_tracker": "https://github.com/devinslick/home-assistant-fmd/issues",
   "codeowners": ["@devinslick"],
   "requirements": [
-    "fmd-api==2.0.1"
+    "fmd-api==2.0.3"
   ],
   "iot_class": "cloud_polling",
-  "version": "0.9.9",
+  "version": "1.0.0",
   "config_flow": true,
   "integration_type": "device"
 }

@@ -83,6 +83,16 @@ A huge thank you to **Nulide**, **Thore**, and all FMD contributors for creating
 **Repository**: https://github.com/devinslick/home-assistant-fmd
 **License**: MIT License
 
+### FMD API Client Library
+
+This integration communicates with FMD servers via a separate Python package:
+
+- **Package**: `fmd_api` (PyPI: `fmd-api`)
+- **Author**: Devin Slick ([@devinslick](https://github.com/devinslick))
+- **Repository**: https://github.com/devinslick/fmd_api
+
+The `fmd_api` library encapsulates all FMD server communication and cryptographic handling. It is developed and maintained alongside this integration to ensure compatibility and reliability.
+
 ### Integration Contributors
 
 We welcome contributions to this Home Assistant integration! See our [LICENSE](LICENSE) file for terms.
