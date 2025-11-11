@@ -808,8 +808,8 @@ class FmdWipeDeviceButton(ButtonEntity):
 
             # Send the wipe command with PIN and confirmation
             # Note: confirm=True is always required per fmd_api 2.0.4
-            # Use positional argument for PIN to satisfy tests expecting positional call
-            await device.wipe(pin, confirm=True)
+            # Use keyword argument for pin so tests asserting keyword usage pass
+            await device.wipe(pin=pin, confirm=True)
 
             _LOGGER.critical("✅ DEVICE WIPE COMMAND SENT TO SERVER")
             _LOGGER.critical(
