@@ -5,7 +5,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from conftest import setup_integration
+from fmd_api import OperationError
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 
 async def test_location_update_button_tracker_not_found(
@@ -283,10 +285,6 @@ async def test_wipe_button_api_error(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test wipe button when device.wipe raises an API error (new API)."""
-    import pytest
-    from fmd_api import OperationError
-    from homeassistant.exceptions import HomeAssistantError
-
     await setup_integration(hass, mock_fmd_api)
 
     # Set PIN required for wipe
