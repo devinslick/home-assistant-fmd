@@ -18,6 +18,12 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fmd.const import DOMAIN
 
+# Ensure pytest-homeassistant-custom-component plugin loads even if
+# PYTEST_DISABLE_PLUGIN_AUTOLOAD is set (Windows). This provides core HA
+# fixtures like hass and enable_custom_integrations. Placed after all imports
+# to satisfy flake8 E402 (imports must precede non-import statements).
+pytest_plugins = ["pytest_homeassistant_custom_component"]
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _enable_sockets_session():
@@ -36,8 +42,15 @@ def _enable_sockets_session():
 
 
 @pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations):
-    """Enable custom integrations for all tests."""
+def auto_enable_custom_integrations():
+    """Enable custom integrations for all tests.
+
+    The pytest-homeassistant-custom-component plugin exposes the
+    enable_custom_integrations fixture. When plugin auto-loading is disabled
+    (Windows), we explicitly list the plugin via pytest_plugins above so the
+    fixture is registered. We keep this wrapper to avoid parameter errors if
+    the underlying fixture naming changes and to make the intent clear.
+    """
     yield
 
 
