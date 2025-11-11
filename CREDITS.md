@@ -87,7 +87,7 @@ A huge thank you to **Nulide**, **Thore**, and all FMD contributors for creating
 
 This integration communicates with FMD servers via a separate Python package:
 
-- **Package**: `fmd_api` (PyPI: `fmd-api`)
+- **Package**: [fmd-api](https://pypi.org/project/fmd-api/)
 - **Author**: Devin Slick ([@devinslick](https://github.com/devinslick))
 - **Repository**: https://github.com/devinslick/fmd_api
 

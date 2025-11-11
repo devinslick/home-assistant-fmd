@@ -158,18 +158,18 @@ async def test_button_ring_send_command_fails(
     api_instance.send_command.assert_called_once_with("ring")
 
 
-async def test_button_lock_send_command_fails(
+async def test_button_lock_device_error(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test lock button when send_command returns False."""
+    """Test lock button when device.lock() raises an exception."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Make send_command return False
-    api_instance = mock_fmd_api.create.return_value
-    api_instance.send_command.reset_mock()
-    api_instance.send_command.return_value = False
+    # Make device.lock() raise an exception
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.lock.side_effect = Exception("Lock failed")
 
+    # Press lock button - should handle error gracefully
     await hass.services.async_call(
         "button",
         "press",
@@ -178,7 +178,8 @@ async def test_button_lock_send_command_fails(
     )
     await hass.async_block_till_done()
 
-    api_instance.send_command.assert_called_once_with("lock")
+    # Verify device.lock() was called
+    device_mock.lock.assert_called_once_with(message=None)
 
 
 async def test_button_capture_front_take_picture_fails(

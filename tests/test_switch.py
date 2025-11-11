@@ -126,8 +126,16 @@ async def test_wipe_safety_auto_timeout(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test wipe safety switch auto-timeout after wipe."""
+    """Test wipe safety switch auto-disables after successful wipe."""
     await setup_integration(hass, mock_fmd_api)
+
+    # Set wipe PIN first
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {"entity_id": "text.fmd_test_user_wipe_pin", "value": "1234"},
+        blocking=True,
+    )
 
     # Enable safety switch
     await hass.services.async_call(
@@ -146,7 +154,7 @@ async def test_wipe_safety_auto_timeout(
     )
     await hass.async_block_till_done()
 
-    # Safety switch should turn off after wipe
+    # Safety switch should turn off after successful wipe
     state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
     assert state.state == STATE_OFF
 

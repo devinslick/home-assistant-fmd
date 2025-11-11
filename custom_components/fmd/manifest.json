@@ -1,14 +1,12 @@
 {
   "domain": "fmd",
   "name": "FMD",
-  "documentation": "https://github.com/devinslick/home-assistant-fmd",
-  "issue_tracker": "https://github.com/devinslick/home-assistant-fmd/issues",
   "codeowners": ["@devinslick"],
-  "requirements": [
-    "fmd-api==2.0.3"
-  ],
-  "iot_class": "cloud_polling",
-  "version": "1.0.0",
   "config_flow": true,
-  "integration_type": "device"
+  "documentation": "https://github.com/devinslick/home-assistant-fmd",
+  "integration_type": "device",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/devinslick/home-assistant-fmd/issues",
+  "requirements": ["fmd-api==2.0.4"],
+  "version": "1.1.0"
 }

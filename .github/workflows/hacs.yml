@@ -1,0 +1,34 @@
+name: HACS Validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - fmd_api-2.0.4
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  hacs:
+    name: Run HACS Action
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate with HACS
+        uses: hacs/action@main
+        with:
+          category: integration
+          ignore: brands
+
+      - name: Archive HACS report (if present)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hacs-validation-report
+          path: |
+            hacs.log
+            hacs.json
+          if-no-files-found: ignore

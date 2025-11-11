@@ -5,8 +5,6 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
-# Prefer v2 client; fall back to v1 name for CI or environments with older fmd_api
 from fmd_api import FmdClient
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
@@ -16,14 +14,60 @@ from .const import CONF_USE_IMPERIAL, DEFAULT_POLLING_INTERVAL, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-async def authenticate_and_get_locations(
+async def authenticate_and_get_artifacts(
     url: str, fmd_id: str, password: str
-) -> list[dict[str, Any]]:
-    """Create FMD API instance and validate connection."""
-    api = await FmdClient.create(url, fmd_id, password)
+) -> dict[str, Any]:
+    """Create FMD API instance, validate connection, and export auth artifacts.
+
+    Returns auth artifacts dictionary that can be used for password-free resume.
+    """
+    api = await FmdClient.create(url, fmd_id, password, drop_password=True)
+
+    # Validate connection by fetching one location
     locations = await api.get_locations(1)
     locations = [loc for loc in locations if loc]
-    return locations
+
+    # Export authentication artifacts (password-free)
+    artifacts = await api.export_auth_artifacts()
+
+    # Close the temporary client (caller will recreate from artifacts)
+    await api.close()
+
+    return artifacts
+
+
+def _normalize_artifacts(artifacts: Any) -> dict[str, Any]:
+    """Ensure artifacts are stored as a plain serializable dict.
+
+    Some tests or callers may pass in MagicMock/dict-like objects that implement
+    only `.get`. Home Assistant persists config entry data to JSON; ensure we
+    convert any mapping-like object into a real dict with expected keys to avoid
+    serialization errors (e.g., TypeError on MagicMock).
+    """
+    if isinstance(artifacts, dict):
+        return artifacts
+
+    # Best-effort extraction using .get for known keys returned by FMD API
+    required_keys = (
+        "base_url",
+        "fmd_id",
+        "access_token",
+        "private_key",
+        "password_hash",
+    )
+    try:
+        get = getattr(artifacts, "get", None)
+        if callable(get):
+            return {k: get(k, None) for k in required_keys}
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+    # Fallback: try to coerce via dict() for mapping types
+    try:
+        return dict(artifacts)  # type: ignore[arg-type]
+    except Exception:  # pragma: no cover - defensive
+        _LOGGER.debug("Unable to normalize artifacts of type %s", type(artifacts))
+        return {}
 
 
 class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -38,14 +82,33 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             try:
-                await authenticate_and_get_locations(
+                # Authenticate and get artifacts (password-free storage)
+                artifacts = await authenticate_and_get_artifacts(
                     user_input["url"],
                     user_input["id"],
                     user_input["password"],
                 )
-                # Update the config entry with new credentials
+
+                artifacts = _normalize_artifacts(artifacts)
+
+                # Build new entry data with artifacts
+                new_data = {
+                    "url": user_input["url"],
+                    "id": user_input["id"],
+                    "artifacts": artifacts,
+                    # Preserve other config values
+                    "polling_interval": entry_data.get(
+                        "polling_interval", DEFAULT_POLLING_INTERVAL
+                    ),
+                    "allow_inaccurate_locations": entry_data.get(
+                        "allow_inaccurate_locations", False
+                    ),
+                    CONF_USE_IMPERIAL: entry_data.get(CONF_USE_IMPERIAL, False),
+                }
+
+                # Update the config entry with new artifacts (password removed)
                 if entry:
-                    self.hass.config_entries.async_update_entry(entry, data=user_input)
+                    self.hass.config_entries.async_update_entry(entry, data=new_data)
                 return self.async_abort(reason="reauth_successful")
             except Exception:
                 errors["base"] = "cannot_connect"
@@ -76,12 +139,30 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             try:
-                await authenticate_and_get_locations(
+                # Authenticate and get artifacts (password-free storage)
+                artifacts = await authenticate_and_get_artifacts(
                     user_input["url"],
                     user_input["id"],
                     user_input["password"],
                 )
-                return self.async_create_entry(title=user_input["id"], data=user_input)
+
+                artifacts = _normalize_artifacts(artifacts)
+
+                # Build entry data with artifacts (no raw password stored)
+                entry_data = {
+                    "url": user_input["url"],
+                    "id": user_input["id"],
+                    "artifacts": artifacts,
+                    "polling_interval": user_input.get(
+                        "polling_interval", DEFAULT_POLLING_INTERVAL
+                    ),
+                    "allow_inaccurate_locations": user_input.get(
+                        "allow_inaccurate_locations", False
+                    ),
+                    CONF_USE_IMPERIAL: user_input.get(CONF_USE_IMPERIAL, False),
+                }
+
+                return self.async_create_entry(title=user_input["id"], data=entry_data)
             except Exception as e:
                 _LOGGER.error("Failed to connect to FMD server: %s", e, exc_info=True)
                 errors["base"] = "cannot_connect"

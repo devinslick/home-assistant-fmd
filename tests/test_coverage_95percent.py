@@ -539,8 +539,9 @@ async def test_download_photos_no_pictures(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Download Photos button handles empty picture list."""
-    # Ensure no pictures returned
-    mock_fmd_api.create.return_value.get_pictures.return_value = []
+    # Ensure no pictures returned from device.get_picture_blobs
+    device = mock_fmd_api.create.return_value.device.return_value
+    device.get_picture_blobs.return_value = []
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -551,7 +552,7 @@ async def test_download_photos_no_pictures(
         blocking=True,
     )
     await hass.async_block_till_done()
-    mock_fmd_api.create.return_value.get_pictures.assert_called()
+    device.get_picture_blobs.assert_called()
 
 
 async def test_download_photos_media_dir_creation_failure(
@@ -664,18 +665,19 @@ async def test_download_photos_exif_timestamp_filename(
     tmp_path,
 ) -> None:
     """Ensure EXIF timestamp is used in filename when present."""
-    import base64
+    from unittest.mock import MagicMock
 
-    # Configure get_pictures to return one blob
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        base64.b64encode(b"jpeg_bytes").decode()
-    ]
-    # Decrypt returns the same bytes (base64-encoded string expected by code).
-    # Disable default side_effect from conftest and set a deterministic return_value.
-    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = None
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
-        b"jpeg_bytes"
-    ).decode()
+    # Configure device.get_picture_blobs to return one blob
+    device = mock_fmd_api.create.return_value.device.return_value
+    device.get_picture_blobs.return_value = [b"blob_data"]
+
+    # Configure decode_picture to return PhotoResult
+    photo_result = MagicMock()
+    photo_result.data = b"jpeg_bytes"
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = None  # No timestamp, will use EXIF
+    photo_result.raw = {}
+    device.decode_picture.return_value = photo_result
 
     # Mock executor to actually run sync functions
     async def mock_executor_job(func, *args):

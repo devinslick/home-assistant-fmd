@@ -1,0 +1,21 @@
+name: Hassfest
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - fmd_api-2.0.4
+  schedule:
+    - cron: '0 4 * * *'
+
+jobs:
+  hassfest:
+    name: Validate with Hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run hassfest
+        uses: home-assistant/actions/hassfest@master
