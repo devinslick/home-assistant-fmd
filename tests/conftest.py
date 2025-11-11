@@ -8,18 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_socket
-from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fmd.const import DOMAIN
-
-# Explicitly load only the plugins we need. Auto-loading is disabled in sitecustomize.py
-pytest_plugins = [
-    "pytest_asyncio",
-    "pytest_cov",
-    "pytest_homeassistant_custom_component.plugins",
-]
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -58,6 +50,20 @@ def mock_fmd_api():
     """Mock FmdClient for testing."""
     api_instance = AsyncMock()
 
+    # Mock authentication artifact methods (fmd_api 2.0.4+)
+    api_instance.export_auth_artifacts = AsyncMock(
+        return_value={
+            "base_url": "https://fmd.example.com",
+            "fmd_id": "test_user",
+            "access_token": "mock_access_token",
+            "private_key": "-----BEGIN PRIVATE KEY-----\nMOCK_KEY\n-----END PRIVATE KEY-----",
+            "password_hash": "mock_password_hash",
+            "session_duration": 3600,
+            "token_issued_at": 1234567890.0,
+        }
+    )
+    api_instance.close = AsyncMock(return_value=None)
+
     # Mock async methods - these should match the actual fmd-api v2 methods
     api_instance.get_locations = AsyncMock(
         return_value=[
@@ -81,6 +87,26 @@ def mock_fmd_api():
     api_instance.take_picture = AsyncMock(return_value=True)  # Used for camera capture
     api_instance.get_pictures = AsyncMock(return_value=[])
     api_instance.get_photos = AsyncMock(return_value=[])  # Alias for get_pictures
+
+    # Mock device method for new API (fmd_api 2.0.4+)
+    mock_device = AsyncMock()
+    mock_device.get_picture_blobs = AsyncMock(return_value=[])
+
+    # Mock PhotoResult for decode_picture
+    from datetime import datetime
+
+    mock_photo_result = MagicMock()
+    mock_photo_result.data = b"fake_image_data"
+    mock_photo_result.mime_type = "image/jpeg"
+    mock_photo_result.timestamp = datetime(2025, 10, 23, 12, 0, 0)
+    mock_photo_result.raw = {}
+    mock_device.decode_picture = AsyncMock(return_value=mock_photo_result)
+
+    # Mock wipe and lock with new parameters
+    mock_device.wipe = AsyncMock(return_value=None)
+    mock_device.lock = AsyncMock(return_value=None)
+
+    api_instance.device = MagicMock(return_value=mock_device)
 
     # Mock synchronous decrypt_data_blob method
     # It should return JSON bytes that can be parsed
@@ -109,14 +135,24 @@ def mock_fmd_api():
     # Create a mock for FmdClient.create that returns api_instance
     create_mock = AsyncMock(return_value=api_instance)
 
+    # Create a mock for FmdClient.from_auth_artifacts (fmd_api 2.0.4+)
+    from_artifacts_mock = AsyncMock(return_value=api_instance)
+
     # Store api_instance on create_mock.return_value for tests that access it that way
     create_mock.return_value = api_instance
+    from_artifacts_mock.return_value = api_instance
 
     # Patch where FmdClient is USED (custom_components.fmd), not where it's defined (fmd_api)
-    with patch("custom_components.fmd.FmdClient.create", create_mock):
-        # Yield a mock that has .create attribute for test assertions
+    with patch("custom_components.fmd.FmdClient.create", create_mock), patch(
+        "custom_components.fmd.FmdClient.from_auth_artifacts", from_artifacts_mock
+    ), patch("custom_components.fmd.config_flow.FmdClient.create", create_mock), patch(
+        "custom_components.fmd.config_flow.FmdClient.from_auth_artifacts",
+        from_artifacts_mock,
+    ):
+        # Yield a mock that has .create and .from_auth_artifacts attributes for test assertions
         mock_api_class = MagicMock()
         mock_api_class.create = create_mock
+        mock_api_class.from_auth_artifacts = from_artifacts_mock
         yield mock_api_class
 
 
@@ -131,11 +167,19 @@ def mock_setup_entry() -> Generator[AsyncMock, None, None]:
 
 @pytest.fixture
 def mock_config_entry():
-    """Return a mock config entry."""
+    """Return a mock config entry with artifacts (fmd_api 2.0.4+)."""
     return {
         "url": "https://fmd.example.com",
         "id": "test_user",
-        "password": "test_password",
+        "artifacts": {
+            "base_url": "https://fmd.example.com",
+            "fmd_id": "test_user",
+            "access_token": "mock_access_token",
+            "private_key": "-----BEGIN PRIVATE KEY-----\nMOCK_KEY\n-----END PRIVATE KEY-----",
+            "password_hash": "mock_password_hash",
+            "session_duration": 3600,
+            "token_issued_at": 1234567890.0,
+        },
         "polling_interval": 30,
         "allow_inaccurate_locations": False,
         "use_imperial": False,
@@ -143,7 +187,7 @@ def mock_config_entry():
 
 
 def get_mock_config_entry() -> MockConfigEntry:
-    """Create a mock config entry for testing.
+    """Create a mock config entry for testing with artifacts (fmd_api 2.0.4+).
 
     Returns a MockConfigEntry that can be modified before being added to hass.
     """
@@ -157,7 +201,15 @@ def get_mock_config_entry() -> MockConfigEntry:
         data={
             CONF_URL: "https://fmd.example.com",
             CONF_ID: "test_user",
-            CONF_PASSWORD: "test_password",
+            "artifacts": {
+                "base_url": "https://fmd.example.com",
+                "fmd_id": "test_user",
+                "access_token": "mock_access_token",
+                "private_key": "-----BEGIN PRIVATE KEY-----\nMOCK_KEY\n-----END PRIVATE KEY-----",
+                "password_hash": "mock_password_hash",
+                "session_duration": 3600,
+                "token_issued_at": 1234567890.0,
+            },
             "polling_interval": 30,
             "allow_inaccurate_locations": False,
             "use_imperial": False,
@@ -165,6 +217,9 @@ def get_mock_config_entry() -> MockConfigEntry:
         entry_id="test_entry_id",
         unique_id="test_user",
     )
+
+
+# Legacy helper removed (unused in current test suite)
 
 
 async def setup_integration(

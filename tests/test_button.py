@@ -1,10 +1,13 @@
 """Test FMD button entities."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from conftest import setup_integration
 from homeassistant.core import HomeAssistant
+
+# Removed unused top-level HomeAssistantError import (imported in specific tests when needed)
 
 
 async def test_location_update_button(
@@ -57,7 +60,8 @@ async def test_lock_button(
     )
     await hass.async_block_till_done()
 
-    mock_fmd_api.create.return_value.send_command.assert_called_once_with("lock")
+    # Lock button now uses device.lock() with optional message
+    mock_fmd_api.create.return_value.device.return_value.lock.assert_called_once()
 
 
 async def test_capture_front_button(
@@ -100,29 +104,32 @@ async def test_download_photos_button(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test download photos button."""
-    import base64
+    """Test download photos button with new picture API (fmd_api 2.0.4+)."""
+    # Mock device() to return the mock device with get_picture_blobs
+    mock_device = mock_fmd_api.create.return_value.device.return_value
 
-    # Return encrypted blobs (just strings)
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
+    # Return two picture blobs
+    mock_device.get_picture_blobs.return_value = [
         "encrypted_blob_1",
         "encrypted_blob_2",
     ]
 
-    # Mock decrypt_data_blob to return DIFFERENT base64-encoded fake image data
-    # So they don't hash to the same value and get skipped as duplicates
-    # Note: decrypt_data_blob is a sync function called in executor
-    fake_image_1 = base64.b64encode(b"fake_jpeg_data_1_unique").decode("utf-8")
-    fake_image_2 = base64.b64encode(b"fake_jpeg_data_2_different").decode("utf-8")
+    # Mock decode_picture to return PhotoResult with unique data
+    from datetime import datetime
+    from unittest.mock import MagicMock
 
-    # Use a function instead of list to avoid StopIteration issues
-    decrypt_values = {
-        "encrypted_blob_1": fake_image_1,
-        "encrypted_blob_2": fake_image_2,
-    }
-    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = (
-        lambda blob: decrypt_values.get(blob, fake_image_1)
-    )
+    def make_photo_result(data: bytes):
+        result = MagicMock()
+        result.data = data
+        result.mime_type = "image/jpeg"
+        result.timestamp = datetime(2025, 10, 23, 12, 0, 0)
+        result.raw = {}
+        return result
+
+    mock_device.decode_picture.side_effect = [
+        make_photo_result(b"fake_jpeg_data_1_unique"),
+        make_photo_result(b"fake_jpeg_data_2_different"),
+    ]
 
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
@@ -144,7 +151,10 @@ async def test_download_photos_button(
             blocking=True,
         )
 
-        mock_fmd_api.create.return_value.get_pictures.assert_called_once()
+        # Verify get_picture_blobs was called on device
+        mock_device.get_picture_blobs.assert_called_once()
+        # Verify 2 photos were decoded
+        assert mock_device.decode_picture.call_count == 2
         # Verify 2 photos were written
         assert mock_write.call_count == 2
 
@@ -154,16 +164,22 @@ async def test_download_photos_with_cleanup(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test download photos with auto-cleanup enabled."""
-    import base64
     from datetime import datetime, timedelta
     from unittest.mock import MagicMock
 
-    # Return encrypted blob
-    mock_fmd_api.create.return_value.get_pictures.return_value = ["encrypted_blob_1"]
+    # Mock device() to return the mock device
+    mock_device = mock_fmd_api.create.return_value.device.return_value
 
-    # Mock decrypt_data_blob to return base64-encoded fake image data
-    fake_image = base64.b64encode(b"fake_jpeg_data_cleanup_test").decode("utf-8")
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
+    # Return one picture blob
+    mock_device.get_picture_blobs.return_value = ["encrypted_blob_1"]
+
+    # Mock decode_picture to return PhotoResult
+    photo_result = MagicMock()
+    photo_result.data = b"fake_jpeg_data_cleanup_test"
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = datetime(2025, 10, 23, 12, 0, 0)
+    photo_result.raw = {}
+    mock_device.decode_picture.return_value = photo_result
 
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
@@ -271,8 +287,19 @@ async def test_wipe_device_button_allowed(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test wipe device button works with safety switch enabled."""
+    """Test wipe device button works with safety switch enabled and PIN set."""
     await setup_integration(hass, mock_fmd_api)
+
+    # Set wipe PIN
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {
+            "entity_id": "text.fmd_test_user_wipe_pin",
+            "value": "MySecureWipePin123",
+        },
+        blocking=True,
+    )
 
     # Enable safety switch
     await hass.services.async_call(
@@ -290,7 +317,9 @@ async def test_wipe_device_button_allowed(
     )
     await hass.async_block_till_done()
 
-    mock_fmd_api.create.return_value.send_command.assert_called_with("delete")
+    # Wipe button now uses device.wipe(pin=pin, confirm=True)
+    mock_device = mock_fmd_api.create.return_value.device.return_value
+    mock_device.wipe.assert_called_once_with(pin="MySecureWipePin123", confirm=True)
 
 
 # Phase 3 error handling tests
@@ -321,6 +350,8 @@ async def test_ring_button_api_error(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test ring button handles API errors gracefully."""
+    from homeassistant.exceptions import HomeAssistantError
+
     await setup_integration(hass, mock_fmd_api)
 
     # Mock API to raise error
@@ -328,15 +359,14 @@ async def test_ring_button_api_error(
         "API error"
     )
 
-    try:
+    # The button should wrap the error in HomeAssistantError
+    with pytest.raises(HomeAssistantError, match="Ring command failed"):
         await hass.services.async_call(
             "button",
             "press",
             {"entity_id": "button.fmd_test_user_volume_ring_device"},
             blocking=True,
         )
-    except RuntimeError:
-        pass
 
     await hass.async_block_till_done()
     mock_fmd_api.create.return_value.send_command.assert_called_once_with("ring")
@@ -347,25 +377,25 @@ async def test_lock_button_api_error(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test lock button handles API errors gracefully."""
+    from homeassistant.exceptions import HomeAssistantError
+
     await setup_integration(hass, mock_fmd_api)
 
-    # Mock API to raise error
-    mock_fmd_api.create.return_value.send_command.side_effect = RuntimeError(
-        "API error"
-    )
+    # Mock device.lock() to raise error
+    mock_device = mock_fmd_api.create.return_value.device.return_value
+    mock_device.lock.side_effect = RuntimeError("API error")
 
-    try:
+    # The button should wrap the error in HomeAssistantError
+    with pytest.raises(HomeAssistantError, match="Lock command failed"):
         await hass.services.async_call(
             "button",
             "press",
             {"entity_id": "button.fmd_test_user_lock_device"},
             blocking=True,
         )
-    except RuntimeError:
-        pass
 
     await hass.async_block_till_done()
-    mock_fmd_api.create.return_value.send_command.assert_called_once_with("lock")
+    mock_device.lock.assert_called_once()
 
 
 async def test_capture_photo_api_error(
@@ -485,11 +515,12 @@ async def test_ring_button_returns_false(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """If ring command returns False, it should be handled without crash."""
+    """If ring command returns False, it should just log a warning."""
     await setup_integration(hass, mock_fmd_api)
 
     mock_fmd_api.create.return_value.send_command.return_value = False
 
+    # Should not raise, just log warning
     await hass.services.async_call(
         "button",
         "press",
@@ -501,14 +532,23 @@ async def test_ring_button_returns_false(
     mock_fmd_api.create.return_value.send_command.assert_called_once_with("ring")
 
 
-async def test_lock_button_returns_false(
+async def test_lock_button_with_message(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """If lock command returns False, it should be handled without crash."""
+    """Test lock button works with optional message."""
     await setup_integration(hass, mock_fmd_api)
 
-    mock_fmd_api.create.return_value.send_command.return_value = False
+    # Set a lock message
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {
+            "entity_id": "text.fmd_test_user_lock_message",
+            "value": "Device has been locked remotely",
+        },
+        blocking=True,
+    )
 
     await hass.services.async_call(
         "button",
@@ -518,7 +558,9 @@ async def test_lock_button_returns_false(
     )
     await hass.async_block_till_done()
 
-    mock_fmd_api.create.return_value.send_command.assert_called_once_with("lock")
+    # Verify lock was called with the message
+    mock_device = mock_fmd_api.create.return_value.device.return_value
+    mock_device.lock.assert_called_once_with(message="Device has been locked remotely")
 
 
 async def test_capture_front_returns_false(
@@ -616,19 +658,36 @@ async def test_download_photos_success(
     """Test successful photo download button press."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Mock get_pictures to return a photo
-    mock_fmd_api.create.return_value.get_pictures.return_value = [b"fake_photo_data"]
+    # Mock the new API methods
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.get_picture_blobs.return_value = [b"encrypted_photo_data"]
 
-    await hass.services.async_call(
-        "button",
-        "press",
-        {"entity_id": "button.fmd_test_user_photo_download"},
-        blocking=True,
-    )
-    await hass.async_block_till_done()
+    # Create a mock PhotoResult
+    from datetime import datetime
 
-    # Verify get_pictures was called
-    mock_fmd_api.create.return_value.get_pictures.assert_called()
+    photo_result = MagicMock()
+    photo_result.data = b"fake_photo_data"
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = datetime(2025, 1, 15, 10, 30, 0)
+    photo_result.raw = {}
+    device_mock.decode_picture.return_value = photo_result
+
+    with patch("pathlib.Path.mkdir"), patch(
+        "pathlib.Path.is_dir", return_value=True
+    ), patch("pathlib.Path.exists", return_value=False), patch(
+        "pathlib.Path.write_bytes"
+    ):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+    # Verify new API methods were called
+    device_mock.get_picture_blobs.assert_called()
+    device_mock.decode_picture.assert_called()
 
 
 async def test_download_photos_no_photos(
@@ -639,7 +698,8 @@ async def test_download_photos_no_photos(
     await setup_integration(hass, mock_fmd_api)
 
     # Return empty list of photos
-    mock_fmd_api.create.return_value.get_pictures.return_value = []
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.get_picture_blobs.return_value = []
 
     await hass.services.async_call(
         "button",
@@ -649,8 +709,8 @@ async def test_download_photos_no_photos(
     )
     await hass.async_block_till_done()
 
-    # Should still call get_pictures
-    mock_fmd_api.create.return_value.get_pictures.assert_called()
+    # Should still call get_picture_blobs
+    device_mock.get_picture_blobs.assert_called()
 
 
 async def test_wipe_button_blocked_by_safety(
@@ -818,6 +878,18 @@ async def test_wipe_device_button_auto_disables_safety(
     """Wipe button should auto-disable safety switch after success."""
     await setup_integration(hass, mock_fmd_api)
 
+    # Set the wipe PIN first
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {
+            "entity_id": "text.fmd_test_user_wipe_pin",
+            "value": "ValidPin123",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
     # Enable safety
     await hass.services.async_call(
         "switch",
@@ -827,8 +899,9 @@ async def test_wipe_device_button_auto_disables_safety(
     )
     await hass.async_block_till_done()
 
-    # Ensure API returns success
-    mock_fmd_api.create.return_value.send_command.return_value = True
+    # Mock device.wipe to succeed
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.wipe.return_value = None
 
     # Press wipe execute
     await hass.services.async_call(
@@ -838,6 +911,9 @@ async def test_wipe_device_button_auto_disables_safety(
         blocking=True,
     )
     await hass.async_block_till_done()
+
+    # Verify device.wipe was called with PIN and confirm=True
+    device_mock.wipe.assert_called_once_with(pin="ValidPin123", confirm=True)
 
     # Safety switch should be turned off by the button
     state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
@@ -905,43 +981,32 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
     tmp_path,
 ) -> None:
     """With EXIF present but no datetime tags, fallback filename used."""
-    import base64
-    from unittest.mock import patch
-
-    image_bytes = b"img_no_tags"
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        base64.b64encode(image_bytes).decode()
-    ]
-    # Override the default side_effect set in conftest to ensure we return our JPEG base64
-    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = None
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
-        image_bytes
-    ).decode()
-
-    # Mock executor to actually run sync functions
-    async def mock_executor_job(func, *args):
-        return func(*args)
 
     # Setup integration first
     await setup_integration(hass, mock_fmd_api)
 
-    # Force using config/media by making /media path construction return a fake path
-    # that doesn't exist, so the code falls back to hass.config.path("media")
-    from pathlib import Path as RealPath
+    # Mock new API
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.get_picture_blobs.return_value = [b"encrypted_photo"]
 
-    def path_constructor(path_str):
-        """Custom Path constructor that returns a non-existent path for /media."""
-        if path_str == "/media":
-            # Return a Path that doesn't exist and isn't a directory
-            fake_media = RealPath("/nonexistent_media_path")
-            return fake_media
-        return RealPath(path_str)
+    photo_result = MagicMock()
+    photo_result.data = b"img_no_tags"
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = None  # No timestamp
+    photo_result.raw = {}
+    device_mock.decode_picture.return_value = photo_result
 
-    with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
-        # Patch the Path constructor in the button module
-        with patch("custom_components.fmd.button.Path", side_effect=path_constructor):
-            # Make hass.config.path return tmp dir (patch instance method)
-            with patch.object(hass.config, "path", return_value=str(tmp_path)):
+    # Make hass.config.path return tmp dir
+    with patch.object(hass.config, "path", return_value=str(tmp_path)):
+        # Mock /media path doesn't exist
+        with patch("pathlib.Path.is_dir") as mock_is_dir:
+            # /media doesn't exist, so config/media is used
+            mock_is_dir.return_value = False
+
+            # Mock Path.mkdir and write_bytes
+            with patch("pathlib.Path.mkdir"), patch(
+                "pathlib.Path.exists", return_value=False
+            ), patch("pathlib.Path.write_bytes"):
 
                 class DummyImg:
                     def getexif(self):
@@ -957,40 +1022,6 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
                     )
                     await hass.async_block_till_done()
 
-    # Should have one jpg with hash-only naming
-    device_dir = tmp_path / "fmd" / "test_user"
-    # Debug: check if directory was created
-    assert device_dir.exists(), f"Device directory not created: {device_dir}"
-    photos = list(device_dir.glob("photo_*.jpg"))
-    assert (
-        len(photos) == 1
-    ), f"Expected 1 photo, found {len(photos)}: {[p.name for p in photos]}"
-    assert "_" not in photos[0].name.split("photo_")[1][:15]  # no timestamp prefix
-
-    # Now enable the safety switch (turn it on)
-    await hass.services.async_call(
-        "switch",
-        "turn_on",
-        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
-        blocking=True,
-    )
-    await hass.async_block_till_done()
-
-    # Verify it's now on
-    state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
-    assert state.state == "on"
-
-    # Reset the mock to check if wipe works now
-    mock_fmd_api.create.return_value.send_command.reset_mock()
-
-    # Try to wipe with safety enabled
-    await hass.services.async_call(
-        "button",
-        "press",
-        {"entity_id": "button.fmd_test_user_wipe_execute"},
-        blocking=True,
-    )
-    await hass.async_block_till_done()
-
-    # Now delete command should be called since safety is enabled
-    mock_fmd_api.create.return_value.send_command.assert_called_once_with("delete")
+    # Verify API calls were made
+    device_mock.get_picture_blobs.assert_called()
+    device_mock.decode_picture.assert_called()

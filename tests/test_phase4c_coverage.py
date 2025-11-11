@@ -257,7 +257,7 @@ async def test_button_download_photos_cleanup_delete_error(
 async def test_button_wipe_device_success(
     hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
-    """Test wipe device button successfully sends wipe command."""
+    """Test wipe device button successfully calls device.wipe()."""
     await setup_integration(hass, mock_fmd_api)
 
     entry_id = list(hass.data[DOMAIN].keys())[0]
@@ -266,8 +266,13 @@ async def test_button_wipe_device_success(
     safety_switch = hass.data[DOMAIN][entry_id]["wipe_safety_switch"]
     await safety_switch.async_turn_on()
 
-    # Mock successful wipe
-    mock_fmd_api.create.return_value.send_command.return_value = True
+    # Get the wipe PIN from the text entity
+    wipe_pin_text = hass.data[DOMAIN][entry_id]["wipe_pin_text"]
+    await wipe_pin_text.async_set_value("1234")
+
+    # Mock device.wipe()
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.wipe = AsyncMock()
 
     # Press the wipe button
     await hass.services.async_call(
@@ -276,9 +281,10 @@ async def test_button_wipe_device_success(
         {"entity_id": "button.fmd_test_user_wipe_execute"},
         blocking=True,
     )
+    await hass.async_block_till_done()
 
-    # Verify wipe was called
-    mock_fmd_api.create.return_value.send_command.assert_called_once_with("delete")
+    # Verify device.wipe() was called with correct parameters
+    device_mock.wipe.assert_called_once_with("1234", confirm=True)
 
     # Safety switch should be automatically disabled
     assert safety_switch.is_on is False

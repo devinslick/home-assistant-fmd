@@ -9,10 +9,12 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from fmd_api import FmdClient
 
+from fmd_api import AuthenticationError, FmdApiException, OperationError
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
 from homeassistant.components.device_tracker.const import SourceType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
@@ -473,6 +475,25 @@ class FmdDeviceTracker(TrackerEntity):
                         len(location_blobs),
                     )
             else:
-                _LOGGER.warning("No location blobs returned from API")
+                # Empty list is OK - device may not have reported location yet
+                _LOGGER.info("No location data available from server (empty list)")
+
+        except AuthenticationError as e:
+            _LOGGER.error("Authentication error getting location: %s", e)
+            # Trigger reauth flow
+            raise ConfigEntryAuthFailed(f"Authentication failed: {e}") from e
+
+        except OperationError as e:
+            _LOGGER.warning(
+                "Connection or API error getting location: %s - Will retry on next poll",
+                e,
+            )
+            # Keep previous location, will retry automatically
+
+        except FmdApiException as e:
+            _LOGGER.error("FMD API error getting location: %s", e)
+            # Keep previous location, will retry automatically
+
         except Exception as e:
-            _LOGGER.error("Error getting location: %s", e, exc_info=True)
+            _LOGGER.error("Unexpected error getting location: %s", e, exc_info=True)
+            # Keep previous location, will retry automatically

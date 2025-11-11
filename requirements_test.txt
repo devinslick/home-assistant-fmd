@@ -12,5 +12,5 @@ josepy<1.15.0
 acme<3.0.0
 
 # Integration dependencies
-fmd-api==2.0.1
+fmd-api==2.0.4
 Pillow>=10.0.0

@@ -113,7 +113,7 @@ async def test_config_flow_form_shows_error_message(hass: HomeAssistant) -> None
     assert "errors" in result
 
     with patch(
-        "custom_components.fmd.config_flow.authenticate_and_get_locations",
+        "custom_components.fmd.config_flow.authenticate_and_get_artifacts",
         side_effect=Exception("Server error"),
     ):
         result2 = await hass.config_entries.flow.async_configure(
@@ -136,7 +136,7 @@ async def test_config_flow_empty_url(hass: HomeAssistant) -> None:
 
     # Submit with minimal fields (could fail validation)
     with patch(
-        "custom_components.fmd.config_flow.authenticate_and_get_locations",
+        "custom_components.fmd.config_flow.authenticate_and_get_artifacts",
         side_effect=ValueError("Invalid URL"),
     ):
         result2 = await hass.config_entries.flow.async_configure(
@@ -161,13 +161,25 @@ async def test_config_flow_special_characters_in_fields(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test config flow handles special characters in input fields."""
+    from unittest.mock import MagicMock
+
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
 
+    # Create mock artifacts
+    mock_artifacts = MagicMock()
+    mock_artifacts.get.side_effect = lambda k, default=None: {
+        "base_url": "https://fmd-example.com:8443/api",
+        "fmd_id": "user@domain.com",
+        "access_token": "token",
+        "private_key": "key",
+        "password_hash": "hash",
+    }.get(k, default)
+
     with patch(
-        "custom_components.fmd.config_flow.authenticate_and_get_locations",
-        return_value=[{"lat": 37.7749, "lon": -122.4194}],
+        "custom_components.fmd.config_flow.authenticate_and_get_artifacts",
+        return_value=mock_artifacts,
     ):
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
@@ -192,13 +204,25 @@ async def test_config_flow_minimal_required_fields(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test config flow with only required fields."""
+    from unittest.mock import MagicMock
+
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
 
+    # Create mock artifacts
+    mock_artifacts = MagicMock()
+    mock_artifacts.get.side_effect = lambda k, default=None: {
+        "base_url": "https://fmd.example.com",
+        "fmd_id": "test_user",
+        "access_token": "token",
+        "private_key": "key",
+        "password_hash": "hash",
+    }.get(k, default)
+
     with patch(
-        "custom_components.fmd.config_flow.authenticate_and_get_locations",
-        return_value=[{"lat": 37.7749, "lon": -122.4194}],
+        "custom_components.fmd.config_flow.authenticate_and_get_artifacts",
+        return_value=mock_artifacts,
     ):
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],

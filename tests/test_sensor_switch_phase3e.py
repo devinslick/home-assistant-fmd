@@ -1,7 +1,7 @@
 """Phase 3e sensor and switch edge case tests."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 from conftest import setup_integration
 from homeassistant.core import HomeAssistant
@@ -41,31 +41,26 @@ async def test_sensor_photo_count_with_pictures(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count sensor with returned pictures."""
-    import base64
+    from datetime import datetime
 
-    # Return multiple encrypted blobs
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        base64.b64encode(b"fake_image_1").decode(),
-        base64.b64encode(b"fake_image_2").decode(),
-        base64.b64encode(b"fake_image_3").decode(),
+    # Mock the new device API
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.get_picture_blobs.return_value = [b"blob1", b"blob2", b"blob3"]
+
+    # Create mock PhotoResult objects with unique data
+    def create_photo_result(data: bytes):
+        photo_result = MagicMock()
+        photo_result.data = data
+        photo_result.mime_type = "image/jpeg"
+        photo_result.timestamp = datetime(2025, 1, 15, 10, 30, 0)
+        photo_result.raw = {}
+        return photo_result
+
+    device_mock.decode_picture.side_effect = [
+        create_photo_result(b"jpeg_data_1"),
+        create_photo_result(b"jpeg_data_2"),
+        create_photo_result(b"jpeg_data_3"),
     ]
-
-    # Mock decrypt
-    decrypt_values = {
-        base64.b64encode(b"fake_image_1")
-        .decode(): base64.b64encode(b"jpeg_data_1")
-        .decode(),
-        base64.b64encode(b"fake_image_2")
-        .decode(): base64.b64encode(b"jpeg_data_2")
-        .decode(),
-        base64.b64encode(b"fake_image_3")
-        .decode(): base64.b64encode(b"jpeg_data_3")
-        .decode(),
-    }
-
-    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = (
-        lambda blob: decrypt_values.get(blob, base64.b64encode(b"fake").decode())
-    )
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -78,8 +73,8 @@ async def test_sensor_photo_count_with_pictures(
     )
     await hass.async_block_till_done()
 
-    # Verify get_pictures was called
-    mock_fmd_api.create.return_value.get_pictures.assert_called()
+    # Verify get_picture_blobs was called
+    device_mock.get_picture_blobs.assert_called()
 
 
 async def test_switch_wipe_safety_exists(
