@@ -16,12 +16,13 @@ async def test_allow_inaccurate_true_uses_first_location(
     hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
     """When allow_inaccurate_locations is True, use the most recent regardless of provider."""
-    # Create entry with allow_inaccurate True
+    # Create a base entry and set allow_inaccurate_locations=True using async_update_entry
     config_entry = get_mock_config_entry()
-    data = dict(config_entry.data)
-    data["allow_inaccurate_locations"] = True
-    config_entry.data = data
     config_entry.add_to_hass(hass)
+
+    new_data = dict(config_entry.data)
+    new_data["allow_inaccurate_locations"] = True
+    await hass.config_entries.async_update_entry(config_entry, data=new_data)
 
     # Most recent is an inaccurate provider
     mock_fmd_api.create.return_value.get_locations.return_value = [

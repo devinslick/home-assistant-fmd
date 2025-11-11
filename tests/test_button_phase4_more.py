@@ -199,23 +199,18 @@ async def test_location_update_select_missing_defaults_to_all(
     """If location source select is missing, provider should default to 'all'."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Patch hass.states.get to return None for the select entity
-    orig_get = hass.states.get
+    # Remove the select entity state to simulate it being missing
+    await hass.states.async_remove("select.fmd_test_user_location_source")
+    await hass.async_block_till_done()
 
-    def get_side_effect(entity_id: str):
-        if entity_id.endswith("_location_source"):
-            return None
-        return orig_get(entity_id)
+    # Press the button; code should default to provider='all'
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_location_update"},
+        blocking=True,
+    )
 
-    with patch.object(hass.states, "get", side_effect=get_side_effect):
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_location_update"},
-            blocking=True,
-        )
-
-    # Should have used default provider
     assert mock_fmd_api.create.return_value.request_location.called
     kwargs = mock_fmd_api.create.return_value.request_location.call_args.kwargs
     assert kwargs.get("provider") == "all"

@@ -80,15 +80,23 @@ Before installing this integration, you need:
 
 ### HACS Installation (Recommended)
 
-1.  Open HACS in Home Assistant
-2.  Click the three dots in the top right corner and select **Custom repositories**
-3.  Add this repository URL: `https://github.com/devinslick/home-assistant-fmd`
-4.  Select **Integration** as the category
-5.  Click **Add**
-6.  Click the "+" button in HACS
-7.  Search for "FMD" or "Find My Device"
-8.  Click "Download"
-9.  Restart Home Assistant
+You can install via the HACS Default store (once approved), or add as a Custom Repository today.
+
+#### HACS (Default Store)
+1. Open HACS in Home Assistant
+2. Click the + button and search for "FMD"
+3. Click "Download" and restart Home Assistant
+
+#### HACS (Custom Repository)
+1. Open HACS in Home Assistant
+2. Click the three dots in the top right corner and select **Custom repositories**
+3. Add this repository URL: `https://github.com/devinslick/home-assistant-fmd`
+4. Select **Integration** as the category
+5. Click **Add**
+6. Click the "+" button in HACS
+7. Search for "FMD" or "Find My Device"
+8. Click "Download"
+9. Restart Home Assistant
 
 ### Manual Installation
 
@@ -497,9 +505,9 @@ automation:
             {% else %}
               Cell Only (Fast)
             {% endif %}
-    action: switch.turn_on
-      target:
-        entity_id: switch.fmd_test_user_high_frequency_mode
+      - service: switch.turn_on
+        target:
+          entity_id: switch.fmd_test_user_high_frequency_mode
 ```
 
 ### Bluetooth Control
