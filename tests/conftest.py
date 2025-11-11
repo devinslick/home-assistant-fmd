@@ -42,15 +42,10 @@ def _enable_sockets_session():
 
 
 @pytest.fixture(autouse=True)
-def auto_enable_custom_integrations():
-    """Enable custom integrations for all tests.
-
-    The pytest-homeassistant-custom-component plugin exposes the
-    enable_custom_integrations fixture. When plugin auto-loading is disabled
-    (Windows), we explicitly list the plugin via pytest_plugins above so the
-    fixture is registered. We keep this wrapper to avoid parameter errors if
-    the underlying fixture naming changes and to make the intent clear.
-    """
+def _auto_enable_custom_integrations(enable_custom_integrations):  # noqa: D401
+    """Autouse wrapper to ensure custom components directory is enabled."""
+    # Rely on the upstream fixture to perform the enabling; just yield to keep
+    # a stable autouse hook without redefining its behavior.
     yield
 
 
