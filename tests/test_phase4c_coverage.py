@@ -284,7 +284,7 @@ async def test_button_wipe_device_success(
     await hass.async_block_till_done()
 
     # Verify device.wipe() was called with correct parameters
-    device_mock.wipe.assert_called_once_with("1234", confirm=True)
+    device_mock.wipe.assert_called_once_with(pin="1234", confirm=True)
 
     # Safety switch should be automatically disabled
     assert safety_switch.is_on is False

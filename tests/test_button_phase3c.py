@@ -106,9 +106,6 @@ async def test_ring_button_api_error(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test ring button when send_command raises exception."""
-    import pytest
-    from homeassistant.exceptions import HomeAssistantError
-
     mock_fmd_api.create.return_value.send_command.side_effect = Exception("API Error")
 
     await setup_integration(hass, mock_fmd_api)
@@ -152,8 +149,6 @@ async def test_lock_button_api_error(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test lock button when device.lock() raises exception."""
-    import pytest
-    from homeassistant.exceptions import HomeAssistantError
 
     await setup_integration(hass, mock_fmd_api)
 

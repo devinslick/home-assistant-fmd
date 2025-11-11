@@ -260,20 +260,19 @@ class FmdLockButton(ButtonEntity):
 
         except AuthenticationError as e:
             _LOGGER.error("Authentication error sending lock command: %s", e)
-            # For lock, log and swallow to avoid failing the service call
-            return
+            raise HomeAssistantError(f"Lock command failed: {e}") from e
 
         except OperationError as e:
             _LOGGER.error("Connection or API error sending lock command: %s", e)
-            return
+            raise HomeAssistantError(f"Lock command failed: {e}") from e
 
         except FmdApiException as e:
             _LOGGER.error("FMD API error sending lock command: %s", e)
-            return
+            raise HomeAssistantError(f"Lock command failed: {e}") from e
 
         except Exception as e:
             _LOGGER.error("Unexpected error sending lock command: %s", e, exc_info=True)
-            return
+            raise HomeAssistantError(f"Lock command failed: {e}") from e
 
 
 class FmdCaptureFrontCameraButton(ButtonEntity):
@@ -753,56 +752,60 @@ class FmdWipeDeviceButton(ButtonEntity):
             )
             return
 
-        # Get and validate the wipe PIN
-        wipe_pin_text = self.hass.data[DOMAIN][self._entry.entry_id].get(
-            "wipe_pin_text"
+        # Obtain safety switch instance for auto-disable and ensure we disable it
+        safety_switch = self.hass.data[DOMAIN][self._entry.entry_id].get(
+            "wipe_safety_switch"
         )
-
-        if not wipe_pin_text:
-            _LOGGER.error("❌ DEVICE WIPE BLOCKED ❌")
-            _LOGGER.error("⚠️ Wipe PIN entity not found")
-            _LOGGER.error(
-                "💡 Please set a wipe PIN in the 'Wipe: PIN' text entity first"
-            )
-            return
-
-        pin = wipe_pin_text.native_value
-
-        if not pin:
-            _LOGGER.error("❌ DEVICE WIPE BLOCKED ❌")
-            _LOGGER.error("⚠️ Wipe PIN is not set")
-            _LOGGER.error(
-                "💡 Please set a wipe PIN in the 'Wipe: PIN' text entity first"
-            )
-            _LOGGER.error(
-                "💡 PIN must be alphanumeric (letters and numbers only) with no spaces"
-            )
-            return
-
-        # Import validation function from text entity
-        from .text import FmdWipePinText
-
-        is_valid, error_msg = FmdWipePinText.validate_pin(pin)
-
-        if not is_valid:
-            _LOGGER.error("❌ DEVICE WIPE BLOCKED ❌")
-            _LOGGER.error("⚠️ Invalid wipe PIN: %s", error_msg)
-            _LOGGER.error(
-                "💡 PIN must be alphanumeric (letters and numbers only) with no spaces"
-            )
-            return
-
-        _LOGGER.critical("🚨🚨🚨 DEVICE WIPE COMMAND EXECUTING 🚨🚨🚨")
-        _LOGGER.critical("⚠️ This will PERMANENTLY ERASE ALL DATA on the device!")
-        _LOGGER.critical("⚠️ This action CANNOT be undone!")
-
-        # Get the tracker to access its API
-        tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
-        if not tracker:
-            _LOGGER.error("Could not find tracker to send wipe command")
-            return
-
         try:
+            # Get and validate the wipe PIN
+            wipe_pin_text = self.hass.data[DOMAIN][self._entry.entry_id].get(
+                "wipe_pin_text"
+            )
+
+            if not wipe_pin_text:
+                _LOGGER.error("❌ DEVICE WIPE BLOCKED ❌")
+                _LOGGER.error("⚠️ Wipe PIN entity not found")
+                _LOGGER.error(
+                    "💡 Please set a wipe PIN in the 'Wipe: PIN' text entity first"
+                )
+                return
+
+            pin = wipe_pin_text.native_value
+
+            if not pin:
+                _LOGGER.error("❌ DEVICE WIPE BLOCKED ❌")
+                _LOGGER.error("⚠️ Wipe PIN is not set")
+                _LOGGER.error(
+                    "💡 Please set a wipe PIN in the 'Wipe: PIN' text entity first"
+                )
+                _LOGGER.error(
+                    "💡 PIN must be alphanumeric (letters and numbers only) with no spaces"
+                )
+                return
+
+            # Import validation function from text entity
+            from .text import FmdWipePinText
+
+            is_valid, error_msg = FmdWipePinText.validate_pin(pin)
+
+            if not is_valid:
+                _LOGGER.error("❌ DEVICE WIPE BLOCKED ❌")
+                _LOGGER.error("⚠️ Invalid wipe PIN: %s", error_msg)
+                _LOGGER.error(
+                    "💡 PIN must be alphanumeric (letters and numbers only) with no spaces"
+                )
+                return
+
+            _LOGGER.critical("🚨🚨🚨 DEVICE WIPE COMMAND EXECUTING 🚨🚨🚨")
+            _LOGGER.critical("⚠️ This will PERMANENTLY ERASE ALL DATA on the device!")
+            _LOGGER.critical("⚠️ This action CANNOT be undone!")
+
+            # Get the tracker to access its API
+            tracker = self.hass.data[DOMAIN][self._entry.entry_id].get("tracker")
+            if not tracker:
+                _LOGGER.error("Could not find tracker to send wipe command")
+                return
+
             # Get device instance for new API
             device = tracker.api.device(self._entry.data["id"])
 
@@ -819,17 +822,6 @@ class FmdWipeDeviceButton(ButtonEntity):
             _LOGGER.critical(
                 "⚠️ This cannot be undone or cancelled once the device receives it"
             )
-
-            # Automatically disable the safety switch after use
-            # This prevents accidental repeated presses
-            safety_switch = self.hass.data[DOMAIN][self._entry.entry_id].get(
-                "wipe_safety_switch"
-            )
-            if safety_switch:
-                await safety_switch.async_turn_off()
-                _LOGGER.warning(
-                    "Safety switch automatically disabled to prevent repeated wipe commands"
-                )
 
         except AuthenticationError as e:
             _LOGGER.error("❌ FAILED to send device wipe command to server")
@@ -858,3 +850,11 @@ class FmdWipeDeviceButton(ButtonEntity):
                 "The device was NOT wiped - check server connectivity, PIN, and try again"
             )
             raise HomeAssistantError(f"Wipe command failed: {e}") from e
+
+        finally:
+            # Automatically disable the safety switch after button press to prevent repeated presses
+            if safety_switch:
+                await safety_switch.async_turn_off()
+                _LOGGER.warning(
+                    "Safety switch automatically disabled to prevent repeated wipe commands"
+                )

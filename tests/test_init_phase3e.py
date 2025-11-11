@@ -202,8 +202,6 @@ async def test_config_flow_minimal_required_fields(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test config flow with only required fields."""
-    from unittest.mock import MagicMock
-
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
