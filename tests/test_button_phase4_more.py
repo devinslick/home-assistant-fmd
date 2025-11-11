@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from conftest import setup_integration
@@ -13,7 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 
 async def test_download_photos_exif_timestamp_used(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock, tmp_path: Path
+    hass: HomeAssistant, mock_fmd_api, tmp_path: Path
 ) -> None:
     """EXIF DateTimeOriginal should be used when PhotoResult has no timestamp."""
     device = mock_fmd_api.create.return_value.device.return_value
@@ -53,7 +53,7 @@ async def test_download_photos_exif_timestamp_used(
 
 
 async def test_download_photos_duplicate_skipped(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock, tmp_path: Path
+    hass: HomeAssistant, mock_fmd_api, tmp_path: Path
 ) -> None:
     """If a photo file already exists, it should be skipped (no write)."""
     device = mock_fmd_api.create.return_value.device.return_value
@@ -99,7 +99,7 @@ async def test_download_photos_duplicate_skipped(
     ],
 )
 async def test_download_photos_raises_specific_errors(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock, exc_type: str
+    hass: HomeAssistant, mock_fmd_api, exc_type: str
 ) -> None:
     """Download path should raise HomeAssistantError on specific FMD errors."""
     from fmd_api import AuthenticationError, FmdApiException, OperationError
@@ -125,7 +125,7 @@ async def test_download_photos_raises_specific_errors(
 
 
 async def test_photo_cleanup_handles_unlink_errors(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
+    hass: HomeAssistant, mock_fmd_api
 ) -> None:
     """Cleanup should continue deleting when one unlink fails."""
     device = mock_fmd_api.create.return_value.device.return_value
@@ -194,7 +194,7 @@ async def test_photo_cleanup_handles_unlink_errors(
 
 
 async def test_location_update_select_missing_defaults_to_all(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
+    hass: HomeAssistant, mock_fmd_api
 ) -> None:
     """If location source select is missing, provider should default to 'all'."""
     await setup_integration(hass, mock_fmd_api)
