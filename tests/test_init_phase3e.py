@@ -1,7 +1,7 @@
 """Phase 3e entry setup and config flow edge case tests."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
@@ -161,8 +161,6 @@ async def test_config_flow_special_characters_in_fields(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test config flow handles special characters in input fields."""
-    from unittest.mock import MagicMock
-
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
