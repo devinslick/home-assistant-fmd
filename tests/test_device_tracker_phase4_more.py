@@ -22,7 +22,7 @@ async def test_allow_inaccurate_true_uses_first_location(
 
     new_data = dict(config_entry.data)
     new_data["allow_inaccurate_locations"] = True
-    await hass.config_entries.async_update_entry(config_entry, data=new_data)
+    hass.config_entries.async_update_entry(config_entry, data=new_data)
 
     # Most recent is an inaccurate provider
     mock_fmd_api.create.return_value.get_locations.return_value = [

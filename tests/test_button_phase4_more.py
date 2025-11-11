@@ -200,7 +200,7 @@ async def test_location_update_select_missing_defaults_to_all(
     await setup_integration(hass, mock_fmd_api)
 
     # Remove the select entity state to simulate it being missing
-    await hass.states.async_remove("select.fmd_test_user_location_source")
+    hass.states.async_remove("select.fmd_test_user_location_source")
     await hass.async_block_till_done()
 
     # Press the button; code should default to provider='all'
