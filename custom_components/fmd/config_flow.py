@@ -36,6 +36,40 @@ async def authenticate_and_get_artifacts(
     return artifacts
 
 
+def _normalize_artifacts(artifacts: Any) -> dict[str, Any]:
+    """Ensure artifacts are stored as a plain serializable dict.
+
+    Some tests or callers may pass in MagicMock/dict-like objects that implement
+    only `.get`. Home Assistant persists config entry data to JSON; ensure we
+    convert any mapping-like object into a real dict with expected keys to avoid
+    serialization errors (e.g., TypeError on MagicMock).
+    """
+    if isinstance(artifacts, dict):
+        return artifacts
+
+    # Best-effort extraction using .get for known keys returned by FMD API
+    required_keys = (
+        "base_url",
+        "fmd_id",
+        "access_token",
+        "private_key",
+        "password_hash",
+    )
+    try:
+        get = getattr(artifacts, "get", None)
+        if callable(get):
+            return {k: get(k, None) for k in required_keys}
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+    # Fallback: try to coerce via dict() for mapping types
+    try:
+        return dict(artifacts)  # type: ignore[arg-type]
+    except Exception:  # pragma: no cover - defensive
+        _LOGGER.debug("Unable to normalize artifacts of type %s", type(artifacts))
+        return {}
+
+
 class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reauth(
         self, user_input: dict[str, Any] | None = None
@@ -54,6 +88,8 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     user_input["id"],
                     user_input["password"],
                 )
+
+                artifacts = _normalize_artifacts(artifacts)
 
                 # Build new entry data with artifacts
                 new_data = {
@@ -109,6 +145,8 @@ class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     user_input["id"],
                     user_input["password"],
                 )
+
+                artifacts = _normalize_artifacts(artifacts)
 
                 # Build entry data with artifacts (no raw password stored)
                 entry_data = {
