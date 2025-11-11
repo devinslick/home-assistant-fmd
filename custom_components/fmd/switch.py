@@ -33,11 +33,12 @@ async def async_setup_entry(
 
     async_add_entities(switches)
 
-    # Store photo auto-cleanup switch reference for download button to access
+    # Store switch references for other platforms to access
     for switch in switches:
         if isinstance(switch, FmdPhotoAutoCleanupSwitch):
             hass.data[DOMAIN][entry.entry_id]["photo_auto_cleanup_switch"] = switch
-            break
+        if isinstance(switch, FmdWipeSafetySwitch):
+            hass.data[DOMAIN][entry.entry_id]["wipe_safety_switch"] = switch
 
 
 class FmdHighFrequencyModeSwitch(SwitchEntity):
@@ -231,8 +232,9 @@ class FmdWipeSafetySwitch(SwitchEntity):
         if self._auto_disable_task:
             self._auto_disable_task.cancel()
 
-        # Schedule automatic disable after 60 seconds
-        self._auto_disable_task = asyncio.create_task(self._auto_disable())
+        # Schedule automatic disable after 60 seconds (avoid duplicate tasks)
+        if not self._auto_disable_task:
+            self._auto_disable_task = asyncio.create_task(self._auto_disable())
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable device wipe safety (blocks wipe button)."""

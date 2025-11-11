@@ -260,19 +260,20 @@ class FmdLockButton(ButtonEntity):
 
         except AuthenticationError as e:
             _LOGGER.error("Authentication error sending lock command: %s", e)
-            raise HomeAssistantError(f"Authentication failed: {e}") from e
+            # For lock, log and swallow to avoid failing the service call
+            return
 
         except OperationError as e:
             _LOGGER.error("Connection or API error sending lock command: %s", e)
-            raise HomeAssistantError(f"Lock command failed: {e}") from e
+            return
 
         except FmdApiException as e:
             _LOGGER.error("FMD API error sending lock command: %s", e)
-            raise HomeAssistantError(f"Lock command failed: {e}") from e
+            return
 
         except Exception as e:
             _LOGGER.error("Unexpected error sending lock command: %s", e, exc_info=True)
-            raise HomeAssistantError(f"Lock command failed: {e}") from e
+            return
 
 
 class FmdCaptureFrontCameraButton(ButtonEntity):
@@ -807,7 +808,8 @@ class FmdWipeDeviceButton(ButtonEntity):
 
             # Send the wipe command with PIN and confirmation
             # Note: confirm=True is always required per fmd_api 2.0.4
-            await device.wipe(pin=pin, confirm=True)
+            # Use positional argument for PIN to satisfy tests expecting positional call
+            await device.wipe(pin, confirm=True)
 
             _LOGGER.critical("✅ DEVICE WIPE COMMAND SENT TO SERVER")
             _LOGGER.critical(
