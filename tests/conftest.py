@@ -155,17 +155,30 @@ def mock_fmd_api():
     create_mock.return_value = api_instance
     from_artifacts_mock.return_value = api_instance
 
+    # Mock Device class constructor to return our mock_device
+    # When called as Device(client, id), it should return mock_device
+    def device_constructor_side_effect(*args, **kwargs):
+        """Return the pre-configured mock_device regardless of arguments."""
+        return mock_device
+
+    device_class_mock = MagicMock(side_effect=device_constructor_side_effect)
+
     # Patch where FmdClient is USED (custom_components.fmd), not where it's defined (fmd_api)
     with patch("custom_components.fmd.FmdClient.create", create_mock), patch(
         "custom_components.fmd.FmdClient.from_auth_artifacts", from_artifacts_mock
     ), patch("custom_components.fmd.config_flow.FmdClient.create", create_mock), patch(
         "custom_components.fmd.config_flow.FmdClient.from_auth_artifacts",
         from_artifacts_mock,
+    ), patch(
+        "custom_components.fmd.button.Device", device_class_mock
     ):
         # Yield a mock that has .create and .from_auth_artifacts attributes for test assertions
         mock_api_class = MagicMock()
         mock_api_class.create = create_mock
         mock_api_class.from_auth_artifacts = from_artifacts_mock
+        mock_api_class.device = MagicMock(
+            return_value=mock_device
+        )  # Keep for backward compat
         yield mock_api_class
 
 
