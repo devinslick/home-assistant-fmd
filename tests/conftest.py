@@ -7,6 +7,11 @@ from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+# Importing pytest_socket for its side-effect: enabling real socket usage in tests.
+# Home Assistant's event loop creation on Windows may require an actual socket;
+# we explicitly enable sockets in the _enable_sockets_session fixture. Keeping
+# this import makes the dependency explicit and avoids accidental removal.
 import pytest_socket
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry

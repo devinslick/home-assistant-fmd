@@ -787,11 +787,11 @@ class FmdWipeDeviceButton(ButtonEntity):
             _LOGGER.error("❌ DEVICE WIPE BLOCKED ❌")
             _LOGGER.error("⚠️ Invalid wipe PIN: %s", error_msg)
             _LOGGER.error(
-                "� PIN must be alphanumeric (letters and numbers only) with no spaces"
+                "💡 PIN must be alphanumeric (letters and numbers only) with no spaces"
             )
             return
 
-        _LOGGER.critical("�🚨🚨🚨 DEVICE WIPE COMMAND EXECUTING 🚨🚨🚨")
+        _LOGGER.critical("🚨🚨🚨 DEVICE WIPE COMMAND EXECUTING 🚨🚨🚨")
         _LOGGER.critical("⚠️ This will PERMANENTLY ERASE ALL DATA on the device!")
         _LOGGER.critical("⚠️ This action CANNOT be undone!")
 
