@@ -1044,6 +1044,13 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Version History
 
+### v1.1.1 - November 11, 2025 (Hotfix)
+Short maintenance release focused on restoring button functionality introduced with the fmd_api 2.0.4 upgrade.
+
+Changes:
+- Fix: Button entities (Lock device, Photo: Download, Wipe: Execute) now work reliably by constructing `Device(client, device_id)` instead of calling a non-existent `client.device()` method. This also restores lock functionality, including support for custom lock-screen messages.
+- Tests/Docs: Updated Device class mocking in tests and added Windows test setup guide at `docs/TESTS_WINDOWS.md`.
+
 ### v1.1.0 - November 9, 2025 (fmd_api 2.0.4 Integration)
 **🔐 Security & Feature Update**
 

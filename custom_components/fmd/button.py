@@ -9,7 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fmd_api import AuthenticationError, FmdApiException, OperationError
+# Import Device class for v2.0.4+ API
+from fmd_api import AuthenticationError, Device, FmdApiException, OperationError
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -248,7 +249,7 @@ class FmdLockButton(ButtonEntity):
 
         try:
             # Get device instance for new API
-            device = tracker.api.device(self._entry.data["id"])
+            device = Device(tracker.api, self._entry.data["id"])
 
             # Send lock command with optional message
             # Client automatically sanitizes dangerous characters
@@ -426,7 +427,7 @@ class FmdDownloadPhotosButton(ButtonEntity):
             _LOGGER.info("Fetching up to %s photos from server...", max_photos)
 
             # Get device instance for new picture API
-            device = tracker.api.device(self._entry.data["id"])
+            device = Device(tracker.api, self._entry.data["id"])
             picture_blobs = await device.get_picture_blobs(max_photos)
 
             if not picture_blobs:
@@ -803,7 +804,7 @@ class FmdWipeDeviceButton(ButtonEntity):
 
         try:
             # Get device instance for new API
-            device = tracker.api.device(self._entry.data["id"])
+            device = Device(tracker.api, self._entry.data["id"])
 
             # Send the wipe command with PIN and confirmation
             # Note: confirm=True is always required per fmd_api 2.0.4
