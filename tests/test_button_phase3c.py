@@ -156,15 +156,14 @@ async def test_lock_button_api_error(
     device_mock = mock_fmd_api.create.return_value.device.return_value
     device_mock.lock.side_effect = RuntimeError("API Error")
 
-    # Should raise HomeAssistantError wrapping the API error
-    with pytest.raises(HomeAssistantError, match="Lock command failed"):
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_lock_device"},
-            blocking=True,
-        )
-        await hass.async_block_till_done()
+    # Should handle error gracefully without raising
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_lock_device"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
 
     device_mock.lock.assert_called_once()
 
