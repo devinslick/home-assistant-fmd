@@ -1,6 +1,6 @@
 # Home Assistant FMD Integration
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
 [![Tests](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/devinslick/home-assistant-fmd/branch/main/graph/badge.svg?token=W04KEUVQ8W)](https://codecov.io/gh/devinslick/home-assistant-fmd)
 
