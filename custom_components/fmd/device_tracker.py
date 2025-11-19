@@ -119,6 +119,7 @@ class FmdDeviceTracker(TrackerEntity):
         self._battery_level = None
         self._last_poll_time = None  # When we last polled FMD server
         self._remove_timer = None
+        self._is_updating = False
 
     @property
     def polling_interval(self) -> int:
@@ -132,30 +133,37 @@ class FmdDeviceTracker(TrackerEntity):
 
         async def update_locations(now: datetime | None = None) -> None:
             """Update device locations."""
-            # If in high-frequency mode, request fresh location from device
-            if self._high_frequency_mode:
-                _LOGGER.debug(
-                    "High-frequency mode active - requesting fresh location from device"
-                )
+            # Prevent overlapping updates if the previous one is still running
+            if self._is_updating:
+                _LOGGER.warning("Previous update still in progress, skipping this poll")
+                return
+
+            self._is_updating = True
+            try:
+                # Always request fresh location from device (active polling)
+                # This ensures we get the latest location from the device, not just the server cache
+                _LOGGER.debug("Polling: Requesting fresh location from device...")
                 try:
                     import asyncio
 
+                    # Use 'all' providers to get the best available location
                     success = await self.api.request_location(provider="all")
                     if success:
                         _LOGGER.debug(
                             "Location request sent, waiting 10 seconds for device..."
                         )
+                        # Wait for device to process command and upload location
                         await asyncio.sleep(10)
                     else:
                         _LOGGER.warning("Failed to request location from device")
                 except Exception as e:
-                    _LOGGER.error(
-                        "Error requesting location during high-frequency poll: %s", e
-                    )
+                    _LOGGER.error("Error requesting location during poll: %s", e)
 
-            # Fetch location from server and update state
-            await self.async_update()
-            self.async_write_ha_state()
+                # Fetch location from server and update state
+                await self.async_update()
+                self.async_write_ha_state()
+            finally:
+                self._is_updating = False
 
         _LOGGER.info(
             "Starting polling with interval: %s minutes", self._polling_interval

@@ -1044,6 +1044,14 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Version History
 
+### v1.1.2 - November 18, 2025 (Maintenance)
+Maintenance release to update dependencies and improve polling reliability.
+
+Changes:
+- 📦 **Updated dependency** to `fmd-api==2.0.5`
+- 🔄 **Improved polling logic**: Device tracker now actively requests fresh location data from the device during every poll (instead of just fetching server cache), ensuring more up-to-date tracking.
+- 🛡️ **Polling reliability**: Added protection against overlapping updates to prevent task pile-ups and ensure schedule adherence.
+
 ### v1.1.1 - November 11, 2025 (Hotfix)
 Short maintenance release focused on restoring button functionality introduced with the fmd_api 2.0.4 upgrade.
 
@@ -1273,7 +1281,7 @@ This was the final beta milestone preceding the stable 1.0.0 release and represe
 ## Frequently Asked Questions (FAQ)
 
 **Q: Do I need to run my own FMD server?**
-A: Hosting your own is preferred but this integration can be used with a publically hosted FMD server, like the one hosted by [Nulide](https://fmd.nulide.de/).  To host your own please see [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
+A: Hosting your own is preferred but this integration can be used with a publically hosted FMD server, like the one hosted by [Nulide](https://server.fmd-foss.org/).  To host your own please see [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
 
 **Q: Does this work without the FMD Android app?**
 A: No, you must install the FMD Android app on the device you want to track. The app communicates with the FMD server though, not directly with the android app!
