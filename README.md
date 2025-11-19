@@ -217,7 +217,7 @@ The integration will create the following entities for each configured FMD devic
   - When enabled:
     - Immediately requests a new location from the device
     - Switches to high-frequency polling interval
-    - Each poll requests fresh location data from the device (impacts battery life)
+    - Each poll requests fresh location data from the device using the selected **Location Source**
   - When disabled, returns to normal polling interval
   - ⚠️ **Battery impact**: Active tracking drains device battery faster
   - Useful for tracking during active travel, emergencies, or finding lost devices
@@ -479,13 +479,17 @@ The integration provides complete photo management functionality:
 The integration provides remote control commands for your FMD device:
 
 ### Location Source Selection
-Configure which location provider the Location Update button uses:
+Configure which location provider is used by the **Location Update button** AND **High Frequency Mode**:
 - **All Providers (Default)**: Uses GPS, network, and fused location for best reliability
 - **GPS Only (Accurate)**: Most accurate but slower, requires clear sky view, uses more battery
 - **Cell Only (Fast)**: Fast but less accurate, uses cellular tower triangulation
 - **Last Known (No Request)**: Returns cached location without new GPS request (instant, no battery use)
 
-Use the Location Source select entity to change the provider. The setting persists and will be used by the Location Update button.
+Use the Location Source select entity to change the provider. The setting persists and affects:
+1. **Manual Updates**: When pressing the "Location Update" button.
+2. **High Frequency Mode**: When active tracking is enabled, each poll uses this source.
+
+*Note: Normal polling mode (passive) is unaffected by this setting as it only fetches existing data from the server.*
 
 **Example automation for enabling battery-conscious location tracking:**
 ```yaml
@@ -1044,6 +1048,15 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Version History
 
+### v1.1.2 - November 18, 2025 (Maintenance)
+Maintenance release to update dependencies and improve polling reliability.
+
+Changes:
+- 🎯 **Smarter High Frequency Tracking**: High Frequency Mode now respects your "Location Source" selection (e.g., Cell Only, GPS Only) instead of always forcing "All Providers".
+- 📦 **Updated dependency** to `fmd-api==2.0.5`
+- 🛡️ **Polling reliability**: Added protection against overlapping updates to prevent task pile-ups and ensure schedule adherence.
+- 🔄 **Improved polling logic**: Ensures polling tasks are managed correctly, preventing stalls if the server or device is slow to respond.
+
 ### v1.1.1 - November 11, 2025 (Hotfix)
 Short maintenance release focused on restoring button functionality introduced with the fmd_api 2.0.4 upgrade.
 
@@ -1273,7 +1286,7 @@ This was the final beta milestone preceding the stable 1.0.0 release and represe
 ## Frequently Asked Questions (FAQ)
 
 **Q: Do I need to run my own FMD server?**
-A: Hosting your own is preferred but this integration can be used with a publically hosted FMD server, like the one hosted by [Nulide](https://fmd.nulide.de/).  To host your own please see [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
+A: Hosting your own is preferred but this integration can be used with a publically hosted FMD server, like the one hosted by [Nulide](https://server.fmd-foss.org/).  To host your own please see [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
 
 **Q: Does this work without the FMD Android app?**
 A: No, you must install the FMD Android app on the device you want to track. The app communicates with the FMD server though, not directly with the android app!
