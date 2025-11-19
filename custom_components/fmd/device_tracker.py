@@ -140,24 +140,54 @@ class FmdDeviceTracker(TrackerEntity):
 
             self._is_updating = True
             try:
-                # Always request fresh location from device (active polling)
-                # This ensures we get the latest location from the device, not just the server cache
-                _LOGGER.debug("Polling: Requesting fresh location from device...")
-                try:
-                    import asyncio
+                # If in high-frequency mode, request fresh location from device
+                if self._high_frequency_mode:
+                    _LOGGER.debug(
+                        "High-frequency mode active - requesting fresh location from device"
+                    )
+                    try:
+                        import asyncio
 
-                    # Use 'all' providers to get the best available location
-                    success = await self.api.request_location(provider="all")
-                    if success:
-                        _LOGGER.debug(
-                            "Location request sent, waiting 10 seconds for device..."
+                        # Determine provider based on "Location Source" select entity
+                        # Default to "all" if entity not found or state unknown
+                        provider = "all"
+                        location_source_entity_id = (
+                            f"select.fmd_{self._entry.data['id']}_location_source"
                         )
-                        # Wait for device to process command and upload location
-                        await asyncio.sleep(10)
-                    else:
-                        _LOGGER.warning("Failed to request location from device")
-                except Exception as e:
-                    _LOGGER.error("Error requesting location during poll: %s", e)
+                        location_source_state = self.hass.states.get(
+                            location_source_entity_id
+                        )
+
+                        if location_source_state:
+                            selected_option = location_source_state.state
+                            provider_map = {
+                                "All Providers (Default)": "all",
+                                "GPS Only (Accurate)": "gps",
+                                "Cell Only (Fast)": "cell",
+                                "Last Known (No Request)": "last",
+                            }
+                            provider = provider_map.get(selected_option, "all")
+                            _LOGGER.debug(
+                                "Using location source: %s (provider=%s)",
+                                selected_option,
+                                provider,
+                            )
+
+                        # Request location with the selected provider
+                        success = await self.api.request_location(provider=provider)
+                        if success:
+                            _LOGGER.debug(
+                                "Location request sent, waiting 10 seconds for device..."
+                            )
+                            # Wait for device to process command and upload location
+                            await asyncio.sleep(10)
+                        else:
+                            _LOGGER.warning("Failed to request location from device")
+                    except Exception as e:
+                        _LOGGER.error(
+                            "Error requesting location during high-frequency poll: %s",
+                            e,
+                        )
 
                 # Fetch location from server and update state
                 await self.async_update()

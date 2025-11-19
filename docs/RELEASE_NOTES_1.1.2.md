@@ -4,20 +4,23 @@ A maintenance release focused on improving location tracking reliability and upd
 
 ## Highlights
 
-- 🔄 **Improved Polling Logic**: Device tracker now actively requests fresh location data from the device during every poll.
+- 🎯 **Smarter High Frequency Tracking**: High Frequency Mode now respects your "Location Source" selection (e.g., Cell Only, GPS Only) instead of always forcing "All Providers".
 - 🛡️ **Schedule Reliability**: Added protection against overlapping updates to prevent task pile-ups.
+- 🔄 **Improved Polling Logic**: Ensures polling tasks are managed correctly, preventing stalls if the server or device is slow to respond.
 - 📦 **Dependency Update**: Updated to `fmd-api==2.0.5`.
 
 ## What’s Changed
 
-### Active Location Polling
-- Previously, the normal polling interval (default 30 min) only fetched the *cached* location from the FMD server.
-- **Now**, every poll triggers a `request_location` command to the device first, waits for it to report, and *then* fetches the updated location.
-- This ensures the location data in Home Assistant is current, rather than potentially stale server cache.
+### Smarter High Frequency Tracking
+- **High Frequency Mode** now uses the provider selected in the **Location Source** entity.
+- Previously, High Frequency Mode always requested "All Providers" (GPS + Network + Fused).
+- Now you can select "Cell Only" to save battery during active tracking, or "GPS Only" for maximum precision.
+- If the selection is unavailable, it safely defaults back to "All Providers".
 
 ### Polling Overlap Protection
 - Added a guard mechanism to prevent a new polling cycle from starting if the previous one is still in progress.
 - This resolves issues where the schedule could become unreliable or stop working if the FMD server or device was slow to respond.
+- This ensures that the integration respects the configured polling interval more reliably.
 
 ### Dependency Updates
 - Updated `fmd-api` from `2.0.4` to `2.0.5`.
@@ -26,7 +29,6 @@ A maintenance release focused on improving location tracking reliability and upd
 
 1. Update via HACS (or pull the 1.1.2 release) and restart Home Assistant.
 2. No configuration changes required.
-3. **Note on Battery**: Because the integration now actively requests location from the device on every poll (instead of just reading server cache), this may have a slightly higher battery impact on the Android device if you have a very frequent polling interval set. The default of 30 minutes is still recommended.
 
 ## Compatibility
 - Home Assistant: same as 1.1.0+
