@@ -1048,6 +1048,14 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Version History
 
+### v1.1.3 - November 19, 2025 (Code Quality & Fixes)
+Release focused on fixing polling interval persistence and improving code quality.
+
+Changes:
+- 🐛 **Fix**: Configured polling intervals now correctly persist across restarts (previously reverted to defaults).
+- 🧹 **Strict Typing**: Comprehensive type hinting added to `device_tracker.py` for better code stability.
+- 🛡️ **Robust Configuration**: Enhanced type safety when reading configuration values during startup.
+
 ### v1.1.2 - November 18, 2025 (Maintenance)
 Maintenance release to update dependencies and improve polling reliability.
 
@@ -1055,7 +1063,6 @@ Changes:
 - 🎯 **Smarter High Frequency Tracking**: High Frequency Mode now respects your "Location Source" selection (e.g., Cell Only, GPS Only) instead of always forcing "All Providers".
 - 📦 **Updated dependency** to `fmd-api==2.0.5`
 - 🛡️ **Polling reliability**: Added protection against overlapping updates to prevent task pile-ups and ensure schedule adherence.
-- 🐛 **Fix**: Configured polling intervals now correctly persist across restarts (previously reverted to defaults).
 - 🔄 **Improved polling logic**: Ensures polling tasks are managed correctly, preventing stalls if the server or device is slow to respond.
 
 ### v1.1.1 - November 11, 2025 (Hotfix)
