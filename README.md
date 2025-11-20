@@ -3,6 +3,7 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![Tests](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/devinslick/home-assistant-fmd/branch/main/graph/badge.svg?token=W04KEUVQ8W)](https://codecov.io/gh/devinslick/home-assistant-fmd)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/fmd-api)](https://pypi.org/project/fmd-api/)
 
 A Home Assistant custom integration for [FMD (Find My Device)](https://fmd-foss.org) that allows you to track and control Android devices running the FMD app through your self-hosted FMD server.
 
