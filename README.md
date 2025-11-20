@@ -1055,6 +1055,7 @@ Changes:
 - 🎯 **Smarter High Frequency Tracking**: High Frequency Mode now respects your "Location Source" selection (e.g., Cell Only, GPS Only) instead of always forcing "All Providers".
 - 📦 **Updated dependency** to `fmd-api==2.0.5`
 - 🛡️ **Polling reliability**: Added protection against overlapping updates to prevent task pile-ups and ensure schedule adherence.
+- 🐛 **Fix**: Configured polling intervals now correctly persist across restarts (previously reverted to defaults).
 - 🔄 **Improved polling logic**: Ensures polling tasks are managed correctly, preventing stalls if the server or device is slow to respond.
 
 ### v1.1.1 - November 11, 2025 (Hotfix)

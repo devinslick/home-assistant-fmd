@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from fmd_api import FmdClient
@@ -46,19 +46,37 @@ async def async_setup_entry(
     # Get the API instance created in __init__.py
     api = hass.data[DOMAIN][entry.entry_id]["api"]
 
-    polling_interval = entry.data.get("polling_interval", DEFAULT_POLLING_INTERVAL)
+    # Get polling interval (preferring the number entity value, falling back to legacy config)
+    polling_interval = entry.data.get(
+        "update_interval_native_value",
+        entry.data.get("polling_interval", DEFAULT_POLLING_INTERVAL),
+    )
+
+    # Get high frequency interval
+    high_frequency_interval = entry.data.get(
+        "high_frequency_interval_native_value", DEFAULT_HIGH_FREQUENCY_INTERVAL
+    )
+
     # Get allow_inaccurate setting, defaulting to False (blocking enabled)
     # For backward compatibility, also check old "block_inaccurate" key
-    allow_inaccurate = entry.data.get(
-        "allow_inaccurate_locations", not entry.data.get("block_inaccurate", True)
+    allow_inaccurate = bool(
+        entry.data.get(
+            "allow_inaccurate_locations", not entry.data.get("block_inaccurate", True)
+        )
     )
     block_inaccurate = not allow_inaccurate  # Internal logic still uses block
 
     # Get imperial units setting, defaulting to False (use metric)
-    use_imperial = entry.data.get(CONF_USE_IMPERIAL, False)
+    use_imperial = bool(entry.data.get(CONF_USE_IMPERIAL, False))
 
     tracker = FmdDeviceTracker(
-        hass, entry, api, polling_interval, block_inaccurate, use_imperial
+        hass,
+        entry,
+        api,
+        int(polling_interval),
+        int(high_frequency_interval),
+        block_inaccurate,
+        use_imperial,
     )
 
     # Store tracker in hass.data for access by other entities
@@ -71,7 +89,9 @@ async def async_setup_entry(
     _LOGGER.info("Fetching initial location data...")
     try:
         await tracker.async_update()
-        _LOGGER.info("Initial location: %s", tracker._location)
+        _LOGGER.info(
+            "Initial location: lat=%s, lon=%s", tracker.latitude, tracker.longitude
+        )
     except Exception as err:
         _LOGGER.warning(
             "Failed to fetch initial location (will retry during polling): %s", err
@@ -92,12 +112,19 @@ class FmdDeviceTracker(TrackerEntity):
         None  # Explicitly set to None to ensure it's a primary entity
     )
 
+    _location: dict[str, Any] | None
+    _battery_level: int | None
+    _last_poll_time: str | None
+    _remove_timer: Callable[[], None] | None
+    _is_updating: bool
+
     def __init__(
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
         api: FmdClient,
         polling_interval: int,
+        high_frequency_interval: int,
         block_inaccurate: bool,
         use_imperial: bool,
     ):
@@ -107,9 +134,7 @@ class FmdDeviceTracker(TrackerEntity):
         self.api = api
         self._normal_interval = polling_interval  # Normal polling interval
         self._polling_interval = polling_interval  # Current active interval
-        self._high_frequency_interval = (
-            DEFAULT_HIGH_FREQUENCY_INTERVAL  # High-freq interval
-        )
+        self._high_frequency_interval = high_frequency_interval  # High-freq interval
         self._high_frequency_mode = False  # Whether high-freq mode is active
         self._block_inaccurate = block_inaccurate
         self._use_imperial = use_imperial  # Whether to convert units to imperial
@@ -160,7 +185,7 @@ class FmdDeviceTracker(TrackerEntity):
 
                         if location_source_state:
                             selected_option = location_source_state.state
-                            provider_map = {
+                            provider_map: dict[str, str] = {
                                 "All Providers (Default)": "all",
                                 "GPS Only (Accurate)": "gps",
                                 "Cell Only (Fast)": "cell",
@@ -302,7 +327,7 @@ class FmdDeviceTracker(TrackerEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return entity specific state attributes."""
-        attributes = {}
+        attributes: dict[str, Any] = {}
 
         if self._battery_level is not None:
             attributes["battery_level"] = self._battery_level
@@ -312,22 +337,23 @@ class FmdDeviceTracker(TrackerEntity):
             attributes["last_poll_time"] = self._last_poll_time
 
         # Add other location metadata if available
-        if self._location:
-            if "provider" in self._location:
-                attributes["provider"] = self._location["provider"]
+        location = self._location
+        if location:
+            if "provider" in location:
+                attributes["provider"] = location["provider"]
 
             # Time when FMD client sent location to server (human-readable)
-            if "time" in self._location:
-                attributes["device_timestamp"] = self._location["time"]
+            if "time" in location:
+                attributes["device_timestamp"] = location["time"]
 
             # Unix timestamp (milliseconds) when FMD client sent location to server
             # Store as string to prevent comma formatting in UI
-            if "date" in self._location:
-                attributes["device_timestamp_ms"] = str(self._location["date"])
+            if "date" in location:
+                attributes["device_timestamp_ms"] = str(location["date"])
 
             # GPS accuracy in meters (optional)
-            if "accuracy" in self._location:
-                accuracy = self._location["accuracy"]
+            if "accuracy" in location:
+                accuracy = location["accuracy"]
                 if self._use_imperial:
                     attributes["gps_accuracy"] = round(accuracy * METERS_TO_FEET, 1)
                     attributes["gps_accuracy_unit"] = "ft"
@@ -336,8 +362,8 @@ class FmdDeviceTracker(TrackerEntity):
                     attributes["gps_accuracy_unit"] = "m"
 
             # Altitude in meters (optional)
-            if "altitude" in self._location:
-                altitude = self._location["altitude"]
+            if "altitude" in location:
+                altitude = location["altitude"]
                 if self._use_imperial:
                     attributes["altitude"] = round(altitude * METERS_TO_FEET, 1)
                     attributes["altitude_unit"] = "ft"
@@ -346,8 +372,8 @@ class FmdDeviceTracker(TrackerEntity):
                     attributes["altitude_unit"] = "m"
 
             # Speed in m/s - only present when moving (optional)
-            if "speed" in self._location:
-                speed = self._location["speed"]
+            if "speed" in location:
+                speed = location["speed"]
                 if self._use_imperial:
                     attributes["speed"] = round(speed * MPS_TO_MPH, 1)
                     attributes["speed_unit"] = "mph"
@@ -356,8 +382,8 @@ class FmdDeviceTracker(TrackerEntity):
                     attributes["speed_unit"] = "m/s"
 
             # Heading/direction 0-360° - only present when moving (optional)
-            if "heading" in self._location:
-                attributes["heading"] = self._location["heading"]
+            if "heading" in location:
+                attributes["heading"] = location["heading"]
 
         return attributes
 
@@ -372,7 +398,7 @@ class FmdDeviceTracker(TrackerEntity):
         """
         return await self.hass.async_add_executor_job(self.api.decrypt_data_blob, blob)
 
-    def _is_location_accurate(self, location_data: dict) -> bool:
+    def _is_location_accurate(self, location_data: dict[str, Any]) -> bool:
         """
         Determine if a location is accurate based on the provider.
 
@@ -386,7 +412,7 @@ class FmdDeviceTracker(TrackerEntity):
 
         Returns True if location is considered accurate, False otherwise.
         """
-        provider = location_data.get("provider", "").lower()
+        provider = str(location_data.get("provider", "")).lower()
 
         # Fused, GPS, and network are considered accurate
         if provider in ("fused", "gps", "network"):
@@ -429,7 +455,7 @@ class FmdDeviceTracker(TrackerEntity):
             )
 
             if location_blobs:
-                selected_location = None
+                selected_location: dict[str, Any] | None = None
 
                 # Decrypt and check each location blob, most recent first
                 for idx, blob in enumerate(location_blobs):
@@ -448,7 +474,7 @@ class FmdDeviceTracker(TrackerEntity):
                     # Decrypt and parse the location blob (run in executor to avoid blocking)
                     _LOGGER.debug("Decrypting location blob %d...", idx)
                     decrypted_bytes = await self._async_decrypt_data_blob(blob)
-                    location_data = json.loads(decrypted_bytes)
+                    location_data: dict[str, Any] = json.loads(decrypted_bytes)
 
                     provider = location_data.get("provider", "unknown")
                     _LOGGER.debug("Location %d: provider=%s", idx, provider)
@@ -481,29 +507,30 @@ class FmdDeviceTracker(TrackerEntity):
                 # Check if we found a suitable location
                 if selected_location:
                     self._location = selected_location
-                    provider = self._location.get("provider", "unknown")
+                    provider = selected_location.get("provider", "unknown")
                     _LOGGER.debug("Using location from provider: %s", provider)
 
                     # Store the poll time (when we queried the server)
                     self._last_poll_time = poll_time.isoformat()
 
                     # Update battery level when location is updated
-                    if "bat" in self._location:
+                    if "bat" in selected_location:
                         try:
-                            self._battery_level = int(self._location["bat"])
+                            self._battery_level = int(selected_location["bat"])
                             _LOGGER.debug("Battery level: %s%%", self._battery_level)
                         except (ValueError, TypeError):
                             _LOGGER.warning(
-                                "Invalid battery value: %s", self._location.get("bat")
+                                "Invalid battery value: %s",
+                                selected_location.get("bat"),
                             )
                             self._battery_level = None
 
                     _LOGGER.info(
                         "Updated location: lat=%s, lon=%s, battery=%s%%, time=%s",
-                        self._location.get("lat"),
-                        self._location.get("lon"),
+                        selected_location.get("lat"),
+                        selected_location.get("lon"),
                         self._battery_level,
-                        self._location.get("time"),
+                        selected_location.get("time"),
                     )
                 else:
                     _LOGGER.warning(

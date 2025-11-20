@@ -22,6 +22,10 @@ A maintenance release focused on improving location tracking reliability and upd
 - This resolves issues where the schedule could become unreliable or stop working if the FMD server or device was slow to respond.
 - This ensures that the integration respects the configured polling interval more reliably.
 
+### Fix: Interval Persistence
+- Fixed an issue where custom polling intervals (e.g., 1 minute) would revert to defaults (30m normal / 5m high-freq) after a Home Assistant restart.
+- The integration now correctly restores your configured intervals immediately upon startup.
+
 ### Dependency Updates
 - Updated `fmd-api` from `2.0.4` to `2.0.5`.
 
