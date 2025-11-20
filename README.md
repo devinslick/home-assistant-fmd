@@ -1287,7 +1287,7 @@ This was the final beta milestone preceding the stable 1.0.0 release and represe
 ## Frequently Asked Questions (FAQ)
 
 **Q: Do I need to run my own FMD server?**
-A: Hosting your own is preferred but this integration can be used with a publically hosted FMD server, like the one hosted by [Nulide](https://server.fmd-foss.org/).  To host your own please see [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
+A: Hosting your own is preferred but this integration can be used with a publicly hosted FMD server, like the one hosted by [Nulide](https://server.fmd-foss.org/).  To host your own please see [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
 
 **Q: Does this work without the FMD Android app?**
 A: No, you must install the FMD Android app on the device you want to track. The app communicates with the FMD server though, not directly with the android app!
