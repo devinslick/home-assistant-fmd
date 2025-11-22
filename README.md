@@ -1,6 +1,6 @@
 # Home Assistant FMD Integration
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
 [![Tests](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/devinslick/home-assistant-fmd/branch/main/graph/badge.svg?token=W04KEUVQ8W)](https://codecov.io/gh/devinslick/home-assistant-fmd)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/fmd-api)](https://pypi.org/project/fmd-api/)
@@ -19,7 +19,7 @@ This integration acts as a **client** for your FMD server, providing seamless in
 
 ## Quick Start Overview
 
-This integration provides **20 entities** to control your Android device:
+This integration provides **22 entities** to control your Android device:
 
 🗺️ **Location Tracking**
 - Real-time device location on Home Assistant map
@@ -81,15 +81,23 @@ Before installing this integration, you need:
 
 ### HACS Installation (Recommended)
 
-1.  Open HACS in Home Assistant
-2.  Click the three dots in the top right corner and select **Custom repositories**
-3.  Add this repository URL: `https://github.com/devinslick/home-assistant-fmd`
-4.  Select **Integration** as the category
-5.  Click **Add**
-6.  Click the "+" button in HACS
-7.  Search for "FMD" or "Find My Device"
-8.  Click "Download"
-9.  Restart Home Assistant
+You can install via the HACS Default store (once approved), or add as a Custom Repository today.
+
+#### HACS (Default Store)
+1. Open HACS in Home Assistant
+2. Click the + button and search for "FMD"
+3. Click "Download" and restart Home Assistant
+
+#### HACS (Custom Repository)
+1. Open HACS in Home Assistant
+2. Click the three dots in the top right corner and select **Custom repositories**
+3. Add this repository URL: `https://github.com/devinslick/home-assistant-fmd`
+4. Select **Integration** as the category
+5. Click **Add**
+6. Click the "+" button in HACS
+7. Search for "FMD" or "Find My Device"
+8. Click "Download"
+9. Restart Home Assistant
 
 ### Manual Installation
 
@@ -164,8 +172,11 @@ The integration will create the following entities for each configured FMD devic
 - **Lock device** - Lock the device screen
   - Entity ID example: `button.fmd_test_user_lock`
   - Sends a lock command to secure the device
+  - **Optional message support**: Set "Lock: Message" text entity to display a message on the lock screen
+  - Example use: "Lost phone - please call 555-1234" or contact information
+  - Client automatically sanitizes message for safety
   - Useful if device is lost or stolen
-  - ✅ **Fully implemented** - Triggers lock command immediately
+  - ✅ **Fully implemented** - Triggers lock command with optional message
 
 - **Photo: Capture front** - Take a photo with the front-facing camera
   - Entity ID example: `button.fmd_test_user_capture_front`
@@ -191,12 +202,15 @@ The integration will create the following entities for each configured FMD devic
 
 - **Wipe: ⚠️ Execute ⚠️** - ⚠️ **DANGEROUS**: Factory reset the device (erases ALL data)
   - Entity ID example: `button.fmd_test_user_wipe_device`
-  - **Requires "Wipe: ⚠️ Safety switch ⚠️" to be enabled first**
-  - Sends the "delete" command which performs a factory reset
+  - **Requirements:**
+    1. "Wipe: ⚠️ Safety switch ⚠️" must be enabled first
+    2. "Wipe: PIN" must be set with a valid alphanumeric PIN
+  - Validates PIN before sending wipe command (alphanumeric ASCII, no spaces)
+  - Always passes confirmation flag to prevent accidental execution
   - ⚠️ **THIS CANNOT BE UNDONE** - All data on device will be permanently erased
   - Safety switch automatically disables after use to prevent accidental repeated presses
   - Icon: `mdi:delete-forever` to indicate destructive action
-  - ✅ **Fully implemented** - Device wipe with safety mechanism
+  - ✅ **Fully implemented** - Device wipe with safety mechanism and PIN validation
 
 ### Switch Entities (Configuration)
 - **High Frequency Mode** - Enable active tracking with device location requests
@@ -204,7 +218,7 @@ The integration will create the following entities for each configured FMD devic
   - When enabled:
     - Immediately requests a new location from the device
     - Switches to high-frequency polling interval
-    - Each poll requests fresh location data from the device (impacts battery life)
+    - Each poll requests fresh location data from the device using the selected **Location Source**
   - When disabled, returns to normal polling interval
   - ⚠️ **Battery impact**: Active tracking drains device battery faster
   - Useful for tracking during active travel, emergencies, or finding lost devices
@@ -266,6 +280,29 @@ The integration will create the following entities for each configured FMD devic
   - ⚠️ **Note**: Silent mode also enables Do Not Disturb (Android behavior)
   - ✅ **Fully implemented** - Commands sent immediately, no state tracking
 
+### Text Entities (Configuration)
+- **Wipe: PIN** - Alphanumeric PIN required for device wipe command
+  - Entity ID example: `text.fmd_test_user_wipe_pin`
+  - **Required for wipe operation** - Must be set before "Wipe: ⚠️ Execute ⚠️" button will work
+  - **Validation requirements:**
+    - Must be alphanumeric (letters and numbers only)
+    - Cannot contain spaces
+    - Must contain only ASCII characters
+  - Password-mode text input (masked in UI for security)
+  - ⚠️ **Note**: Future FMD server versions may require 16+ character PINs
+  - Stored securely in config entry
+  - Icon: `mdi:key-variant`
+  - ✅ **Fully implemented** - PIN validation with clear error messages
+
+- **Lock: Message** - Optional message to display on locked device screen
+  - Entity ID example: `text.fmd_test_user_lock_message`
+  - **Optional** - If set, message will be shown when device is locked
+  - Plain text input (max 500 characters)
+  - Client automatically sanitizes dangerous characters for safety
+  - Useful for contact information or instructions (e.g., "Lost phone - call 555-1234")
+  - Icon: `mdi:message-text-lock`
+  - ✅ **Fully implemented** - Message passed to lock command automatically
+
 ### Sensor Entities
 - **Photo count** - Total number of photos stored in media folder
   - Entity ID example: `sensor.fmd_test_user_photo_count`
@@ -310,10 +347,14 @@ For a user with FMD account ID `test-user`, the following entities will be creat
 18. `select.fmd_test_user_do_not_disturb_command` - DND enable/disable commands
 19. `select.fmd_test_user_ringer_mode_command` - Ringer mode commands
 
-**Sensor Entities (1):**
-20. `sensor.fmd_test_user_photo_count` - Total stored photos on server
+**Text Entities (2):**
+20. `text.fmd_test_user_wipe_pin` - Wipe PIN (required for device wipe)
+21. `text.fmd_test_user_lock_message` - Lock message (optional for lock command)
 
-**Total: 20 entities per device**
+**Sensor Entities (1):**
+22. `sensor.fmd_test_user_photo_count` - Total stored photos on server
+
+**Total: 22 entities per device**
 
 _Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
 
@@ -439,13 +480,17 @@ The integration provides complete photo management functionality:
 The integration provides remote control commands for your FMD device:
 
 ### Location Source Selection
-Configure which location provider the Location Update button uses:
+Configure which location provider is used by the **Location Update button** AND **High Frequency Mode**:
 - **All Providers (Default)**: Uses GPS, network, and fused location for best reliability
 - **GPS Only (Accurate)**: Most accurate but slower, requires clear sky view, uses more battery
 - **Cell Only (Fast)**: Fast but less accurate, uses cellular tower triangulation
 - **Last Known (No Request)**: Returns cached location without new GPS request (instant, no battery use)
 
-Use the Location Source select entity to change the provider. The setting persists and will be used by the Location Update button.
+Use the Location Source select entity to change the provider. The setting persists and affects:
+1. **Manual Updates**: When pressing the "Location Update" button.
+2. **High Frequency Mode**: When active tracking is enabled, each poll uses this source.
+
+*Note: Normal polling mode (passive) is unaffected by this setting as it only fetches existing data from the server.*
 
 **Example automation for enabling battery-conscious location tracking:**
 ```yaml
@@ -465,9 +510,9 @@ automation:
             {% else %}
               Cell Only (Fast)
             {% endif %}
-    action: switch.turn_on
-      target:
-        entity_id: switch.fmd_test_user_high_frequency_mode
+      - service: switch.turn_on
+        target:
+          entity_id: switch.fmd_test_user_high_frequency_mode
 ```
 
 ### Bluetooth Control
@@ -756,6 +801,31 @@ automation:
 
 ## Security & Privacy
 
+### Password-Free Authentication (fmd_api 2.0.4+)
+
+**🔐 Enhanced Security with Authentication Artifacts**
+
+Starting with fmd_api 2.0.4, this integration uses **password-free authentication** for improved security:
+
+- **No raw password storage**: Your FMD password is never stored in Home Assistant
+- **Secure artifacts**: Uses authentication tokens, private keys, and password hash instead
+- **Automatic migration**: Existing installations automatically upgrade to secure storage
+- **Seamless reauth**: Client automatically refreshes tokens without re-entering password
+- **Future-proof**: Designed for long-term secure authentication
+
+**How It Works:**
+1. During initial setup, you enter your FMD password once
+2. Integration authenticates and immediately exports secure artifacts
+3. Password is discarded - only artifacts are stored
+4. On startup, integration uses artifacts to reconnect (no password needed)
+5. If credentials expire, reauth flow generates new artifacts
+
+**Migration for Existing Users:**
+- Automatic on next restart after upgrade
+- No action required - seamless transition
+- Old password-based entries converted to artifacts
+- Reauth flow also uses new artifact-based system
+
 ### Best Practices
 
 **🔐 Secure Your FMD Server**
@@ -786,11 +856,20 @@ The FMD Android app requires these permissions:
 **🚨 Device Wipe Protection**
 
 The integration includes multiple safety layers:
-1. **Safety switch required** - Must enable before wipe works
-2. **60-second timeout** - Safety auto-disables after 1 minute
-3. **Extensive logging** - CRITICAL warnings in logs
-4. **Auto-disable after use** - Prevents repeated presses
-5. **Cannot be undone** - Final warning in documentation
+1. **Wipe PIN required** - Must set alphanumeric PIN (no spaces) before wipe works
+2. **Safety switch required** - Must enable before wipe button activates
+3. **60-second timeout** - Safety auto-disables after 1 minute
+4. **PIN validation** - Ensures proper format before sending command
+5. **Extensive logging** - CRITICAL warnings in logs
+6. **Auto-disable after use** - Prevents repeated presses
+7. **Cannot be undone** - Final warning in documentation
+
+**PIN Requirements (fmd_api 2.0.4+):**
+- Must be alphanumeric (letters and numbers only)
+- Cannot contain spaces or special characters
+- Must be ASCII characters only
+- Recommended: 16+ characters (future-proofing)
+- Set via "Wipe: PIN" text entity before attempting wipe
 
 **⚠️ Privacy Considerations**
 - Location data is encrypted in transit (RSA + AES-GCM)
@@ -969,6 +1048,73 @@ To be included in Home Assistant Core, the following items must be completed:
 - 🔒 Device must have Device Admin permission granted to FMD app
 
 ## Version History
+
+### v1.1.3 - November 19, 2025 (Code Quality & Fixes)
+Release focused on fixing polling interval persistence and improving code quality.
+
+Changes:
+- 🐛 **Fix**: Configured polling intervals now correctly persist across restarts (previously reverted to defaults).
+- 🧹 **Strict Typing**: Comprehensive type hinting added to `device_tracker.py` for better code stability.
+- 🛡️ **Robust Configuration**: Enhanced type safety when reading configuration values during startup.
+
+### v1.1.2 - November 18, 2025 (Maintenance)
+Maintenance release to update dependencies and improve polling reliability.
+
+Changes:
+- 🎯 **Smarter High Frequency Tracking**: High Frequency Mode now respects your "Location Source" selection (e.g., Cell Only, GPS Only) instead of always forcing "All Providers".
+- 📦 **Updated dependency** to `fmd-api==2.0.5`
+- 🛡️ **Polling reliability**: Added protection against overlapping updates to prevent task pile-ups and ensure schedule adherence.
+- 🔄 **Improved polling logic**: Ensures polling tasks are managed correctly, preventing stalls if the server or device is slow to respond.
+
+### v1.1.1 - November 11, 2025 (Hotfix)
+Short maintenance release focused on restoring button functionality introduced with the fmd_api 2.0.4 upgrade.
+
+Changes:
+- Fix: Button entities (Lock device, Photo: Download, Wipe: Execute) now work reliably by constructing `Device(client, device_id)` instead of calling a non-existent `client.device()` method. This also restores lock functionality, including support for custom lock-screen messages.
+- Tests/Docs: Updated Device class mocking in tests and added Windows test setup guide at `docs/TESTS_WINDOWS.md`.
+
+### v1.1.0 - November 9, 2025 (fmd_api 2.0.4 Integration)
+**🔐 Security & Feature Update**
+
+This version adopts all improvements from fmd_api 2.0.4, with focus on security and safety features.
+
+**Highlights:**
+- 🔐 **Password-free authentication** - Credentials stored as secure artifacts (no raw passwords)
+- 📸 **Modern picture API** - Updated to use `get_picture_blobs()` and `decode_picture()`
+- 🔑 **Wipe PIN validation** - Added required PIN entity for device wipe safety
+- 💬 **Lock message support** - Optional message parameter for lock screen display
+- 🛡️ **Enhanced error handling** - Specific exception types with clear user messages
+- 📦 **Updated dependency** to `fmd-api==2.0.4`
+
+**New Entities:**
+- `text.fmd_{device}_wipe_pin` - Required alphanumeric PIN for device wipe (password-mode)
+- `text.fmd_{device}_lock_message` - Optional message to display on lock screen
+
+**Security Improvements:**
+- **No raw password storage**: Automatic migration to secure authentication artifacts
+- **PIN validation**: Wipe command requires validated alphanumeric PIN (no spaces)
+- **Better errors**: FmdAuthError, FmdConnectionError, FmdError with actionable messages
+
+**API Changes:**
+- Deprecated picture methods replaced with modern alternatives
+- Lock command now supports optional message parameter (client sanitizes automatically)
+- Wipe command requires PIN and always passes confirm=True flag
+
+**Migration:**
+- **Automatic** - Existing installations migrate to password-free auth on startup
+- **Seamless** - No user action required for authentication upgrade
+- **Required** - Must set wipe PIN before device wipe button will work
+- **Optional** - Lock message is optional (lock works without it)
+
+**Upgrade Notes:**
+1. Update via HACS (or pull latest release) and restart Home Assistant
+2. Authentication automatically migrates to secure artifacts (password removed)
+3. **Action required**: Set "Wipe: PIN" text entity before attempting device wipe
+4. Optional: Set "Lock: Message" text entity for lock screen messages
+
+**Breaking Changes:**
+- Device wipe now requires PIN to be set (safety improvement)
+- Internal picture API methods replaced (user-facing behavior unchanged)
 
 ### v1.0.0 - November 6, 2025 (Stable Release)
 **🎉 First Stable Release**
@@ -1149,7 +1295,7 @@ This was the final beta milestone preceding the stable 1.0.0 release and represe
 ## Frequently Asked Questions (FAQ)
 
 **Q: Do I need to run my own FMD server?**
-A: Hosting your own is preferred but this integration can be used with a publically hosted FMD server, like the one hosted by [Nulide](https://fmd.nulide.de/).  To host your own please see [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
+A: Hosting your own is preferred but this integration can be used with a publicly hosted FMD server, like the one hosted by [Nulide](https://server.fmd-foss.org/).  To host your own please see [FMD Server setup](https://gitlab.com/fmd-foss/fmd-server).
 
 **Q: Does this work without the FMD Android app?**
 A: No, you must install the FMD Android app on the device you want to track. The app communicates with the FMD server though, not directly with the android app!

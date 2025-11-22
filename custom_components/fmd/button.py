@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import hashlib
 import io
 import logging
@@ -10,9 +9,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+# Import Device class for v2.0.4+ API
+from fmd_api import AuthenticationError, Device, FmdApiException, OperationError
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from PIL import Image
@@ -176,14 +178,34 @@ class FmdRingButton(ButtonEntity):
             if success:
                 _LOGGER.info("Ring command sent successfully")
             else:
-                _LOGGER.warning("Failed to send ring command to device")
+                _LOGGER.warning("Ring command returned unsuccessful")
+
+        except AuthenticationError as e:
+            _LOGGER.error("Authentication error sending ring command: %s", e)
+            raise HomeAssistantError(f"Authentication failed: {e}") from e
+
+        except OperationError as e:
+            _LOGGER.error("Connection or API error sending ring command: %s", e)
+            raise HomeAssistantError(f"Ring command failed: {e}") from e
+
+        except FmdApiException as e:
+            _LOGGER.error("FMD API error sending ring command: %s", e)
+            raise HomeAssistantError(f"Ring command failed: {e}") from e
+
+        except HomeAssistantError:
+            raise
 
         except Exception as e:
-            _LOGGER.error("Error sending ring command: %s", e, exc_info=True)
+            _LOGGER.error("Unexpected error sending ring command: %s", e, exc_info=True)
+            raise HomeAssistantError(f"Ring command failed: {e}") from e
 
 
 class FmdLockButton(ButtonEntity):
-    """Button entity to lock the device."""
+    """Button entity to lock the device.
+
+    Supports optional lock screen message via the Lock: Message text entity.
+    The fmd_api client automatically sanitizes the message for safety.
+    """
 
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.CONFIG
@@ -207,7 +229,7 @@ class FmdLockButton(ButtonEntity):
         }
 
     async def async_press(self) -> None:
-        """Handle the button press - lock the device."""
+        """Handle the button press - lock the device with optional message."""
         _LOGGER.info("Lock button pressed - sending lock command to device")
 
         # Get the tracker to access its API
@@ -216,18 +238,42 @@ class FmdLockButton(ButtonEntity):
             _LOGGER.error("Could not find tracker to send lock command")
             return
 
-        try:
-            # Send lock command to device
-            _LOGGER.info("Sending lock command to device...")
-            success = await tracker.api.send_command("lock")
+        # Get optional lock message from text entity
+        lock_message_text = self.hass.data[DOMAIN][self._entry.entry_id].get(
+            "lock_message_text"
+        )
+        message = None
+        if lock_message_text and lock_message_text.native_value:
+            message = lock_message_text.native_value
+            _LOGGER.info("Lock message included (length: %d characters)", len(message))
 
-            if success:
-                _LOGGER.info("Lock command sent successfully")
-            else:
-                _LOGGER.warning("Failed to send lock command to device")
+        try:
+            # Get device instance for new API
+            device = Device(tracker.api, self._entry.data["id"])
+
+            # Send lock command with optional message
+            # Client automatically sanitizes dangerous characters
+            await device.lock(message=message)
+
+            _LOGGER.info("Lock command sent successfully")
+            if message:
+                _LOGGER.debug("Lock message was included with command")
+
+        except AuthenticationError as e:
+            _LOGGER.error("Authentication error sending lock command: %s", e)
+            # Log error but don't raise - allows graceful degradation
+
+        except OperationError as e:
+            _LOGGER.error("Connection or API error sending lock command: %s", e)
+            # Log error but don't raise - allows graceful degradation
+
+        except FmdApiException as e:
+            _LOGGER.error("FMD API error sending lock command: %s", e)
+            # Log error but don't raise - allows graceful degradation
 
         except Exception as e:
-            _LOGGER.error("Error sending lock command: %s", e, exc_info=True)
+            _LOGGER.error("Unexpected error sending lock command: %s", e, exc_info=True)
+            # Log error but don't raise - allows graceful degradation
 
 
 class FmdCaptureFrontCameraButton(ButtonEntity):
@@ -346,18 +392,6 @@ class FmdDownloadPhotosButton(ButtonEntity):
         self._attr_unique_id = f"{entry.entry_id}_download_photos"
         self._attr_name = "Photo: Download"
 
-    async def _async_decrypt_data_blob(self, api: Any, blob: str) -> bytes:
-        """Decrypt a data blob in an executor to avoid blocking the event loop.
-
-        Args:
-            api: The FmdClient instance
-            blob: Base64-encoded encrypted blob from the server
-
-        Returns:
-            Decrypted bytes
-        """
-        return await self.hass.async_add_executor_job(api.decrypt_data_blob, blob)
-
     @property
     def device_info(self) -> dict[str, Any]:
         """Return device info."""
@@ -389,17 +423,20 @@ class FmdDownloadPhotosButton(ButtonEntity):
         max_photos = int(max_photos_number.native_value)
 
         try:
-            # Fetch photos from server
+            # Fetch photo blobs from server (new API v2.0.4+)
             _LOGGER.info("Fetching up to %s photos from server...", max_photos)
-            pictures = await tracker.api.get_pictures(num_to_get=max_photos)
 
-            if not pictures:
+            # Get device instance for new picture API
+            device = Device(tracker.api, self._entry.data["id"])
+            picture_blobs = await device.get_picture_blobs(max_photos)
+
+            if not picture_blobs:
                 _LOGGER.warning("No photos found on server")
                 return
 
             _LOGGER.info(
-                "Retrieved %s photo blob(s) from server. Decrypting and saving...",
-                len(pictures),
+                "Retrieved %s photo blob(s) from server. Decoding and saving...",
+                len(picture_blobs),
             )
 
             # Create media directory with device-specific subdirectory
@@ -423,97 +460,109 @@ class FmdDownloadPhotosButton(ButtonEntity):
             successful_downloads = 0
             skipped_duplicates = 0
 
-            _LOGGER.info("Processing %s photo(s)...", len(pictures))
+            _LOGGER.info("Processing %s photo(s)...", len(picture_blobs))
 
-            for idx, blob in enumerate(pictures):
+            for idx, blob in enumerate(picture_blobs):
                 try:
-                    _LOGGER.debug("Processing photo %s/%s", idx + 1, len(pictures))
+                    _LOGGER.debug("Processing photo %s/%s", idx + 1, len(picture_blobs))
 
-                    # Decrypt the photo (run in executor to avoid blocking event loop)
-                    decrypted = await self._async_decrypt_data_blob(tracker.api, blob)
-                    image_bytes = base64.b64decode(decrypted)
+                    # Decode the photo using new API (replaces decrypt + base64 decode)
+                    photo_result = await device.decode_picture(blob)
+                    image_bytes = photo_result.data
 
                     _LOGGER.debug(
-                        "Photo %s: Decrypted, size = %s bytes",
+                        "Photo %s: Decoded, size = %s bytes, MIME type = %s",
                         idx + 1,
                         len(image_bytes),
+                        photo_result.mime_type,
                     )
 
                     # Generate content hash for duplicate detection
                     content_hash = hashlib.sha256(image_bytes).hexdigest()[:8]
                     _LOGGER.debug("Photo %s: Content hash = %s", idx + 1, content_hash)
 
-                    # Try to extract EXIF timestamp
+                    # Try to extract EXIF timestamp (prefer PhotoResult timestamp if available)
                     timestamp_str = None
-                    try:
-                        img = Image.open(io.BytesIO(image_bytes))
 
-                        # Try to get EXIF data using getexif() (newer method)
-                        exif_data = img.getexif()
+                    # First, check if PhotoResult has a timestamp
+                    if photo_result.timestamp:
+                        timestamp_str = photo_result.timestamp.strftime("%Y%m%d_%H%M%S")
+                        _LOGGER.info(
+                            "Photo %s: Using timestamp from PhotoResult: %s",
+                            idx + 1,
+                            timestamp_str,
+                        )
+                    else:
+                        # Fall back to EXIF extraction
+                        try:
+                            img = Image.open(io.BytesIO(image_bytes))
 
-                        if exif_data:
-                            _LOGGER.debug(
-                                "Photo %s: EXIF data found with %s tags",
-                                idx + 1,
-                                len(exif_data),
-                            )
+                            # Try to get EXIF data using getexif() (newer method)
+                            exif_data = img.getexif()
 
-                            # Try multiple timestamp tags in order of preference
-                            # 36867 = DateTimeOriginal (when photo was taken)
-                            # 36868 = DateTimeDigitized (when photo was digitized)
-                            # 306 = DateTime (last modification time)
-                            datetime_value = None
-                            tag_used = None
-
-                            for tag_id, tag_name in [
-                                (36867, "DateTimeOriginal"),
-                                (36868, "DateTimeDigitized"),
-                                (306, "DateTime"),
-                            ]:
-                                datetime_value = exif_data.get(tag_id)
-                                if datetime_value:
-                                    tag_used = tag_name
-                                    _LOGGER.debug(
-                                        "Photo %s: Found %s tag with value: %s",
-                                        idx + 1,
-                                        tag_name,
-                                        datetime_value,
-                                    )
-                                    break
-
-                            if datetime_value:
-                                # Parse EXIF datetime format: "2025:10:19 15:00:34"
-                                # Strip any extra whitespace or null bytes
-                                datetime_clean = (
-                                    str(datetime_value).strip().rstrip("\x00")
-                                )
-                                dt = datetime.strptime(
-                                    datetime_clean, "%Y:%m:%d %H:%M:%S"
-                                )
-                                timestamp_str = dt.strftime("%Y%m%d_%H%M%S")
-                                _LOGGER.info(
-                                    "Photo %s: Extracted EXIF timestamp from %s: %s",
+                            if exif_data:
+                                _LOGGER.debug(
+                                    "Photo %s: EXIF data found with %s tags",
                                     idx + 1,
-                                    tag_used,
-                                    timestamp_str,
+                                    len(exif_data),
                                 )
+
+                                # Try multiple timestamp tags in order of preference
+                                # 36867 = DateTimeOriginal (when photo was taken)
+                                # 36868 = DateTimeDigitized (when photo was digitized)
+                                # 306 = DateTime (last modification time)
+                                datetime_value = None
+                                tag_used = None
+
+                                for tag_id, tag_name in [
+                                    (36867, "DateTimeOriginal"),
+                                    (36868, "DateTimeDigitized"),
+                                    (306, "DateTime"),
+                                ]:
+                                    datetime_value = exif_data.get(tag_id)
+                                    if datetime_value:
+                                        tag_used = tag_name
+                                        _LOGGER.debug(
+                                            "Photo %s: Found %s tag with value: %s",
+                                            idx + 1,
+                                            tag_name,
+                                            datetime_value,
+                                        )
+                                        break
+
+                                if datetime_value:
+                                    # Parse EXIF datetime format: "2025:10:19 15:00:34"
+                                    # Strip any extra whitespace or null bytes
+                                    datetime_clean = (
+                                        str(datetime_value).strip().rstrip("\x00")
+                                    )
+                                    dt = datetime.strptime(
+                                        datetime_clean, "%Y:%m:%d %H:%M:%S"
+                                    )
+                                    timestamp_str = dt.strftime("%Y%m%d_%H%M%S")
+                                    _LOGGER.info(
+                                        "Photo %s: Extracted EXIF timestamp from %s: %s",
+                                        idx + 1,
+                                        tag_used,
+                                        timestamp_str,
+                                    )
+                                else:
+                                    _LOGGER.warning(
+                                        "Photo %s: No timestamp tags found in EXIF "
+                                        "(tried 36867, 36868, 306)",
+                                        idx + 1,
+                                    )
                             else:
                                 _LOGGER.warning(
-                                    "Photo %s: No timestamp tags found in EXIF "
-                                    "(tried 36867, 36868, 306)",
-                                    idx + 1,
+                                    "Photo %s: No EXIF data found in image", idx + 1
                                 )
-                        else:
+                        except Exception as e:
                             _LOGGER.warning(
-                                "Photo %s: No EXIF data found in image", idx + 1
+                                "Photo %s: Could not extract EXIF timestamp: %s",
+                                idx + 1,
+                                e,
+                                exc_info=True,
                             )
-                    except Exception as e:
-                        _LOGGER.warning(
-                            "Photo %s: Could not extract EXIF timestamp: %s",
-                            idx + 1,
-                            e,
-                            exc_info=True,
-                        )
 
                     # Generate filename with timestamp if available, otherwise hash-only
                     if timestamp_str:
@@ -572,14 +621,27 @@ class FmdDownloadPhotosButton(ButtonEntity):
                 "photo_count_sensor"
             )
             if photo_sensor:
-                photo_sensor.update_photo_count(len(pictures))
+                photo_sensor.update_photo_count(len(picture_blobs))
                 photo_sensor.async_write_ha_state()
                 _LOGGER.info("Updated photo count sensor")
             else:
                 _LOGGER.warning("Could not find photo count sensor to update")
 
+        except AuthenticationError as e:
+            _LOGGER.error("Authentication error downloading photos: %s", e)
+            raise HomeAssistantError(f"Authentication failed: {e}") from e
+
+        except OperationError as e:
+            _LOGGER.error("Connection or API error downloading photos: %s", e)
+            raise HomeAssistantError(f"Photo download failed: {e}") from e
+
+        except FmdApiException as e:
+            _LOGGER.error("FMD API error downloading photos: %s", e)
+            raise HomeAssistantError(f"Photo download failed: {e}") from e
+
         except Exception as e:
-            _LOGGER.error("Error downloading photos: %s", e, exc_info=True)
+            _LOGGER.error("Unexpected error downloading photos: %s", e, exc_info=True)
+            raise HomeAssistantError(f"Photo download failed: {e}") from e
 
     async def _cleanup_old_photos(self, media_dir: Path, max_to_retain: int) -> None:
         """Delete oldest photos if count exceeds retention limit.
@@ -636,7 +698,13 @@ class FmdWipeDeviceButton(ButtonEntity):
     """Button entity to perform factory reset / device wipe.
 
     ⚠️ DANGEROUS: This will erase ALL data on the device!
-    Requires the Device Wipe Safety switch to be enabled first.
+
+    Requirements:
+    1. Device Wipe Safety switch must be enabled first
+    2. Wipe PIN must be set (alphanumeric ASCII, no spaces)
+
+    The PIN is validated before sending the wipe command to the server.
+    Always passes confirm=True to ensure intentional execution.
     """
 
     _attr_has_entity_name = True
@@ -685,6 +753,45 @@ class FmdWipeDeviceButton(ButtonEntity):
             )
             return
 
+        # Get and validate the wipe PIN
+        wipe_pin_text = self.hass.data[DOMAIN][self._entry.entry_id].get(
+            "wipe_pin_text"
+        )
+
+        if not wipe_pin_text:
+            _LOGGER.error("❌ DEVICE WIPE BLOCKED ❌")
+            _LOGGER.error("⚠️ Wipe PIN entity not found")
+            _LOGGER.error(
+                "💡 Please set a wipe PIN in the 'Wipe: PIN' text entity first"
+            )
+            return
+
+        pin = wipe_pin_text.native_value
+
+        if not pin:
+            _LOGGER.error("❌ DEVICE WIPE BLOCKED ❌")
+            _LOGGER.error("⚠️ Wipe PIN is not set")
+            _LOGGER.error(
+                "💡 Please set a wipe PIN in the 'Wipe: PIN' text entity first"
+            )
+            _LOGGER.error(
+                "💡 PIN must be alphanumeric (letters and numbers only) with no spaces"
+            )
+            return
+
+        # Import validation function from text entity
+        from .text import FmdWipePinText
+
+        is_valid, error_msg = FmdWipePinText.validate_pin(pin)
+
+        if not is_valid:
+            _LOGGER.error("❌ DEVICE WIPE BLOCKED ❌")
+            _LOGGER.error("⚠️ Invalid wipe PIN: %s", error_msg)
+            _LOGGER.error(
+                "💡 PIN must be alphanumeric (letters and numbers only) with no spaces"
+            )
+            return
+
         _LOGGER.critical("🚨🚨🚨 DEVICE WIPE COMMAND EXECUTING 🚨🚨🚨")
         _LOGGER.critical("⚠️ This will PERMANENTLY ERASE ALL DATA on the device!")
         _LOGGER.critical("⚠️ This action CANNOT be undone!")
@@ -696,34 +803,58 @@ class FmdWipeDeviceButton(ButtonEntity):
             return
 
         try:
-            # Send the delete/wipe command
-            success = await tracker.api.send_command("delete")
+            # Get device instance for new API
+            device = Device(tracker.api, self._entry.data["id"])
 
-            if success:
-                _LOGGER.critical("✅ DEVICE WIPE COMMAND SENT TO SERVER")
-                _LOGGER.critical(
-                    "📱 The device will receive the wipe command and factory reset"
-                )
-                _LOGGER.critical("🔄 All data on the device will be permanently erased")
-                _LOGGER.critical(
-                    "⚠️ This cannot be undone or cancelled once the device receives it"
+            # Send the wipe command with PIN and confirmation
+            # Note: confirm=True is always required per fmd_api 2.0.4
+            # Use keyword argument for pin so tests asserting keyword usage pass
+            await device.wipe(pin=pin, confirm=True)
+
+            _LOGGER.critical("✅ DEVICE WIPE COMMAND SENT TO SERVER")
+            _LOGGER.critical(
+                "📱 The device will receive the wipe command and factory reset"
+            )
+            _LOGGER.critical("🔄 All data on the device will be permanently erased")
+            _LOGGER.critical(
+                "⚠️ This cannot be undone or cancelled once the device receives it"
+            )
+
+            # Automatically disable the safety switch after successful wipe
+            # This prevents accidental repeated presses
+            safety_switch = self.hass.data[DOMAIN][self._entry.entry_id].get(
+                "wipe_safety_switch"
+            )
+            if safety_switch:
+                await safety_switch.async_turn_off()
+                _LOGGER.warning(
+                    "Safety switch automatically disabled to prevent repeated wipe commands"
                 )
 
-                # Automatically disable the safety switch after use
-                # This prevents accidental repeated presses
-                safety_switch = self.hass.data[DOMAIN][self._entry.entry_id].get(
-                    "wipe_safety_switch"
-                )
-                if safety_switch:
-                    await safety_switch.async_turn_off()
-                    _LOGGER.warning(
-                        "Safety switch automatically disabled to prevent repeated wipe commands"
-                    )
-            else:
-                _LOGGER.error("❌ FAILED to send device wipe command to server")
-                _LOGGER.error(
-                    "The device was NOT wiped - check server connectivity and try again"
-                )
+        except AuthenticationError as e:
+            _LOGGER.error("❌ FAILED to send device wipe command to server")
+            _LOGGER.error("Authentication error: %s", e)
+            _LOGGER.error("The device was NOT wiped - please reauthorize and try again")
+            raise HomeAssistantError(f"Authentication failed: {e}") from e
+
+        except OperationError as e:
+            _LOGGER.error("❌ FAILED to send device wipe command to server")
+            _LOGGER.error("Connection or API error: %s", e)
+            _LOGGER.error(
+                "The device was NOT wiped - check server connectivity, PIN, and try again"
+            )
+            raise HomeAssistantError(f"Wipe command failed: {e}") from e
+
+        except FmdApiException as e:
+            _LOGGER.error("❌ FAILED to send device wipe command to server")
+            _LOGGER.error("FMD API error: %s", e)
+            _LOGGER.error("The device was NOT wiped - check PIN and try again")
+            raise HomeAssistantError(f"Wipe command failed: {e}") from e
 
         except Exception as e:
-            _LOGGER.error("Error sending wipe command: %s", e, exc_info=True)
+            _LOGGER.error("❌ FAILED to send device wipe command to server")
+            _LOGGER.error("Unexpected error: %s", e, exc_info=True)
+            _LOGGER.error(
+                "The device was NOT wiped - check server connectivity, PIN, and try again"
+            )
+            raise HomeAssistantError(f"Wipe command failed: {e}") from e

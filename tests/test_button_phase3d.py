@@ -1,9 +1,14 @@
-"""Phase 3d advanced button tests - complex image processing and EXIF paths."""
+"""Phase 3d advanced button tests - complex image processing and EXIF/PhotoResult paths.
+
+Updated for fmd_api 2.0.4+ picture API:
+ - Uses device.get_picture_blobs(max_photos)
+ - Each blob decoded via device.decode_picture(blob) returning PhotoResult
+ - PhotoResult.timestamp preferred; when None falls back to EXIF extraction
+"""
 from __future__ import annotations
 
-import base64
 import io
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from conftest import setup_integration
 from homeassistant.core import HomeAssistant
@@ -14,21 +19,24 @@ async def test_photo_download_button_image_processing_success(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test photo download with valid image and EXIF data."""
-    # Create a fake JPEG image with EXIF data
+    """Test photo download with valid image and fallback to EXIF (timestamp None)."""
+    # Create a fake JPEG image (EXIF path will be attempted because timestamp=None)
     img = Image.new("RGB", (100, 100), color="red")
-
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
+    raw_bytes = img_bytes.getvalue()
 
-    encrypted_photo = base64.b64encode(b"fake_encrypted_data")
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        encrypted_photo.decode()
-    ]
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
-        img_bytes.getvalue()
-    ).decode()
+    device = mock_fmd_api.create.return_value.device.return_value
+    device.get_picture_blobs.return_value = [b"blob1"]
+
+    # Return PhotoResult-like object with timestamp=None to force EXIF path
+    photo_result = MagicMock()
+    photo_result.data = raw_bytes
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = None  # Force EXIF extraction code path
+    photo_result.raw = {}
+    device.decode_picture.return_value = photo_result
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -42,27 +50,29 @@ async def test_photo_download_button_image_processing_success(
             )
             await hass.async_block_till_done()
 
-    mock_fmd_api.create.return_value.get_pictures.assert_called()
+    device.get_picture_blobs.assert_called()
 
 
 async def test_photo_download_button_image_no_exif(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test photo download with image that has no EXIF data."""
-    # Create a simple image without EXIF
+    """Test photo download with image that has no EXIF data (still saved)."""
     img = Image.new("RGB", (100, 100), color="blue")
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
+    raw_bytes = img_bytes.getvalue()
 
-    encrypted_photo = base64.b64encode(b"fake_encrypted_data")
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        encrypted_photo.decode()
-    ]
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
-        img_bytes.getvalue()
-    ).decode()
+    device = mock_fmd_api.create.return_value.device.return_value
+    device.get_picture_blobs.return_value = [b"blob1"]
+
+    photo_result = MagicMock()
+    photo_result.data = raw_bytes
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = None  # triggers EXIF attempt -> none found
+    photo_result.raw = {}
+    device.decode_picture.return_value = photo_result
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -76,23 +86,24 @@ async def test_photo_download_button_image_no_exif(
             )
             await hass.async_block_till_done()
 
-    mock_fmd_api.create.return_value.get_pictures.assert_called()
+    device.get_picture_blobs.assert_called()
 
 
 async def test_photo_download_button_invalid_image_data(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test photo download with invalid image data."""
-    # Return corrupted image data
-    encrypted_photo = base64.b64encode(b"fake_encrypted_data")
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        encrypted_photo.decode()
-    ]
-    # Return invalid image data
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
-        b"not_a_real_image"
-    ).decode()
+    """Test photo download with invalid image data (decode succeeds, EXIF fails)."""
+    device = mock_fmd_api.create.return_value.device.return_value
+    device.get_picture_blobs.return_value = [b"blob1"]
+
+    # Corrupted bytes that PIL cannot parse as JPEG
+    photo_result = MagicMock()
+    photo_result.data = b"not_a_real_image"
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = None
+    photo_result.raw = {}
+    device.decode_picture.return_value = photo_result
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -106,21 +117,17 @@ async def test_photo_download_button_invalid_image_data(
             )
             await hass.async_block_till_done()
 
-    mock_fmd_api.create.return_value.get_pictures.assert_called()
+    device.get_picture_blobs.assert_called()
 
 
-async def test_photo_download_button_decrypt_error(
+async def test_photo_download_button_decode_error(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test photo download when decryption fails."""
-    encrypted_photo = base64.b64encode(b"fake_encrypted_data")
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        encrypted_photo.decode()
-    ]
-    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = Exception(
-        "Decryption failed"
-    )
+    """Test photo download when decode_picture fails for a blob."""
+    device = mock_fmd_api.create.return_value.device.return_value
+    device.get_picture_blobs.return_value = [b"blob1"]
+    device.decode_picture.side_effect = Exception("Decode failed")
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -134,18 +141,16 @@ async def test_photo_download_button_decrypt_error(
             )
             await hass.async_block_till_done()
 
-    # Should handle exception and continue
-    mock_fmd_api.create.return_value.get_pictures.assert_called()
+    device.get_picture_blobs.assert_called()
 
 
 async def test_photo_download_max_photos_not_found(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test photo download when max_photos_number entity not found."""
+    """Test photo download when max_photos_number entity not found (no API call)."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Remove max_photos_number from hass data
     entry_id = list(hass.data["fmd"].keys())[0]
     hass.data["fmd"][entry_id]["max_photos_number"] = None
 
@@ -157,8 +162,7 @@ async def test_photo_download_max_photos_not_found(
     )
     await hass.async_block_till_done()
 
-    # Should not call get_pictures without max_photos setting
-    mock_fmd_api.create.return_value.get_pictures.assert_not_called()
+    mock_fmd_api.create.return_value.device.return_value.get_picture_blobs.assert_not_called()
 
 
 async def test_photo_download_media_fallback_path(
@@ -166,19 +170,20 @@ async def test_photo_download_media_fallback_path(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo download uses fallback media path when /media doesn't exist."""
-    # Create a simple image
     img = Image.new("RGB", (100, 100), color="green")
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
+    raw_bytes = img_bytes.getvalue()
 
-    encrypted_photo = base64.b64encode(b"fake_encrypted_data")
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        encrypted_photo.decode()
-    ]
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
-        img_bytes.getvalue()
-    ).decode()
+    device = mock_fmd_api.create.return_value.device.return_value
+    device.get_picture_blobs.return_value = [b"blob1"]
+    photo_result = MagicMock()
+    photo_result.data = raw_bytes
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = None
+    photo_result.raw = {}
+    device.decode_picture.return_value = photo_result
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -192,29 +197,37 @@ async def test_photo_download_media_fallback_path(
             )
             await hass.async_block_till_done()
 
-    mock_fmd_api.create.return_value.get_pictures.assert_called()
+    device.get_picture_blobs.assert_called()
 
 
 async def test_photo_download_multiple_photos(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
 ) -> None:
-    """Test photo download with multiple photos."""
-    # Create multiple fake images
+    """Test photo download with multiple blobs decoded sequentially."""
     img = Image.new("RGB", (100, 100), color="red")
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
+    raw_bytes = img_bytes.getvalue()
 
-    encrypted_photos = [
-        base64.b64encode(b"fake_encrypted_data_1").decode(),
-        base64.b64encode(b"fake_encrypted_data_2").decode(),
-        base64.b64encode(b"fake_encrypted_data_3").decode(),
+    device = mock_fmd_api.create.return_value.device.return_value
+    device.get_picture_blobs.return_value = [b"blob1", b"blob2", b"blob3"]
+
+    # Use side_effect to return a new PhotoResult for each blob
+    def mk_photo_result():
+        pr = MagicMock()
+        pr.data = raw_bytes
+        pr.mime_type = "image/jpeg"
+        pr.timestamp = None  # exercise EXIF path each time
+        pr.raw = {}
+        return pr
+
+    device.decode_picture.side_effect = [
+        mk_photo_result(),
+        mk_photo_result(),
+        mk_photo_result(),
     ]
-    mock_fmd_api.create.return_value.get_pictures.return_value = encrypted_photos
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = base64.b64encode(
-        img_bytes.getvalue()
-    ).decode()
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -228,4 +241,4 @@ async def test_photo_download_multiple_photos(
             )
             await hass.async_block_till_done()
 
-    mock_fmd_api.create.return_value.get_pictures.assert_called()
+    device.get_picture_blobs.assert_called()

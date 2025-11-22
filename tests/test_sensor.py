@@ -25,29 +25,26 @@ async def test_photo_count_after_download(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count updates after download."""
-    import base64
+    from datetime import datetime
 
-    # Return encrypted blobs
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        "encrypted_blob_1",
-        "encrypted_blob_2",
-        "encrypted_blob_3",
+    # Mock the new device API
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.get_picture_blobs.return_value = [b"blob1", b"blob2", b"blob3"]
+
+    # Create mock PhotoResult objects with unique data
+    def create_photo_result(data: bytes):
+        photo_result = MagicMock()
+        photo_result.data = data
+        photo_result.mime_type = "image/jpeg"
+        photo_result.timestamp = datetime(2025, 1, 15, 10, 30, 0)
+        photo_result.raw = {}
+        return photo_result
+
+    device_mock.decode_picture.side_effect = [
+        create_photo_result(b"fake_jpeg_data_1_unique"),
+        create_photo_result(b"fake_jpeg_data_2_different"),
+        create_photo_result(b"fake_jpeg_data_3_another"),
     ]
-
-    # Mock decrypt_data_blob to return DIFFERENT base64-encoded fake image data
-    fake_image_1 = base64.b64encode(b"fake_jpeg_data_1_unique").decode("utf-8")
-    fake_image_2 = base64.b64encode(b"fake_jpeg_data_2_different").decode("utf-8")
-    fake_image_3 = base64.b64encode(b"fake_jpeg_data_3_another").decode("utf-8")
-
-    # Use a function to avoid StopIteration issues
-    decrypt_values = {
-        "encrypted_blob_1": fake_image_1,
-        "encrypted_blob_2": fake_image_2,
-        "encrypted_blob_3": fake_image_3,
-    }
-    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = (
-        lambda blob: decrypt_values.get(blob, fake_image_1)
-    )
 
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
@@ -91,26 +88,25 @@ async def test_photo_count_attributes(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count sensor attributes."""
-    import base64
+    from datetime import datetime
 
-    # Return encrypted blobs
-    mock_fmd_api.create.return_value.get_pictures.return_value = [
-        "encrypted_blob_1",
-        "encrypted_blob_2",
+    # Mock the new device API
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.get_picture_blobs.return_value = [b"blob1", b"blob2"]
+
+    # Create mock PhotoResult objects with unique data
+    def create_photo_result(data: bytes):
+        photo_result = MagicMock()
+        photo_result.data = data
+        photo_result.mime_type = "image/jpeg"
+        photo_result.timestamp = datetime(2025, 1, 15, 10, 30, 0)
+        photo_result.raw = {}
+        return photo_result
+
+    device_mock.decode_picture.side_effect = [
+        create_photo_result(b"fake_jpeg_data_1_unique"),
+        create_photo_result(b"fake_jpeg_data_2_different"),
     ]
-
-    # Mock decrypt_data_blob to return DIFFERENT base64-encoded fake image data
-    fake_image_1 = base64.b64encode(b"fake_jpeg_data_1_unique").decode("utf-8")
-    fake_image_2 = base64.b64encode(b"fake_jpeg_data_2_different").decode("utf-8")
-
-    # Use a function to avoid StopIteration issues
-    decrypt_values = {
-        "encrypted_blob_1": fake_image_1,
-        "encrypted_blob_2": fake_image_2,
-    }
-    mock_fmd_api.create.return_value.decrypt_data_blob.side_effect = (
-        lambda blob: decrypt_values.get(blob, fake_image_1)
-    )
 
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)
@@ -151,15 +147,19 @@ async def test_photo_count_after_cleanup(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test photo count updates after cleanup."""
-    import base64
     from datetime import datetime, timedelta
 
-    # Return encrypted blob
-    mock_fmd_api.create.return_value.get_pictures.return_value = ["encrypted_blob_1"]
+    # Mock the new device API
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.get_picture_blobs.return_value = [b"blob1"]
 
-    # Mock decrypt_data_blob to return base64-encoded fake image data
-    fake_image = base64.b64encode(b"fake_jpeg_data_unique_cleanup").decode("utf-8")
-    mock_fmd_api.create.return_value.decrypt_data_blob.return_value = fake_image
+    # Create mock PhotoResult
+    photo_result = MagicMock()
+    photo_result.data = b"fake_jpeg_data_unique_cleanup"
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = datetime(2025, 1, 15, 10, 30, 0)
+    photo_result.raw = {}
+    device_mock.decode_picture.return_value = photo_result
 
     # Setup integration BEFORE patching Path methods
     await setup_integration(hass, mock_fmd_api)

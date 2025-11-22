@@ -33,6 +33,15 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements_test.txt
 
+      - name: Ensure pytest-cov is installed and visible
+        run: |
+          pip install pytest-cov
+          python - << 'PY'
+          import pkgutil, pytest, sys
+          print(f"pytest version: {pytest.__version__}")
+          print("pytest_cov present:", pkgutil.find_loader("pytest_cov") is not None)
+          PY
+
       - name: Add custom_components to Python path
         run: |
           echo "PYTHONPATH=$PYTHONPATH:$PWD" >> $GITHUB_ENV

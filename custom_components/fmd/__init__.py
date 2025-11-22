@@ -16,12 +16,17 @@ This Integration:
 """
 from __future__ import annotations
 
-from fmd_api import FmdClient
+import logging
+
+from fmd_api import AuthenticationError, FmdApiException, FmdClient, OperationError
 from homeassistant.config_entries import ConfigEntry, ConfigEntryNotReady
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [
     Platform.DEVICE_TRACKER,
@@ -30,6 +35,7 @@ PLATFORMS: list[Platform] = [
     Platform.SWITCH,
     Platform.SENSOR,
     Platform.SELECT,
+    Platform.TEXT,
 ]
 
 
@@ -44,16 +50,80 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {}
 
     try:
-        # Create API client instance and device info that all platforms can use
-        api = await FmdClient.create(
-            entry.data["url"], entry.data["id"], entry.data["password"]
+        # Create API client instance from artifacts if available (password-free),
+        # otherwise fall back to password-based auth (for migration)
+        if "artifacts" in entry.data:
+            # Modern artifact-based authentication (password-free)
+            api = await FmdClient.from_auth_artifacts(entry.data["artifacts"])
+        elif "password" in entry.data:
+            # Legacy password-based auth (for migration)
+            # Convert to artifacts on next reauth or update
+            _LOGGER.info(
+                "Using legacy password authentication for %s. "
+                "Will migrate to secure artifacts on next authentication.",
+                entry.data["id"],
+            )
+            api = await FmdClient.create(
+                entry.data["url"],
+                entry.data["id"],
+                entry.data["password"],
+                drop_password=True,
+            )
+
+            # Immediately export and save artifacts for next startup
+            try:
+                artifacts = await api.export_auth_artifacts()
+                new_data = {**entry.data}
+                new_data["artifacts"] = artifacts
+                # Remove password from storage
+                new_data.pop("password", None)
+                hass.config_entries.async_update_entry(entry, data=new_data)
+                _LOGGER.info(
+                    "Successfully migrated %s to artifact-based authentication",
+                    entry.data["id"],
+                )
+            except Exception as artifact_err:
+                _LOGGER.warning(
+                    "Could not export artifacts for %s, will retry on next startup: %s",
+                    entry.data["id"],
+                    artifact_err,
+                )
+        else:
+            raise ValueError("Config entry missing both artifacts and password")
+
+    except AuthenticationError as err:
+        # Authentication failed - trigger reauth flow
+        _LOGGER.error(
+            "Authentication failed for %s: %s - Please reauthorize",
+            entry.data.get("id", "unknown"),
+            err,
         )
+        raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
+
+    except OperationError as err:
+        # Temporary network/connection issue or API error - retry with backoff
+        _LOGGER.warning(
+            "Cannot connect to FMD server or API error at %s: %s - Will retry",
+            entry.data.get("url", "unknown"),
+            err,
+        )
+        raise ConfigEntryNotReady(f"FMD API error: {err}") from err
+
+    except FmdApiException as err:
+        # General FMD API error
+        _LOGGER.error("FMD API error for %s: %s", entry.data.get("id", "unknown"), err)
+        raise ConfigEntryNotReady(f"FMD API error: {err}") from err
+
     except Exception as err:
-        # Raise ConfigEntryNotReady for any connection/authentication issues
-        # This allows Home Assistant to retry with exponential backoff instead of
-        # failing the entire entry setup permanently
+        # Unexpected error - log and raise ConfigEntryNotReady for retry
+        _LOGGER.error(
+            "Unexpected error setting up FMD for %s: %s",
+            entry.data.get("id", "unknown"),
+            err,
+            exc_info=True,
+        )
         raise ConfigEntryNotReady(
-            f"Failed to connect to FMD server at {entry.data['url']}: {err}"
+            f"Failed to connect to FMD server at {entry.data.get('url', 'unknown')}: {err}"
         ) from err
 
     hass.data[DOMAIN][entry.entry_id]["api"] = api
@@ -73,6 +143,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
+        # Clean up API client
+        api = hass.data[DOMAIN][entry.entry_id].get("api")
+        if api:
+            try:
+                await api.close()
+            except Exception as err:
+                _LOGGER.warning("Error closing FMD API client: %s", err)
+
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
