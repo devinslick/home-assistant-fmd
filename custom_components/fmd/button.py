@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import io
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -443,7 +444,11 @@ class FmdDownloadPhotosButton(ButtonEntity):
             # Use /media for Docker/Core installations, falls back to config/media for HAOS
             try:
                 media_base = Path("/media")
-                if not media_base.exists() or not media_base.is_dir():
+                if (
+                    not media_base.exists()
+                    or not media_base.is_dir()
+                    or not os.access(media_base, os.W_OK)
+                ):
                     # Fall back to config/media for Home Assistant OS
                     media_base = Path(self.hass.config.path("media"))
 
