@@ -38,10 +38,8 @@ async def test_download_photos_uses_DateTimeDigitized_when_original_missing(
             # 36868 = DateTimeDigitized
             return {36868: "2025:11:22 08:15:30"}
 
-    # Patch Image.open to provide EXIF tag; patch mkdir to avoid spurious FileExistsError; capture write calls.
-    with patch("PIL.Image.open", return_value=DummyImg()), patch(
-        "pathlib.Path.mkdir", return_value=None
-    ):
+    # Patch Image.open to provide EXIF tag.
+    with patch("PIL.Image.open", return_value=DummyImg()):
         await hass.services.async_call(
             "button",
             "press",
@@ -82,9 +80,7 @@ async def test_download_photos_uses_DateTime_fallback(
         def getexif(self):
             return {306: "2025:11:22 09:10:05"}
 
-    with patch("PIL.Image.open", return_value=DummyImg()), patch(
-        "pathlib.Path.mkdir", return_value=None
-    ):
+    with patch("PIL.Image.open", return_value=DummyImg()):
         await hass.services.async_call(
             "button",
             "press",

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -16,6 +17,7 @@ async def test_download_photos_no_photos_found(
     hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog
 ) -> None:
     """When no pictures are found, warn and return."""
+    caplog.set_level(logging.WARNING)
     await setup_integration(hass, mock_fmd_api)
 
     btn = FmdDownloadPhotosButton(
@@ -34,6 +36,7 @@ async def test_download_photos_mkdir_failure_logs_error(
     hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog, tmp_path: Path
 ) -> None:
     """If media directory cannot be created, log an error and stop."""
+    caplog.set_level(logging.ERROR)
     await setup_integration(hass, mock_fmd_api)
 
     btn = FmdDownloadPhotosButton(
@@ -56,6 +59,7 @@ async def test_download_photos_exif_extraction_failure_logs_warning(
     hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog: MagicMock
 ) -> None:
     """If EXIF extraction fails, log a warning and continue."""
+    caplog.set_level(logging.WARNING)
     await setup_integration(hass, mock_fmd_api)
 
     # Ensure media dir exists
@@ -101,6 +105,7 @@ async def test_download_photos_duplicate_skips_save(
     hass: HomeAssistant, mock_fmd_api: AsyncMock, tmp_path: Path, caplog
 ) -> None:
     """Duplicate photo (existing file with same hash) should be skipped."""
+    caplog.set_level(logging.INFO)
     await setup_integration(hass, mock_fmd_api)
 
     entry_id = list(hass.data[DOMAIN].keys())[0]
@@ -142,6 +147,7 @@ async def test_download_photos_write_raises_logs_error(
     hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog
 ) -> None:
     """If writing a photo file fails, log an error and continue."""
+    caplog.set_level(logging.ERROR)
     await setup_integration(hass, mock_fmd_api)
 
     btn = FmdDownloadPhotosButton(
