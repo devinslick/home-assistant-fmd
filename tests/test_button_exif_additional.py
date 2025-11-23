@@ -1,7 +1,7 @@
 """Additional EXIF timestamp tag coverage for button photo download."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from conftest import setup_integration
 from homeassistant.core import HomeAssistant
@@ -11,14 +11,23 @@ async def test_download_photos_uses_DateTimeDigitized_when_original_missing(
     hass: HomeAssistant, mock_fmd_api
 ) -> None:
     """If DateTimeOriginal absent but DateTimeDigitized present, use that timestamp."""
+    # Ensure we are configuring the same mock that is used
+    # The fixture patches custom_components.fmd.button.Device to return mock_fmd_api.create.return_value.device.return_value
+    # But to be absolutely sure, we can patch it again here or just trust the fixture.
+    # Let's verify the mock configuration.
+
     device = mock_fmd_api.create.return_value.device.return_value
-    device.get_picture_blobs.return_value = [b"blob1"]
+    # Ensure get_picture_blobs is an AsyncMock and returns what we want
+    device.get_picture_blobs = AsyncMock(return_value=[b"blob1"])
+
     photo_result = MagicMock()
     photo_result.data = b"image_bytes_digitized"
     photo_result.mime_type = "image/jpeg"
     photo_result.timestamp = None
     photo_result.raw = {}
-    device.decode_picture.return_value = photo_result
+
+    # Ensure decode_picture is an AsyncMock
+    device.decode_picture = AsyncMock(return_value=photo_result)
 
     await setup_integration(hass, mock_fmd_api)
 
@@ -55,13 +64,17 @@ async def test_download_photos_uses_DateTime_fallback(
 ) -> None:
     """If neither Original nor Digitized tags present but DateTime (306) exists, use it."""
     device = mock_fmd_api.create.return_value.device.return_value
-    device.get_picture_blobs.return_value = [b"blob1"]
+    # Ensure get_picture_blobs is an AsyncMock
+    device.get_picture_blobs = AsyncMock(return_value=[b"blob1"])
+
     photo_result = MagicMock()
     photo_result.data = b"image_bytes_datetime"
     photo_result.mime_type = "image/jpeg"
     photo_result.timestamp = None
     photo_result.raw = {}
-    device.decode_picture.return_value = photo_result
+
+    # Ensure decode_picture is an AsyncMock
+    device.decode_picture = AsyncMock(return_value=photo_result)
 
     await setup_integration(hass, mock_fmd_api)
 

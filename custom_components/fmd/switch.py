@@ -231,10 +231,13 @@ class FmdWipeSafetySwitch(SwitchEntity):
         # Cancel any existing auto-disable task
         if self._auto_disable_task:
             self._auto_disable_task.cancel()
+            try:
+                await self._auto_disable_task
+            except asyncio.CancelledError:
+                pass
 
         # Schedule automatic disable after 60 seconds (avoid duplicate tasks)
-        if not self._auto_disable_task:
-            self._auto_disable_task = asyncio.create_task(self._auto_disable())
+        self._auto_disable_task = asyncio.create_task(self._auto_disable())
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable device wipe safety (blocks wipe button)."""
@@ -261,7 +264,7 @@ class FmdWipeSafetySwitch(SwitchEntity):
             self._auto_disable_task = None
         except asyncio.CancelledError:
             # Task was cancelled, which is fine
-            pass
+            raise
 
 
 class FmdPhotoAutoCleanupSwitch(SwitchEntity):
