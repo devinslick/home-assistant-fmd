@@ -55,7 +55,11 @@ async def test_download_photos_uses_DateTimeDigitized_when_original_missing(
 
     with patch("PIL.Image.open", return_value=DummyImg()), patch.object(
         hass, "async_add_executor_job", side_effect=mock_executor_job
-    ), patch("custom_components.fmd.button.Path", side_effect=mock_path_constructor):
+    ), patch(
+        "custom_components.fmd.button.Path", side_effect=mock_path_constructor
+    ), patch(
+        "custom_components.fmd.sensor.Path", side_effect=mock_path_constructor
+    ):
         await hass.services.async_call(
             "button",
             "press",
@@ -98,7 +102,11 @@ async def test_download_photos_uses_DateTime_fallback(
 
     with patch("PIL.Image.open", return_value=DummyImg()), patch.object(
         hass, "async_add_executor_job", side_effect=mock_executor_job
-    ), patch("custom_components.fmd.button.Path", side_effect=mock_path_constructor):
+    ), patch(
+        "custom_components.fmd.button.Path", side_effect=mock_path_constructor
+    ), patch(
+        "custom_components.fmd.sensor.Path", side_effect=mock_path_constructor
+    ):
         await hass.services.async_call(
             "button",
             "press",
