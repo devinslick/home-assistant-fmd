@@ -4,6 +4,7 @@
 [![Tests](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/devinslick/home-assistant-fmd/branch/main/graph/badge.svg?token=W04KEUVQ8W)](https://codecov.io/gh/devinslick/home-assistant-fmd)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/fmd-api)](https://pypi.org/project/fmd-api/)
+[![GitHub release](https://img.shields.io/github/release/devinslick/home-assistant-fmd.svg)](https://github.com/devinslick/home-assistant-fmd/releases)
 
 A Home Assistant custom integration for [FMD (Find My Device)](https://fmd-foss.org) that allows you to track and control Android devices running the FMD app through your self-hosted FMD server.
 
@@ -15,7 +16,8 @@ A Home Assistant custom integration for [FMD (Find My Device)](https://fmd-foss.
 - **FMD Server**: https://gitlab.com/fmd-foss/fmd-server
 - **Website**: https://fmd-foss.org
 
-This integration acts as a **client** for your FMD server, providing seamless integration with Home Assistant. See [CREDITS.md](CREDITS.md) for full attribution.
+This integration acts as a full **client** for your FMD server, providing seamless integration with Home Assistant. See [CREDITS.md](CREDITS.md) for full attribution.
+It uses  [fmd_api](https://github.com/devinslick/fmd_api), which was written purpose-built for this integration to be able to interact with the FMD server.
 
 ## Quick Start Overview
 

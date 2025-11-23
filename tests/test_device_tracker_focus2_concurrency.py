@@ -8,10 +8,13 @@ Targets remaining untested branches:
 """
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 from conftest import setup_integration
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 
 async def test_device_tracker_poll_skip_when_already_updating(
@@ -27,35 +30,18 @@ async def test_device_tracker_poll_skip_when_already_updating(
     # Manually set _is_updating to True to simulate ongoing update
     tracker._is_updating = True
 
-    # The scheduled update function checks _is_updating at the start
-    # Trigger a scheduled poll manually by calling the internal callback
-    # We need to access the actual scheduled callback
-
     # Mock async_update to verify it's not called
     with patch.object(tracker, "async_update") as mock_update:
-        # Manually trigger the update by calling start_polling's internal function
-        # Since _is_updating is True, the warning should be logged and return early
-
-        # The easiest way is to re-trigger start_polling which will schedule the callback
-        # But we can't easily call the scheduled callback without reimplementing it
-        # Instead, let's just verify the logic by checking the flag directly
-        # Lines 95-96 are: if self._is_updating: _LOGGER.warning(...); return
-
-        # Simulate what happens when scheduled callback runs with flag set
-        if tracker._is_updating:
-            import logging
-
-            logging.getLogger("custom_components.fmd.device_tracker").warning(
-                "Previous update still in progress, skipping this poll"
-            )
-            # Early return - async_update should NOT be called
-        else:
-            await tracker.async_update()
+        # Advance time to trigger the scheduled poll
+        # The polling interval is 30 minutes by default
+        next_update = dt_util.now() + timedelta(minutes=30)
+        async_fire_time_changed(hass, next_update)
+        await hass.async_block_till_done()
 
         # Verify async_update was NOT called
         mock_update.assert_not_called()
 
-    # Verify warning was logged (lines 95-96)
+    # Verify warning was logged
     assert any(
         "Previous update still in progress" in record.message
         for record in caplog.records
@@ -80,33 +66,17 @@ async def test_device_tracker_high_frequency_initial_request_returns_false(
 
     caplog.clear()
 
-    # Manually trigger the scheduled poll callback
-    # Lines 163-164 are inside the scheduled update_locations function
-    # when high-frequency mode is active and request_location returns False
+    # Advance time to trigger the scheduled poll
+    # High frequency interval is 5 minutes by default
+    # Add a small buffer to ensure the timer fires
+    next_update = dt_util.now() + timedelta(minutes=5, seconds=1)
+    async_fire_time_changed(hass, next_update)
+    await hass.async_block_till_done()
 
-    # The easiest way is to manually call async_update after setting flag
-    # But lines 163-164 are in the scheduled callback before async_update
-    # So we need to simulate the callback behavior
+    # Verify request_location was called
+    mock_fmd_api.create.return_value.request_location.assert_called()
 
-    # Simulate the scheduled poll that checks high-frequency mode
-    import asyncio
-
-    tracker._is_updating = False  # Ensure not already updating
-
-    # Call the internal logic that would be in update_locations
-    if tracker._high_frequency_mode:
-        success = await tracker.api.request_location(provider="all")
-        if success:
-            await asyncio.sleep(10)
-        else:
-            # This triggers lines 163-164
-            import logging
-
-            logging.getLogger("custom_components.fmd.device_tracker").warning(
-                "Failed to request location from device"
-            )
-
-    # Verify warning was logged (lines 163-164)
+    # Verify warning was logged
     assert any(
         "Failed to request location from device" in record.message
         for record in caplog.records
@@ -213,46 +183,14 @@ async def test_device_tracker_high_frequency_poll_request_failure_logs_error(
     )
 
     caplog.clear()
-    # Manually trigger a poll update by calling the internal update callback
-    # This simulates what happens during scheduled polling
-    tracker._high_frequency_mode = True  # Ensure mode is active
 
-    # Create and call the update function
-    import asyncio
-    from datetime import datetime
+    # Advance time to trigger the scheduled poll
+    # Add a small buffer to ensure the timer fires
+    next_update = dt_util.now() + timedelta(minutes=5, seconds=1)
+    async_fire_time_changed(hass, next_update)
+    await hass.async_block_till_done()
 
-    async def update_locations(now: datetime | None = None) -> None:
-        """Simulated scheduled update."""
-        if tracker._is_updating:
-            return
-        tracker._is_updating = True
-        try:
-            # High-frequency mode logic (from start_polling)
-            if tracker._high_frequency_mode:
-                try:
-                    # This will raise RuntimeError, triggering error log
-                    success = await tracker.api.request_location(provider="all")
-                    if success:
-                        await asyncio.sleep(10)
-                    else:
-                        pass  # Warning path
-                except Exception as e:
-                    # Error path (lines 210-212) - should log error
-                    import logging
-
-                    logging.getLogger("custom_components.fmd.device_tracker").error(
-                        "Error requesting location during high-frequency poll: %s", e
-                    )
-
-            await tracker.async_update()
-            tracker.async_write_ha_state()
-        finally:
-            tracker._is_updating = False
-
-    # Execute the update
-    await update_locations()
-
-    # Verify error was logged (lines 210-212)
+    # Verify error was logged
     assert any(
         "Error requesting location during high-frequency poll" in record.message
         for record in caplog.records

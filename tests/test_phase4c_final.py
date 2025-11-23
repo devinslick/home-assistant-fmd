@@ -8,6 +8,7 @@ Targeting:
 """
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock
 
 from conftest import setup_integration
@@ -177,7 +178,8 @@ async def test_switch_wipe_safety_auto_disable_task_cancellation(
     safety_switch = hass.data[DOMAIN][entry_id]["wipe_safety_switch"]
 
     # Verify task was created
-    assert safety_switch._auto_disable_task is not None
+    task = safety_switch._auto_disable_task
+    assert task is not None
 
     # Turn off the switch (cancels the task - this hits the except CancelledError block)
     await hass.services.async_call(
@@ -187,9 +189,56 @@ async def test_switch_wipe_safety_auto_disable_task_cancellation(
         blocking=True,
     )
 
+    # Wait for the task to handle the cancellation
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
     # Task should be cancelled and set to None
     assert safety_switch._auto_disable_task is None
     assert safety_switch.is_on is False
+
+
+async def test_switch_wipe_safety_turn_on_while_running(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test turning on wipe safety switch while it is already running (covers line 233)."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Turn on the wipe safety (starts auto-disable task)
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+
+    # Get the switch entity
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    safety_switch = hass.data[DOMAIN][entry_id]["wipe_safety_switch"]
+
+    # Verify task was created
+    task1 = safety_switch._auto_disable_task
+    assert task1 is not None
+
+    # Turn on the switch AGAIN - call directly to bypass HA state check
+    await safety_switch.async_turn_on()
+
+    # Verify the old task was cancelled and a new one created
+    task2 = safety_switch._auto_disable_task
+    assert task2 is not None
+    assert task1 is not task2
+    assert task1.cancelled()
+
+    # Cleanup: Turn off
+    await hass.services.async_call(
+        "switch",
+        "turn_off",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
 
 
 async def test_device_tracker_altitude_attribute_metric(

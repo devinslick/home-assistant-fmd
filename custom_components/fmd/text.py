@@ -80,9 +80,6 @@ class FmdWipePinText(TextEntity):
         if not pin.isalnum():
             return False, "PIN must be alphanumeric (letters and numbers only)"
 
-        if " " in pin:
-            return False, "PIN cannot contain spaces"
-
         # Check if it's ASCII only
         if not all(ord(c) < 128 for c in pin):
             return False, "PIN must contain only ASCII characters"

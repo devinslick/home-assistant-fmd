@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
-    from fmd_api import FmdClient
+    from fmd_api import FmdClient  # pragma: no cover
 
 from fmd_api import AuthenticationError, FmdApiException, OperationError
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
