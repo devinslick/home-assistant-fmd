@@ -69,7 +69,6 @@ async def test_photo_sensor_invalid_datetime_restoration(
     # Create config entry with INVALID datetime string
     config_entry = MockConfigEntry(
         version=1,
-        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -336,7 +335,6 @@ async def test_location_source_invalid_option_fallback(
     # Minimal config entry for constructing the entity
     config_entry = MockConfigEntry(
         version=1,
-        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={

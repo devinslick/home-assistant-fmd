@@ -1049,6 +1049,13 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Version History
 
+### v1.1.4 - November 22, 2025 (Dependency Bump)
+Maintenance release focusing on dependency updates and compatibility testing.
+
+Changes:
+- 📦 **Dependency**: Bumped `fmd-api` to `2.0.7`.
+- ✅ Verified compatibility of the integration and full test suite with `fmd-api==2.0.7`.
+
 ### v1.1.3 - November 19, 2025 (Code Quality & Fixes)
 Release focused on fixing polling interval persistence and improving code quality.
 
@@ -1065,6 +1072,8 @@ Changes:
 - 📦 **Updated dependency** to `fmd-api==2.0.5`
 - 🛡️ **Polling reliability**: Added protection against overlapping updates to prevent task pile-ups and ensure schedule adherence.
 - 🔄 **Improved polling logic**: Ensures polling tasks are managed correctly, preventing stalls if the server or device is slow to respond.
+
+> Note: This release included efforts to address polling interval persistence; however, some restart-edge cases remained and were fully resolved in v1.1.3.
 
 ### v1.1.1 - November 11, 2025 (Hotfix)
 Short maintenance release focused on restoring button functionality introduced with the fmd_api 2.0.4 upgrade.
