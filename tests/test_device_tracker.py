@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from conftest import setup_integration
 from homeassistant.components.device_tracker import SourceType
 from homeassistant.config_entries import ConfigEntryState
@@ -88,7 +89,6 @@ async def test_device_tracker_imperial_units(
     # Create config entry with imperial units enabled
     config_entry = MockConfigEntry(
         version=1,
-        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -176,7 +176,6 @@ async def test_device_tracker_setup_initial_location_fetch_failure(
     """
     config_entry = MockConfigEntry(
         version=1,
-        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -437,3 +436,153 @@ async def test_device_tracker_imperial_altitude_speed(
     assert state.attributes.get("speed") == 10.0
     assert state.attributes.get("altitude_unit") == "m"
     assert state.attributes.get("speed_unit") == "m/s"
+
+
+async def test_device_tracker_high_frequency_mode_success_path(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test high frequency mode success path with location request and sleep."""
+    # Mock request_location to return True
+    mock_fmd_api.create.return_value.request_location.return_value = True
+
+    # Mock get_locations for the update after sleep
+    mock_fmd_api.create.return_value.get_locations.return_value = [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "gps",
+        }
+    ]
+
+    await setup_integration(hass, mock_fmd_api)
+
+    # Enable high frequency mode
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_high_frequency_mode"},
+        blocking=True,
+    )
+
+    await hass.async_block_till_done()
+
+    # Verify request_location was called and sleep occurred (covered lines 95-96)
+    mock_fmd_api.create.return_value.request_location.assert_called()
+
+
+async def test_device_tracker_inaccurate_locations_warning(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test warning when only inaccurate locations found with filtering enabled."""
+    # Return only inaccurate providers
+    mock_fmd_api.create.return_value.get_locations.return_value = [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "beacondb",  # Inaccurate provider
+        },
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "time": "2025-10-23T12:00:00Z",
+            "provider": "unknown",  # Inaccurate provider
+        },
+    ]
+
+    await setup_integration(hass, mock_fmd_api)
+
+    # Force an update
+    tracker = hass.data[DOMAIN]["test_entry_id"]["tracker"]
+    await tracker.async_update()
+
+    # Verify location was not updated (stayed None)
+    assert tracker.latitude is None
+    assert tracker.longitude is None
+
+
+async def test_device_tracker_authentication_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test AuthenticationError raises ConfigEntryAuthFailed."""
+    from fmd_api import AuthenticationError
+    from homeassistant.exceptions import ConfigEntryAuthFailed
+
+    mock_fmd_api.create.return_value.get_locations.side_effect = AuthenticationError(
+        "auth failed"
+    )
+
+    await setup_integration(hass, mock_fmd_api)
+
+    tracker = hass.data[DOMAIN]["test_entry_id"]["tracker"]
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await tracker.async_update()
+
+
+async def test_device_tracker_operation_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test OperationError is handled gracefully."""
+    from fmd_api import OperationError
+
+    mock_fmd_api.create.return_value.get_locations.side_effect = OperationError(
+        "connection failed"
+    )
+
+    await setup_integration(hass, mock_fmd_api)
+
+    tracker = hass.data[DOMAIN]["test_entry_id"]["tracker"]
+
+    # Should not raise, just log
+    await tracker.async_update()
+
+    # Location should remain None
+    assert tracker.latitude is None
+
+
+async def test_device_tracker_fmd_api_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test FmdApiException is handled gracefully."""
+    from fmd_api import FmdApiException
+
+    mock_fmd_api.create.return_value.get_locations.side_effect = FmdApiException(
+        "API failed"
+    )
+
+    await setup_integration(hass, mock_fmd_api)
+
+    tracker = hass.data[DOMAIN]["test_entry_id"]["tracker"]
+
+    # Should not raise, just log
+    await tracker.async_update()
+
+    # Location should remain None
+    assert tracker.latitude is None
+
+
+async def test_device_tracker_unexpected_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test unexpected Exception is handled gracefully."""
+    mock_fmd_api.create.return_value.get_locations.side_effect = ValueError(
+        "unexpected"
+    )
+
+    await setup_integration(hass, mock_fmd_api)
+
+    tracker = hass.data[DOMAIN]["test_entry_id"]["tracker"]
+
+    # Should not raise, just log
+    await tracker.async_update()
+
+    # Location should remain None
+    assert tracker.latitude is None

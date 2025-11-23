@@ -18,7 +18,6 @@ async def test_setup_entry(
     """Test setting up the integration."""
     config_entry = MockConfigEntry(
         version=1,
-        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -34,7 +33,7 @@ async def test_setup_entry(
     )
     config_entry.add_to_hass(hass)
 
-    with patch("custom_components.fmd.__init__.FmdClient", mock_fmd_api):
+    with patch("custom_components.fmd.FmdClient", mock_fmd_api):
         assert await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
 
@@ -52,7 +51,6 @@ async def test_unload_entry(
     """Test unloading the integration."""
     config_entry = MockConfigEntry(
         version=1,
-        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -66,7 +64,7 @@ async def test_unload_entry(
     )
     config_entry.add_to_hass(hass)
 
-    with patch("custom_components.fmd.__init__.FmdClient", mock_fmd_api):
+    with patch("custom_components.fmd.FmdClient", mock_fmd_api):
         assert await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
         assert await hass.config_entries.async_unload(config_entry.entry_id)
@@ -82,7 +80,6 @@ async def test_setup_entry_api_failure(
     """Test setup fails when API creation fails."""
     config_entry = MockConfigEntry(
         version=1,
-        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -97,7 +94,7 @@ async def test_setup_entry_api_failure(
     config_entry.add_to_hass(hass)
 
     with patch(
-        "custom_components.fmd.__init__.FmdClient.create",
+        "custom_components.fmd.FmdClient.create",
         side_effect=Exception("Authentication failed"),
     ):
         assert not await hass.config_entries.async_setup(config_entry.entry_id)
@@ -112,7 +109,6 @@ async def test_setup_entry_network_error_raises_config_entry_not_ready(
     """Test that network errors during API creation raise ConfigEntryNotReady."""
     config_entry = MockConfigEntry(
         version=1,
-        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={
@@ -128,7 +124,7 @@ async def test_setup_entry_network_error_raises_config_entry_not_ready(
 
     # Simulate network timeout
     with patch(
-        "custom_components.fmd.__init__.FmdClient.create",
+        "custom_components.fmd.FmdClient.create",
         side_effect=TimeoutError("Connection timeout"),
     ):
         result = await hass.config_entries.async_setup(config_entry.entry_id)

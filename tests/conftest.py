@@ -221,7 +221,6 @@ def get_mock_config_entry() -> MockConfigEntry:
 
     return MockConfigEntry(
         version=1,
-        minor_version=1,
         domain=DOMAIN,
         title="test_user",
         data={

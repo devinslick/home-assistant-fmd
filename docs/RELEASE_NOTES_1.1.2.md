@@ -22,6 +22,9 @@ A maintenance release focused on improving location tracking reliability and upd
 - This resolves issues where the schedule could become unreliable or stop working if the FMD server or device was slow to respond.
 - This ensures that the integration respects the configured polling interval more reliably.
 
+### Note on Polling Interval Persistence
+- This release includes efforts to address polling interval persistence, however a full fix for some restart-edge cases was completed in the subsequent v1.1.3 release.
+
 ### Dependency Updates
 - Updated `fmd-api` from `2.0.4` to `2.0.5`.
 
