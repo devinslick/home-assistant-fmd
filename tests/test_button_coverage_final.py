@@ -1,225 +1,258 @@
-"""Final coverage tests for button entities."""
-from __future__ import annotations
-
-from typing import Any
+"""Test FMD button coverage."""
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from conftest import setup_integration
+from fmd_api import AuthenticationError, FmdApiException, OperationError
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-
-def get_button_entity(hass: HomeAssistant, entity_id: str):
-    """Get a button entity instance by its entity ID."""
-    component = hass.data.get("entity_components", {}).get("button")
-    if component:
-        for entity in component.entities:
-            if entity.entity_id == entity_id:
-                return entity
-    raise ValueError(f"Entity {entity_id} not found")
+from custom_components.fmd.const import DOMAIN
 
 
-async def test_ring_button_homeassistant_error(
+async def test_ring_button_home_assistant_error(
     hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
     """Test ring button re-raises HomeAssistantError."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the button instance
-    button = get_button_entity(hass, "button.fmd_test_user_volume_ring_device")
-
     # Mock send_command to raise HomeAssistantError
-    # We need to patch the api instance on the tracker
-    entry_id = list(hass.data["fmd"].keys())[0]
-    tracker = hass.data["fmd"][entry_id]["tracker"]
-    tracker.api.send_command.side_effect = HomeAssistantError("Test error")
+    tracker = hass.data[DOMAIN]["test_entry_id"]["tracker"]
+    tracker.api.send_command.side_effect = HomeAssistantError("Test Error")
 
-    # Press the button and expect HomeAssistantError
-    with pytest.raises(HomeAssistantError, match="Test error"):
-        await button.async_press()
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_volume_ring_device"},
+            blocking=True,
+        )
 
 
-async def test_cleanup_old_photos_no_cleanup_needed(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock, tmp_path: Any
+async def test_lock_button_exceptions(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
-    """Test cleanup skips when photo count is within limit."""
+    """Test lock button handles exceptions gracefully (logs but doesn't raise)."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the button instance
-    button = get_button_entity(hass, "button.fmd_test_user_photo_download")
-
-    # Enable auto cleanup switch
-    entry_id = list(hass.data["fmd"].keys())[0]
-    cleanup_switch = hass.data["fmd"][entry_id]["photo_auto_cleanup_switch"]
-    await cleanup_switch.async_turn_on()
-
-    # Set max photos to 10
-    max_photos_entity = hass.data["fmd"][entry_id]["max_photos_number"]
-    await max_photos_entity.async_set_native_value(10)
-
-    # Mock Device class to return 1 photo
+    # We need to patch 'custom_components.fmd.button.Device' because it's instantiated inside async_press
     with patch("custom_components.fmd.button.Device") as mock_device_cls:
         mock_device = mock_device_cls.return_value
-        mock_device.get_picture_blobs = AsyncMock(return_value=["blob1"])
 
-        # Mock decode_picture
-        from datetime import datetime
+        # Test AuthenticationError
+        mock_device.lock.side_effect = AuthenticationError("Auth Error")
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_lock_device"},
+            blocking=True,
+        )
 
-        mock_photo_result = MagicMock()
-        mock_photo_result.data = b"fake_image_data"
-        mock_photo_result.mime_type = "image/jpeg"
-        mock_photo_result.timestamp = datetime.now()
-        mock_device.decode_picture = AsyncMock(return_value=mock_photo_result)
+        # Test OperationError
+        mock_device.lock.side_effect = OperationError("Op Error")
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_lock_device"},
+            blocking=True,
+        )
 
-        # Patch hass.config.path to return tmp_path
-        with patch.object(hass.config, "path", return_value=str(tmp_path)):
-            # Patch _LOGGER to verify the debug message
-            with patch("custom_components.fmd.button._LOGGER") as mock_logger:
-                await button.async_press()
-
-                # Verify debug message was logged
-                # We need to check if any call matches the pattern because there are many debug logs
-                found = False
-                for call in mock_logger.debug.call_args_list:
-                    args = call.args
-                    if args and "no cleanup needed" in args[0]:
-                        found = True
-                        break
-
-                assert found, "Cleanup debug message not found"
+        # Test FmdApiException
+        mock_device.lock.side_effect = FmdApiException("API Error")
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_lock_device"},
+            blocking=True,
+        )
 
 
-async def test_cleanup_old_photos_exception(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock, tmp_path: Any
+async def test_download_photos_cleanup_error(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
-    """Test exception handling in _cleanup_old_photos."""
+    """Test photo cleanup handles deletion errors."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the button instance
-    button = get_button_entity(hass, "button.fmd_test_user_photo_download")
+    # Mock the switch entity to return True for is_on
+    mock_switch = MagicMock()
+    mock_switch.is_on = True
+    hass.data[DOMAIN]["test_entry_id"]["photo_auto_cleanup_switch"] = mock_switch
 
-    # Enable auto cleanup switch
-    entry_id = list(hass.data["fmd"].keys())[0]
-    cleanup_switch = hass.data["fmd"][entry_id]["photo_auto_cleanup_switch"]
-    await cleanup_switch.async_turn_on()
+    # Mock max photos number to 1 so we trigger cleanup with 2 photos
+    mock_number = MagicMock()
+    mock_number.native_value = 1
+    hass.data[DOMAIN]["test_entry_id"]["max_photos_number"] = mock_number
 
-    # Mock Device class to return 1 photo
+    # Mock Device to return blobs
     with patch("custom_components.fmd.button.Device") as mock_device_cls:
         mock_device = mock_device_cls.return_value
-        mock_device.get_picture_blobs = AsyncMock(return_value=["blob1"])
-
-        # Mock decode_picture
-        from datetime import datetime
+        # Make async methods return futures/be async
+        mock_device.get_picture_blobs = AsyncMock(return_value=[b"1", b"2"])
 
         mock_photo_result = MagicMock()
-        mock_photo_result.data = b"fake_image_data"
+        mock_photo_result.data = b"image_data"
         mock_photo_result.mime_type = "image/jpeg"
-        mock_photo_result.timestamp = datetime.now()
+        mock_photo_result.timestamp = None
         mock_device.decode_picture = AsyncMock(return_value=mock_photo_result)
 
-        # Patch hass.config.path to return tmp_path
-        with patch.object(hass.config, "path", return_value=str(tmp_path)):
-            # Mock media_dir.glob to raise an exception
-            # We need to patch Path.glob, but since we don't know the exact Path object,
-            # we can patch the method on the class or use a side_effect on the mock if we could inject it.
-            # However, _cleanup_old_photos is called internally.
-            # Let's patch pathlib.Path.glob
-            with patch("pathlib.Path.glob", side_effect=Exception("Filesystem error")):
-                with patch("custom_components.fmd.button._LOGGER") as mock_logger:
-                    await button.async_press()
+        # Mock Path
+        with patch("custom_components.fmd.button.Path") as mock_path_cls:
+            mock_base = MagicMock()
+            mock_base.exists.return_value = True
+            mock_base.is_dir.return_value = True
+            mock_path_cls.return_value = mock_base
 
-                    # Verify error was logged
-                    found = False
-                    for call in mock_logger.error.call_args_list:
-                        if "Error during photo cleanup" in call[0][0]:
-                            found = True
-                            break
-                    assert found
+            mock_fmd = MagicMock()
+            mock_base.__truediv__.return_value = mock_fmd
+
+            mock_media_dir = MagicMock()
+            mock_fmd.__truediv__.return_value = mock_media_dir
+
+            # Create mock photos
+            mock_photo1 = MagicMock()
+            mock_photo1.stat.return_value.st_mtime = 100
+            mock_photo1.name = "photo1.jpg"
+            # unlink raises exception
+            mock_photo1.unlink.side_effect = Exception("Delete failed")
+
+            mock_photo2 = MagicMock()
+            mock_photo2.stat.return_value.st_mtime = 200
+            mock_photo2.name = "photo2.jpg"
+
+            # glob returns list of photos
+            mock_media_dir.glob.return_value = [mock_photo1, mock_photo2]
+
+            # Trigger download
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+
+            # Verify unlink was called
+            mock_photo1.unlink.assert_called()
 
 
-async def test_wipe_button_empty_pin(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
+async def test_download_photos_cleanup_error_logs(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Test wipe button blocks when PIN is empty."""
+    """Test photo cleanup logs error when deletion fails."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the button instance
-    button = get_button_entity(hass, "button.fmd_test_user_wipe_execute")
+    # Mock the switch entity to return True for is_on
+    mock_switch = MagicMock()
+    mock_switch.is_on = True
+    hass.data[DOMAIN]["test_entry_id"]["photo_auto_cleanup_switch"] = mock_switch
 
-    # Enable safety switch
-    entry_id = list(hass.data["fmd"].keys())[0]
-    safety_switch = hass.data["fmd"][entry_id]["wipe_safety_switch"]
-    await safety_switch.async_turn_on()
+    # Mock max photos number to 1 so we trigger cleanup with 2 photos
+    mock_number = MagicMock()
+    mock_number.native_value = 1
+    hass.data[DOMAIN]["test_entry_id"]["max_photos_number"] = mock_number
 
-    # Ensure PIN is empty (it should be by default)
-    pin_entity = hass.data["fmd"][entry_id]["wipe_pin_text"]
-    assert pin_entity.native_value == ""
+    # Mock Device to return blobs
+    with patch("custom_components.fmd.button.Device") as mock_device_cls:
+        mock_device = mock_device_cls.return_value
+        mock_device.get_picture_blobs = AsyncMock(return_value=[b"1", b"2"])
 
-    # Press the button
-    with patch("custom_components.fmd.button._LOGGER") as mock_logger:
-        await button.async_press()
+        mock_photo_result = MagicMock()
+        mock_photo_result.data = b"image_data"
+        mock_photo_result.mime_type = "image/jpeg"
+        mock_photo_result.timestamp = None
+        mock_device.decode_picture = AsyncMock(return_value=mock_photo_result)
 
-        # Verify error logs
-        assert mock_logger.error.call_count >= 3
-        mock_logger.error.assert_any_call("⚠️ Wipe PIN is not set")
+        # Mock Path
+        with patch("custom_components.fmd.button.Path") as mock_path_cls:
+            mock_base = MagicMock()
+            mock_base.exists.return_value = True
+            mock_base.is_dir.return_value = True
+            mock_path_cls.return_value = mock_base
+
+            mock_fmd = MagicMock()
+            mock_base.__truediv__.return_value = mock_fmd
+
+            mock_media_dir = MagicMock()
+            mock_fmd.__truediv__.return_value = mock_media_dir
+
+            # Create mock photos
+            mock_photo1 = MagicMock()
+            mock_photo1.stat.return_value.st_mtime = 100
+            mock_photo1.name = "photo1.jpg"
+            # unlink raises exception
+            mock_photo1.unlink.side_effect = Exception("Delete failed")
+
+            mock_photo2 = MagicMock()
+            mock_photo2.stat.return_value.st_mtime = 200
+            mock_photo2.name = "photo2.jpg"
+
+            # glob returns list of photos
+            mock_media_dir.glob.return_value = [mock_photo1, mock_photo2]
+
+            # Trigger download
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+
+            # Verify error log
+            assert "Failed to delete photo photo1.jpg: Delete failed" in caplog.text
 
 
-async def test_wipe_button_missing_pin_entity(
+async def test_wipe_button_auth_error(
     hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
-    """Test wipe button blocks when PIN entity is missing."""
+    """Test wipe button handles AuthenticationError."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the button instance
-    button = get_button_entity(hass, "button.fmd_test_user_wipe_execute")
-
     # Enable safety switch
-    entry_id = list(hass.data["fmd"].keys())[0]
-    safety_switch = hass.data["fmd"][entry_id]["wipe_safety_switch"]
-    await safety_switch.async_turn_on()
+    hass.states.async_set("switch.fmd_test_user_wipe_safety_switch", "on")
 
-    # Remove the PIN entity from hass.data
-    del hass.data["fmd"][entry_id]["wipe_pin_text"]
+    # Mock PIN text entity
+    mock_text = MagicMock()
+    mock_text.native_value = "1234"
+    hass.data[DOMAIN]["test_entry_id"]["wipe_pin_text"] = mock_text
 
-    # Press the button
-    with patch("custom_components.fmd.button._LOGGER") as mock_logger:
-        await button.async_press()
+    # Patch Device
+    with patch("custom_components.fmd.button.Device") as mock_device_cls:
+        mock_device = mock_device_cls.return_value
+        mock_device.wipe.side_effect = AuthenticationError("Auth Fail")
 
-        # Verify error logs
-        assert mock_logger.error.call_count >= 3
-        mock_logger.error.assert_any_call("⚠️ Wipe PIN entity not found")
+        with pytest.raises(HomeAssistantError, match="Authentication failed"):
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_wipe_execute"},
+                blocking=True,
+            )
 
 
-async def test_wipe_button_invalid_pin(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
+async def test_wipe_button_fmd_api_error(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Test wipe button with invalid PIN format."""
+    """Test wipe button handles FmdApiException."""
     await setup_integration(hass, mock_fmd_api)
 
-    # Get the button instance
-    button = get_button_entity(hass, "button.fmd_test_user_wipe_execute")
-
     # Enable safety switch
-    entry_id = list(hass.data["fmd"].keys())[0]
-    safety_switch = hass.data["fmd"][entry_id]["wipe_safety_switch"]
-    await safety_switch.async_turn_on()
+    hass.states.async_set("switch.fmd_test_user_wipe_safety_switch", "on")
 
-    # Set invalid PIN
-    pin_entity = hass.data["fmd"][entry_id]["wipe_pin_text"]
-    # We need to bypass the validation in async_set_value to test the button's validation
-    # So we set the internal attribute directly
-    pin_entity._attr_native_value = "invalid pin with spaces"
-    pin_entity.async_write_ha_state()
+    # Mock PIN text entity
+    mock_text = MagicMock()
+    mock_text.native_value = "1234"
+    hass.data[DOMAIN]["test_entry_id"]["wipe_pin_text"] = mock_text
 
-    # Press the button
-    with patch("custom_components.fmd.button._LOGGER") as mock_logger:
-        await button.async_press()
+    # Patch Device
+    with patch("custom_components.fmd.button.Device") as mock_device_cls:
+        mock_device = mock_device_cls.return_value
+        mock_device.wipe.side_effect = FmdApiException("API Fail")
 
-        # Verify error logs
-        found = False
-        for call in mock_logger.error.call_args_list:
-            if "Invalid wipe PIN" in call[0][0]:
-                found = True
-                break
-        assert found
+        with pytest.raises(HomeAssistantError, match="Wipe command failed"):
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_wipe_execute"},
+                blocking=True,
+            )
+
+        assert "FMD API error: API Fail" in caplog.text
