@@ -50,6 +50,7 @@
 - To add a new entity, subclass the appropriate Home Assistant entity class and register in `async_setup_entry`.
 - To test a new API command, add a method to the `FmdClient` mock in `conftest.py` and write a test in `tests/`.
 - To update photo handling, adjust EXIF logic in `button.py` and update tests to patch `Image.open`.
+- All code changes should have test coverage; aim for 95%+ overall coverage.
 
 ---
 

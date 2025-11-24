@@ -3,6 +3,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
 [![Tests](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/devinslick/home-assistant-fmd/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/devinslick/home-assistant-fmd/branch/main/graph/badge.svg?token=W04KEUVQ8W)](https://codecov.io/gh/devinslick/home-assistant-fmd)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/fmd-api)](https://pypi.org/project/fmd-api/)
+[![GitHub release](https://img.shields.io/github/release/devinslick/home-assistant-fmd.svg)](https://github.com/devinslick/home-assistant-fmd/releases)
 
 A Home Assistant custom integration for [FMD (Find My Device)](https://fmd-foss.org) that allows you to track and control Android devices running the FMD app through your self-hosted FMD server.
 
@@ -14,7 +16,8 @@ A Home Assistant custom integration for [FMD (Find My Device)](https://fmd-foss.
 - **FMD Server**: https://gitlab.com/fmd-foss/fmd-server
 - **Website**: https://fmd-foss.org
 
-This integration acts as a **client** for your FMD server, providing seamless integration with Home Assistant. See [CREDITS.md](CREDITS.md) for full attribution.
+This integration acts as a full **client** for your FMD server, providing seamless integration with Home Assistant. See [CREDITS.md](CREDITS.md) for full attribution.
+It uses  [fmd_api](https://github.com/devinslick/fmd_api), which was written purpose-built for this integration to be able to interact with the FMD server.
 
 ## Quick Start Overview
 
@@ -1048,6 +1051,13 @@ To be included in Home Assistant Core, the following items must be completed:
 
 ## Version History
 
+### v1.1.4 - November 22, 2025 (Dependency Bump)
+Maintenance release focusing on dependency updates and compatibility testing.
+
+Changes:
+- 📦 **Dependency**: Bumped `fmd-api` to `2.0.7`.
+- ✅ Verified compatibility of the integration and full test suite with `fmd-api==2.0.7`.
+
 ### v1.1.3 - November 19, 2025 (Code Quality & Fixes)
 Release focused on fixing polling interval persistence and improving code quality.
 
@@ -1064,6 +1074,8 @@ Changes:
 - 📦 **Updated dependency** to `fmd-api==2.0.5`
 - 🛡️ **Polling reliability**: Added protection against overlapping updates to prevent task pile-ups and ensure schedule adherence.
 - 🔄 **Improved polling logic**: Ensures polling tasks are managed correctly, preventing stalls if the server or device is slow to respond.
+
+> Note: This release included efforts to address polling interval persistence; however, some restart-edge cases remained and were fully resolved in v1.1.3.
 
 ### v1.1.1 - November 11, 2025 (Hotfix)
 Short maintenance release focused on restoring button functionality introduced with the fmd_api 2.0.4 upgrade.

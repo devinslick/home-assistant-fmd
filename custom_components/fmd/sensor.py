@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from fmd_api import FmdClient
+    from fmd_api import FmdClient  # pragma: no cover
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -395,6 +395,96 @@ async def test_lock_button_api_error(
     mock_device.lock.assert_called_once()
 
 
+async def test_lock_button_authentication_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test lock button handles AuthenticationError gracefully."""
+    from fmd_api import AuthenticationError
+
+    await setup_integration(hass, mock_fmd_api)
+
+    mock_device = mock_fmd_api.create.return_value.device.return_value
+    mock_device.lock.side_effect = AuthenticationError("auth failed")
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_lock_device"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    mock_device.lock.assert_called_once()
+
+
+async def test_lock_button_operation_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test lock button handles OperationError gracefully."""
+    from fmd_api import OperationError
+
+    await setup_integration(hass, mock_fmd_api)
+
+    mock_device = mock_fmd_api.create.return_value.device.return_value
+    mock_device.lock.side_effect = OperationError("connection failed")
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_lock_device"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    mock_device.lock.assert_called_once()
+
+
+async def test_lock_button_fmd_api_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test lock button handles FmdApiException gracefully."""
+    from fmd_api import FmdApiException
+
+    await setup_integration(hass, mock_fmd_api)
+
+    mock_device = mock_fmd_api.create.return_value.device.return_value
+    mock_device.lock.side_effect = FmdApiException("API failed")
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_lock_device"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    mock_device.lock.assert_called_once()
+
+
+async def test_lock_button_unexpected_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test lock button handles unexpected Exception gracefully."""
+    await setup_integration(hass, mock_fmd_api)
+
+    mock_device = mock_fmd_api.create.return_value.device.return_value
+    mock_device.lock.side_effect = ValueError("unexpected")
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_lock_device"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    mock_device.lock.assert_called_once()
+
+
 async def test_capture_photo_api_error(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
@@ -407,18 +497,40 @@ async def test_capture_photo_api_error(
         "API error"
     )
 
-    try:
-        await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.fmd_test_user_photo_capture_front"},
-            blocking=True,
-        )
-    except RuntimeError:
-        pass
+    # Should not raise, just log error
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_capture_front"},
+        blocking=True,
+    )
 
     await hass.async_block_till_done()
     mock_fmd_api.create.return_value.take_picture.assert_called_once_with("front")
+
+
+async def test_capture_rear_photo_api_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test rear capture photo button handles API errors gracefully."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Mock API to raise error for rear camera
+    mock_fmd_api.create.return_value.take_picture.side_effect = RuntimeError(
+        "API error"
+    )
+
+    # Should not raise, just log error
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_capture_rear"},
+        blocking=True,
+    )
+
+    await hass.async_block_till_done()
+    mock_fmd_api.create.return_value.take_picture.assert_called_once_with("back")
 
 
 async def test_download_photos_empty_result(
@@ -922,7 +1034,17 @@ async def test_wipe_device_button_api_error_keeps_safety_on(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """If wipe API raises, safety remains on (only disabled on success)."""
+    from homeassistant.exceptions import HomeAssistantError
+
     await setup_integration(hass, mock_fmd_api)
+
+    # Set PIN
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {"entity_id": "text.fmd_test_user_wipe_pin", "value": "ValidPin123"},
+        blocking=True,
+    )
 
     # Enable safety
     await hass.services.async_call(
@@ -933,21 +1055,167 @@ async def test_wipe_device_button_api_error_keeps_safety_on(
     )
     await hass.async_block_till_done()
 
-    # Make API raise
-    mock_fmd_api.create.return_value.send_command.side_effect = RuntimeError("boom")
+    # Make device.wipe raise
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.wipe.side_effect = RuntimeError("wipe failed")
 
-    # Press wipe execute (should handle error internally)
-    await hass.services.async_call(
-        "button",
-        "press",
-        {"entity_id": "button.fmd_test_user_wipe_execute"},
-        blocking=True,
-    )
+    # Press wipe execute - should raise HomeAssistantError
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_wipe_execute"},
+            blocking=True,
+        )
+
     await hass.async_block_till_done()
 
     # Safety should still be on
     state = hass.states.get("switch.fmd_test_user_wipe_safety_switch")
     assert state is not None and state.state == "on"
+
+
+async def test_wipe_device_button_authentication_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test wipe button raises HomeAssistantError on AuthenticationError."""
+    from fmd_api import AuthenticationError
+    from homeassistant.exceptions import HomeAssistantError
+
+    await setup_integration(hass, mock_fmd_api)
+
+    # Set PIN and enable safety
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {"entity_id": "text.fmd_test_user_wipe_pin", "value": "ValidPin123"},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.wipe.side_effect = AuthenticationError("auth failed")
+
+    with pytest.raises(HomeAssistantError, match="Authentication failed"):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_wipe_execute"},
+            blocking=True,
+        )
+
+
+async def test_wipe_device_button_operation_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test wipe button raises HomeAssistantError on OperationError."""
+    from fmd_api import OperationError
+    from homeassistant.exceptions import HomeAssistantError
+
+    await setup_integration(hass, mock_fmd_api)
+
+    # Set PIN and enable safety
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {"entity_id": "text.fmd_test_user_wipe_pin", "value": "ValidPin123"},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.wipe.side_effect = OperationError("connection failed")
+
+    with pytest.raises(HomeAssistantError, match="Wipe command failed"):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_wipe_execute"},
+            blocking=True,
+        )
+
+
+async def test_wipe_device_button_fmd_api_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test wipe button raises HomeAssistantError on FmdApiException."""
+    from fmd_api import FmdApiException
+    from homeassistant.exceptions import HomeAssistantError
+
+    await setup_integration(hass, mock_fmd_api)
+
+    # Set PIN and enable safety
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {"entity_id": "text.fmd_test_user_wipe_pin", "value": "ValidPin123"},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.wipe.side_effect = FmdApiException("API failed")
+
+    with pytest.raises(HomeAssistantError, match="Wipe command failed"):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_wipe_execute"},
+            blocking=True,
+        )
+
+
+async def test_wipe_device_button_unexpected_error(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test wipe button raises HomeAssistantError on unexpected Exception."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    await setup_integration(hass, mock_fmd_api)
+
+    # Set PIN and enable safety
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {"entity_id": "text.fmd_test_user_wipe_pin", "value": "ValidPin123"},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.wipe.side_effect = ValueError("unexpected")
+
+    with pytest.raises(HomeAssistantError, match="Wipe command failed"):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_wipe_execute"},
+            blocking=True,
+        )
 
 
 async def test_location_update_default_provider(
@@ -968,6 +1236,31 @@ async def test_location_update_default_provider(
 
     # Ensure provider default was used
     mock_fmd_api.create.return_value.request_location.assert_called()
+    kwargs = mock_fmd_api.create.return_value.request_location.call_args.kwargs
+    assert kwargs.get("provider") == "all"
+
+
+async def test_location_update_missing_select_entity(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """If location source select entity is missing, warning path executes."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Remove the select entity to force warning branch
+    # Entity id pattern: select.fmd_test_user_location_source
+    hass.states.async_remove("select.fmd_test_user_location_source")
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_location_update"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Ensure request_location still called with default provider 'all'
+    assert mock_fmd_api.create.return_value.request_location.called
     kwargs = mock_fmd_api.create.return_value.request_location.call_args.kwargs
     assert kwargs.get("provider") == "all"
 
@@ -1022,3 +1315,201 @@ async def test_download_photos_exif_present_but_no_timestamp_tags(
     # Verify API calls were made
     device_mock.get_picture_blobs.assert_called()
     device_mock.decode_picture.assert_called()
+
+    device_mock.get_picture_blobs.assert_called()
+
+
+async def test_download_photos_decode_failure(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test photo download handles decode failure for one photo."""
+    await setup_integration(hass, mock_fmd_api)
+
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.get_picture_blobs.return_value = [b"blob1", b"blob2"]
+
+    # First decode succeeds, second fails
+    photo_result1 = MagicMock()
+    photo_result1.data = b"img1"
+    photo_result1.mime_type = "image/jpeg"
+    photo_result1.timestamp = None
+    photo_result1.raw = {}
+
+    device_mock.decode_picture.side_effect = [photo_result1, Exception("decode failed")]
+
+    with patch("pathlib.Path.mkdir"), patch(
+        "pathlib.Path.exists", return_value=False
+    ), patch("pathlib.Path.write_bytes"):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+    # Should have attempted to decode both
+    assert device_mock.decode_picture.call_count == 2
+
+
+async def test_download_photos_sensor_update_fallback(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test photo download when photo count sensor is missing."""
+    await setup_integration(hass, mock_fmd_api)
+
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.get_picture_blobs.return_value = [b"encrypted_photo"]
+
+    photo_result = MagicMock()
+    photo_result.data = b"img_data"
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = None
+    photo_result.raw = {}
+    device_mock.decode_picture.return_value = photo_result
+
+    # Remove photo_count_sensor from hass.data
+    entry_id = list(hass.data["fmd"].keys())[0]
+    hass.data["fmd"][entry_id].pop("photo_count_sensor", None)
+
+    with patch("pathlib.Path.mkdir"), patch(
+        "pathlib.Path.exists", return_value=False
+    ), patch("pathlib.Path.write_bytes"):
+        # Should not raise, just skip sensor update
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+    device_mock.get_picture_blobs.assert_called()
+
+
+async def test_lock_button_all_exception_types(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test lock button handles all exception types gracefully without raising."""
+    from fmd_api import AuthenticationError, FmdApiException, OperationError
+
+    await setup_integration(hass, mock_fmd_api)
+
+    mock_device = mock_fmd_api.create.return_value.device.return_value
+
+    # Test each exception type sequentially
+    exceptions = [
+        AuthenticationError("auth failed"),
+        OperationError("connection failed"),
+        FmdApiException("API failed"),
+        ValueError("unexpected error"),
+    ]
+
+    for exc in exceptions:
+        mock_device.lock.side_effect = exc
+
+        # Should not raise, just log error
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_lock_device"},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+        # Verify lock was called
+        mock_device.lock.assert_called()
+
+
+async def test_capture_rear_photo_returns_false(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test rear camera capture when take_picture returns False."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Mock take_picture to return False for rear camera
+    mock_fmd_api.create.return_value.take_picture.return_value = False
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": "button.fmd_test_user_photo_capture_rear"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    mock_fmd_api.create.return_value.take_picture.assert_called_once_with("back")
+
+
+async def test_download_photos_media_directory_creation_failure(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test download photos button handles media directory creation failure."""
+    await setup_integration(hass, mock_fmd_api)
+
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.get_picture_blobs.return_value = [b"encrypted_photo"]
+
+    photo_result = MagicMock()
+    photo_result.data = b"img_data"
+    photo_result.mime_type = "image/jpeg"
+    photo_result.timestamp = None
+    photo_result.raw = {}
+    device_mock.decode_picture.return_value = photo_result
+
+    # Mock Path.mkdir to raise OSError
+    with patch("pathlib.Path.mkdir", side_effect=OSError("Permission denied")), patch(
+        "pathlib.Path.is_dir", return_value=True
+    ):
+        # Should not raise, just return early after directory creation failure
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_photo_download"},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+    # Should have attempted to get pictures but not decode since directory creation failed
+    device_mock.get_picture_blobs.assert_called_once()
+    device_mock.decode_picture.assert_not_called()
+
+
+async def test_wipe_device_button_generic_exception(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test wipe button raises HomeAssistantError on generic Exception."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    await setup_integration(hass, mock_fmd_api)
+
+    # Set PIN and enable safety
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {"entity_id": "text.fmd_test_user_wipe_pin", "value": "ValidPin123"},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": "switch.fmd_test_user_wipe_safety_switch"},
+        blocking=True,
+    )
+
+    device_mock = mock_fmd_api.create.return_value.device.return_value
+    device_mock.wipe.side_effect = Exception("generic error")
+
+    with pytest.raises(HomeAssistantError, match="Wipe command failed"):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_wipe_execute"},
+            blocking=True,
+        )
