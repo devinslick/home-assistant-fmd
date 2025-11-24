@@ -256,3 +256,143 @@ async def test_wipe_button_fmd_api_error(
             )
 
         assert "FMD API error: API Fail" in caplog.text
+
+
+async def test_wipe_button_invalid_pin(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test wipe button blocks invalid PIN."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Enable safety switch
+    hass.states.async_set("switch.fmd_test_user_wipe_safety_switch", "on")
+
+    # Mock PIN text entity with invalid PIN (contains space)
+    mock_text = MagicMock()
+    mock_text.native_value = "invalid pin"
+    hass.data[DOMAIN]["test_entry_id"]["wipe_pin_text"] = mock_text
+
+    # Patch Device
+    with patch("custom_components.fmd.button.Device") as mock_device_cls:
+        mock_device = mock_device_cls.return_value
+
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_wipe_execute"},
+            blocking=True,
+        )
+
+        # Verify wipe was NOT called
+        mock_device.wipe.assert_not_called()
+        assert "Invalid wipe PIN" in caplog.text
+
+
+async def test_wipe_button_missing_pin_entity(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test wipe button blocks when PIN entity is missing."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Enable safety switch
+    hass.states.async_set("switch.fmd_test_user_wipe_safety_switch", "on")
+
+    # Remove PIN entity
+    hass.data[DOMAIN]["test_entry_id"].pop("wipe_pin_text", None)
+
+    # Patch Device
+    with patch("custom_components.fmd.button.Device") as mock_device_cls:
+        mock_device = mock_device_cls.return_value
+
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_wipe_execute"},
+            blocking=True,
+        )
+
+        # Verify wipe was NOT called
+        mock_device.wipe.assert_not_called()
+        assert "Wipe PIN entity not found" in caplog.text
+
+
+async def test_wipe_button_empty_pin(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test wipe button blocks when PIN is empty."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Enable safety switch
+    hass.states.async_set("switch.fmd_test_user_wipe_safety_switch", "on")
+
+    # Mock PIN text entity with empty PIN
+    mock_text = MagicMock()
+    mock_text.native_value = ""
+    hass.data[DOMAIN]["test_entry_id"]["wipe_pin_text"] = mock_text
+
+    # Patch Device
+    with patch("custom_components.fmd.button.Device") as mock_device_cls:
+        mock_device = mock_device_cls.return_value
+
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.fmd_test_user_wipe_execute"},
+            blocking=True,
+        )
+
+        # Verify wipe was NOT called
+        mock_device.wipe.assert_not_called()
+        assert "Wipe PIN is not set" in caplog.text
+
+
+async def test_download_photos_cleanup_outer_error(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test photo cleanup handles outer exception (e.g. glob failure)."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Mock the switch entity to return True for is_on
+    mock_switch = MagicMock()
+    mock_switch.is_on = True
+    hass.data[DOMAIN]["test_entry_id"]["photo_auto_cleanup_switch"] = mock_switch
+
+    # Mock max photos number
+    mock_number = MagicMock()
+    mock_number.native_value = 1
+    hass.data[DOMAIN]["test_entry_id"]["max_photos_number"] = mock_number
+
+    # Mock Device to return blobs
+    with patch("custom_components.fmd.button.Device") as mock_device_cls:
+        mock_device = mock_device_cls.return_value
+        mock_device.get_picture_blobs = AsyncMock(return_value=[b"1"])
+        mock_device.decode_picture = AsyncMock(
+            return_value=MagicMock(data=b"img", mime_type="image/jpeg", timestamp=None)
+        )
+
+        # Mock Path
+        with patch("custom_components.fmd.button.Path") as mock_path_cls:
+            mock_base = MagicMock()
+            mock_base.exists.return_value = True
+            mock_base.is_dir.return_value = True
+            mock_path_cls.return_value = mock_base
+
+            mock_fmd = MagicMock()
+            mock_base.__truediv__.return_value = mock_fmd
+
+            mock_media_dir = MagicMock()
+            mock_fmd.__truediv__.return_value = mock_media_dir
+
+            # glob raises exception
+            mock_media_dir.glob.side_effect = Exception("Glob failed")
+
+            # Trigger download
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.fmd_test_user_photo_download"},
+                blocking=True,
+            )
+
+            # Verify error log
+            assert "Error during photo cleanup: Glob failed" in caplog.text
