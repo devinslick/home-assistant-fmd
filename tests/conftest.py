@@ -1,18 +1,26 @@
 """Fixtures for FMD integration tests."""
 from __future__ import annotations
 
-import asyncio
 import sys
 from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
+# Force enable sockets on Windows to avoid pytest-socket blocking ProactorEventLoop
+if sys.platform.startswith("win"):
+    try:
+        import pytest_socket
 
-# Importing pytest_socket for its side-effect: enabling real socket usage in tests.
-# Home Assistant's event loop creation on Windows may require an actual socket;
-# we explicitly enable sockets in the _enable_sockets_session fixture. Keeping
-# this import makes the dependency explicit and avoids accidental removal.
-import pytest_socket
+        pytest_socket.enable_socket()
+
+        # Monkeypatch disable_socket to be a no-op so it can't be re-enabled
+        def _no_disable_socket(*args, **kwargs):
+            pass
+
+        pytest_socket.disable_socket = _no_disable_socket
+    except ImportError:
+        pass
+
+import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -25,36 +33,11 @@ from custom_components.fmd.const import DOMAIN
 pytest_plugins = ["pytest_homeassistant_custom_component"]
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _enable_sockets_session():
-    """Ensure sockets are enabled for event loop creation on Windows."""
-    import socket as _socket
-
-    pytest_socket.enable_socket()
-    # Debug: confirm socket class
-    try:
-        clsname = _socket.socket.__qualname__
-        print(f"[conftest] socket enabled, socket class: {clsname}")
-    except Exception as e:
-        print(f"[conftest] socket enable check failed: {e}")
-    yield
-    pytest_socket.enable_socket()
-
-
 @pytest.fixture(autouse=True)
 def _auto_enable_custom_integrations(enable_custom_integrations):  # noqa: D401
     """Autouse wrapper to ensure custom components directory is enabled."""
     # Rely on the upstream fixture to perform the enabling; just yield to keep
     # a stable autouse hook without redefining its behavior.
-    yield
-
-
-# On Windows, use the SelectorEventLoop to avoid socketpair() during loop creation,
-# which some environments block via pytest-socket.
-@pytest.fixture(scope="session", autouse=True)
-def _windows_selector_event_loop_policy():
-    if sys.platform.startswith("win"):
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     yield
 
 
@@ -242,9 +225,6 @@ def get_mock_config_entry() -> MockConfigEntry:
         entry_id="test_entry_id",
         unique_id="test_user",
     )
-
-
-# Legacy helper removed (unused in current test suite)
 
 
 async def setup_integration(

@@ -78,6 +78,26 @@ async def test_bluetooth_select(
     mock_fmd_api.create.return_value.set_bluetooth.assert_called_once_with(True)
 
 
+async def test_bluetooth_select_disable(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test bluetooth command select disable."""
+    await setup_integration(hass, mock_fmd_api)
+
+    entity_id = "select.fmd_test_user_bluetooth"
+
+    # Disable Bluetooth
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id, "option": "Disable Bluetooth"},
+        blocking=True,
+    )
+
+    mock_fmd_api.create.return_value.set_bluetooth.assert_called_once_with(False)
+
+
 async def test_dnd_select(
     hass: HomeAssistant,
     mock_fmd_api: AsyncMock,
@@ -98,6 +118,26 @@ async def test_dnd_select(
     )
 
     mock_fmd_api.create.return_value.set_do_not_disturb.assert_called_once_with(True)
+
+
+async def test_dnd_select_disable(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test Do Not Disturb command select disable."""
+    await setup_integration(hass, mock_fmd_api)
+
+    entity_id = "select.fmd_test_user_volume_do_not_disturb"
+
+    # Disable DND
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id, "option": "Disable Do Not Disturb"},
+        blocking=True,
+    )
+
+    mock_fmd_api.create.return_value.set_do_not_disturb.assert_called_once_with(False)
 
 
 async def test_ringer_mode_select(
@@ -314,3 +354,88 @@ async def test_ringer_mode_command_api_error(
     # Should reset to placeholder after error
     state = hass.states.get(entity_id)
     assert state is not None
+
+
+async def test_select_placeholder_option(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test select entities with placeholder option (no action)."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Select placeholder option for Bluetooth (should do nothing)
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {
+            "entity_id": "select.fmd_test_user_bluetooth",
+            "option": "Send Command...",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Select placeholder option for DND (should do nothing)
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {
+            "entity_id": "select.fmd_test_user_volume_do_not_disturb",
+            "option": "Send Command...",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Select placeholder option for ringer mode (should do nothing)
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {
+            "entity_id": "select.fmd_test_user_volume_ringer_mode",
+            "option": "Send Command...",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    # Verify API was NOT called
+    mock_fmd_api.create.return_value.set_bluetooth.assert_not_called()
+    mock_fmd_api.create.return_value.set_do_not_disturb.assert_not_called()
+    mock_fmd_api.create.return_value.set_ringer_mode.assert_not_called()
+
+
+async def test_location_source_invalid_option_fallback(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test location source returns 'all' for invalid/unmapped options."""
+    # Unit-style test of the mapping logic via the public method
+    from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.fmd.const import DOMAIN
+    from custom_components.fmd.select import FmdLocationSourceSelect
+
+    # Minimal config entry for constructing the entity
+    config_entry = MockConfigEntry(
+        version=1,
+        domain=DOMAIN,
+        title="test_user",
+        data={
+            CONF_URL: "https://fmd.example.com",
+            CONF_ID: "test_user",
+            CONF_PASSWORD: "test_password",
+        },
+        entry_id="test_entry_id",
+        unique_id="test_user",
+    )
+    config_entry.add_to_hass(hass)
+
+    # Instantiate select and set an invalid option
+    location_source = FmdLocationSourceSelect(hass, config_entry)
+    location_source._attr_current_option = "Invalid Option Not In Map"
+
+    # Public API should fallback to "all"
+    provider = location_source.get_provider_value()
+    assert provider == "all"

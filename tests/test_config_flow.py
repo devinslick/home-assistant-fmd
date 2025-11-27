@@ -1,5 +1,7 @@
+"""Test FMD config flow."""
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -8,11 +10,15 @@ from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.fmd.config_flow import (
+    _normalize_artifacts,
+    authenticate_and_get_artifacts,
+)
 from custom_components.fmd.const import DEFAULT_POLLING_INTERVAL, DOMAIN
 
 
 @pytest.mark.asyncio
-async def test_reauth_flow_success(hass):
+async def test_reauth_flow_success(hass: HomeAssistant) -> None:
     """Test the reauthentication flow succeeds and updates the entry."""
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -55,7 +61,7 @@ async def test_reauth_flow_success(hass):
 
 
 @pytest.mark.asyncio
-async def test_reauth_flow_failure(hass):
+async def test_reauth_flow_failure(hass: HomeAssistant) -> None:
     """Test the reauthentication flow fails with invalid credentials."""
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -243,8 +249,6 @@ async def test_authenticate_api_error(hass: HomeAssistant) -> None:
 
 async def test_authenticate_and_get_artifacts_success(mock_fmd_api: AsyncMock) -> None:
     """Test authenticate_and_get_artifacts function directly."""
-    from custom_components.fmd.config_flow import authenticate_and_get_artifacts
-
     # Prepare mock client to return one location then artifacts
     mock_fmd_api.get_locations = AsyncMock(return_value=[{"lat": 1, "lon": 2}])
     mock_artifacts = {
@@ -269,3 +273,39 @@ async def test_authenticate_and_get_artifacts_success(mock_fmd_api: AsyncMock) -
     assert artifacts == mock_artifacts
     mock_fmd_api.get_locations.assert_called_once_with(1)
     mock_fmd_api.export_auth_artifacts.assert_called_once()
+
+
+def test_normalize_artifacts_with_mock_object() -> None:
+    """Test _normalize_artifacts with an object that has .get() but is not a dict."""
+
+    class MockArtifacts:
+        def get(self, key: str, default: Any = None) -> Any:
+            data = {
+                "base_url": "http://test.url",
+                "fmd_id": "test_id",
+                "access_token": "token",
+                "private_key": "key",
+                "password_hash": "hash",
+            }
+            return data.get(key, default)
+
+    mock_artifacts = MockArtifacts()
+
+    # Ensure isinstance(mock_artifacts, dict) is False
+    assert not isinstance(mock_artifacts, dict)
+
+    # Call the function
+    result = _normalize_artifacts(mock_artifacts)
+
+    # Verify result is a dict with expected keys
+    assert isinstance(result, dict)
+    assert result["base_url"] == "http://test.url"
+    assert result["fmd_id"] == "test_id"
+    assert result["access_token"] == "token"
+
+
+def test_normalize_artifacts_with_list_of_tuples() -> None:
+    """Test _normalize_artifacts with a list of tuples (convertible to dict)."""
+    artifacts = [("base_url", "http://example.com"), ("fmd_id", "123")]
+    normalized = _normalize_artifacts(artifacts)
+    assert normalized == {"base_url": "http://example.com", "fmd_id": "123"}

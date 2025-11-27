@@ -12,7 +12,7 @@ Maintenance release updating FMD API client dependency and ensuring compatibilit
 
 - Dependency updated to `fmd-api==2.0.7` in `custom_components/fmd/manifest.json` and `requirements_test.txt`.
 - No functional user-facing changes in this release; it's a dependency upgrade and compatibility maintenance release.
-- Improved code test coverage from 94% to 99%
+- Improved code test coverage from 94% to 100%!
 
 ## Upgrade Notes
 

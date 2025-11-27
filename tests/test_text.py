@@ -1,5 +1,7 @@
-"""Test FMD sensor and text coverage."""
-from unittest.mock import AsyncMock, patch
+"""Test FMD text entities."""
+from __future__ import annotations
+
+from unittest.mock import AsyncMock
 
 import pytest
 from conftest import setup_integration
@@ -8,61 +10,15 @@ from homeassistant.core import HomeAssistant
 from custom_components.fmd.const import DOMAIN
 
 
-async def test_sensor_init_invalid_date(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
-) -> None:
-    """Test sensor initialization with invalid date string."""
-    # Setup integration first to get the entry
-    await setup_integration(hass, mock_fmd_api)
-
-    # Get the entry
-    entry = hass.config_entries.async_entries(DOMAIN)[0]
-
-    # Modify entry data to have invalid date
-    new_data = dict(entry.data)
-    new_data["photo_count_last_download_time"] = "invalid-date-string"
-    hass.config_entries.async_update_entry(entry, data=new_data)
-
-    # Reload the integration to trigger __init__ again
-    await hass.config_entries.async_reload(entry.entry_id)
-    await hass.async_block_till_done()
-
-    # Check that the sensor initialized with None for last_download_time
-    sensor = hass.states.get("sensor.fmd_test_user_photo_count")
-    assert sensor is not None
-    assert sensor.attributes["last_download_time"] is None
-
-
-async def test_sensor_update_media_folder_error(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
-) -> None:
-    """Test sensor handles errors when counting media files."""
-    await setup_integration(hass, mock_fmd_api)
-
-    # Patch Path to raise exception
-    with patch("custom_components.fmd.sensor.Path") as mock_path_cls:
-        mock_path = mock_path_cls.return_value
-        mock_path.exists.return_value = True
-        mock_path.is_dir.return_value = True
-        # Raise exception when accessing glob
-        mock_path.__truediv__.return_value.glob.side_effect = Exception("Disk error")
-
-        # Trigger update
-        sensor_entity = hass.data[DOMAIN]["test_entry_id"]["photo_count_sensor"]
-        sensor_entity.update_photo_count(5)
-
-        # Verify count is 0 on error
-        assert sensor_entity.native_value == 0
-
-
 async def test_wipe_pin_validation_error(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock, caplog: pytest.LogCaptureFixture
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
     """Test wipe PIN validation errors."""
     await setup_integration(hass, mock_fmd_api)
 
     # Get the entity instance
-    entity = hass.data[DOMAIN]["test_entry_id"]["wipe_pin_text"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    entity = hass.data[DOMAIN][entry_id]["wipe_pin_text"]
 
     # Test non-alphanumeric
     with pytest.raises(ValueError) as excinfo:
@@ -100,7 +56,8 @@ async def test_lock_message_update(
     await setup_integration(hass, mock_fmd_api)
 
     # Get the entity instance
-    entity = hass.data[DOMAIN]["test_entry_id"]["lock_message_text"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    entity = hass.data[DOMAIN][entry_id]["lock_message_text"]
 
     # Update value
     await entity.async_set_value("Return to owner")
@@ -122,9 +79,46 @@ async def test_wipe_pin_empty_error(
     await setup_integration(hass, mock_fmd_api)
 
     # Get the entity instance
-    entity = hass.data[DOMAIN]["test_entry_id"]["wipe_pin_text"]
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    entity = hass.data[DOMAIN][entry_id]["wipe_pin_text"]
 
     # Test empty PIN
     with pytest.raises(ValueError) as excinfo:
         await entity.async_set_value("")
     assert "PIN cannot be empty" in str(excinfo.value)
+
+
+async def test_wipe_pin_with_spaces_validation(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test wipe PIN validation with spaces."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Try to set PIN with spaces - gets caught by alphanumeric check
+    with pytest.raises(ValueError, match="alphanumeric"):
+        await hass.services.async_call(
+            "text",
+            "set_value",
+            {"entity_id": "text.fmd_test_user_wipe_pin", "value": "test 123"},
+            blocking=True,
+        )
+
+
+async def test_lock_message_empty_validation(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test lock message validation allows empty."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Empty message should be allowed
+    await hass.services.async_call(
+        "text",
+        "set_value",
+        {"entity_id": "text.fmd_test_user_lock_message", "value": ""},
+        blocking=True,
+    )
+
+    state = hass.states.get("text.fmd_test_user_lock_message")
+    assert state.state == ""

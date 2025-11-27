@@ -1,0 +1,77 @@
+name: Validate Version
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'custom_components/fmd/manifest.json'
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  validate-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate SemVer in manifest.json
+        run: |
+          python -c "
+          import json
+          import re
+          import sys
+
+          with open('custom_components/fmd/manifest.json') as f:
+              manifest = json.load(f)
+
+          version = manifest.get('version')
+          print(f'Checking version: {version}')
+
+          # SemVer regex
+          semver_regex = (
+              r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+              r"(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
+              r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
+          )
+
+          if not re.match(semver_regex, version):
+              print('[ERROR] Version does not follow Semantic Versioning (X.Y.Z)')
+              sys.exit(1)
+
+          print('[OK] Version is valid SemVer')
+          "
+
+      - name: Verify Tag Matches Manifest
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          python -c "
+          import json
+          import os
+          import sys
+
+          # Get tag from GITHUB_REF (e.g., refs/tags/v1.1.4)
+          ref = os.environ.get('GITHUB_REF', '')
+          tag_version = ref.replace('refs/tags/v', '')
+
+          print(f'Tag version: {tag_version}')
+
+          with open('custom_components/fmd/manifest.json') as f:
+              manifest = json.load(f)
+
+          manifest_version = manifest.get('version')
+          print(f'Manifest version: {manifest_version}')
+
+          if tag_version != manifest_version:
+              print(f'[ERROR] Version mismatch! Tag: {tag_version} != Manifest: {manifest_version}')
+              sys.exit(1)
+
+          print('[OK] Tag matches manifest version')
+          "

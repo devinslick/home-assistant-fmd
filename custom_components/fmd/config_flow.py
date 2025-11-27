@@ -70,7 +70,7 @@ def _normalize_artifacts(artifacts: Any) -> dict[str, Any]:
         return {}
 
 
-class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class FMDConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     async def async_step_reauth(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
