@@ -379,3 +379,30 @@ async def test_sensor_update_media_folder_error(
 
         # Verify count is 0 on error
         assert sensor_entity.native_value == 0
+
+
+async def test_sensor_update_media_folder_exception(
+    hass: HomeAssistant,
+    mock_fmd_api: AsyncMock,
+) -> None:
+    """Test sensor handles exception when counting media folder photos."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Get the sensor
+    entry_id = list(hass.data["fmd"].keys())[0]
+    sensor = hass.data["fmd"][entry_id]["photo_count_sensor"]
+
+    # Mock Path to raise exception during glob
+    with patch("custom_components.fmd.sensor.Path") as mock_path:
+        # Setup mock to raise exception when glob is called
+        mock_media_dir = (
+            mock_path.return_value.__truediv__.return_value.__truediv__.return_value
+        )
+        mock_media_dir.exists.return_value = True
+        mock_media_dir.glob.side_effect = Exception("Disk error")
+
+        # Trigger update
+        sensor.update_photo_count(5)
+
+        # Verify exception was handled and count set to 0
+        assert sensor._photos_in_media_folder == 0
