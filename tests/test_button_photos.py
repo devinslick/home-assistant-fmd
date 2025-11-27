@@ -11,7 +11,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from conftest import setup_integration
 from fmd_api import AuthenticationError, FmdApiException, OperationError
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -19,6 +18,7 @@ from PIL import Image
 
 from custom_components.fmd.button import FmdDownloadPhotosButton
 from custom_components.fmd.const import DOMAIN
+from tests.common import setup_integration
 
 
 async def test_download_photos_button(

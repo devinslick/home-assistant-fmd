@@ -4,11 +4,11 @@ from __future__ import annotations
 import io
 from unittest.mock import AsyncMock, patch
 
-from conftest import setup_integration
 from homeassistant.core import HomeAssistant
 from PIL import Image
 
 from custom_components.fmd.const import DOMAIN
+from tests.common import setup_integration
 
 
 async def test_button_ring_tracker_not_found(

@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
-from conftest import setup_integration
 from homeassistant.core import HomeAssistant
+
+from tests.common import setup_integration
 
 
 async def test_location_source_select(

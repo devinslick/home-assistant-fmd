@@ -4,7 +4,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from conftest import setup_integration
 from homeassistant.components.device_tracker import SourceType
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
@@ -13,6 +12,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fmd.const import DOMAIN
+from tests.common import setup_integration
 
 
 async def test_device_tracker_setup(

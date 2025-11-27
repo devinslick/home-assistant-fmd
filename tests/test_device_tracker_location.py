@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
-from conftest import setup_integration
 from homeassistant.const import CONF_ID, CONF_PASSWORD, CONF_URL
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fmd.const import DOMAIN
+from tests.common import setup_integration
 
 
 def _make_entry(hass: HomeAssistant, data_overrides: dict) -> MockConfigEntry:

@@ -4,12 +4,12 @@ from __future__ import annotations
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
-from conftest import setup_integration
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.fmd.const import DOMAIN
+from tests.common import setup_integration
 
 
 async def test_device_tracker_high_frequency_mode(

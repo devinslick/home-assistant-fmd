@@ -4,11 +4,11 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock
 
-from conftest import setup_integration
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 
 from custom_components.fmd.const import DOMAIN
+from tests.common import setup_integration
 
 
 async def test_high_frequency_mode_switch(

@@ -22,24 +22,28 @@ if sys.platform.startswith("win"):
         # This is safe: tests will run without socket blocking workaround.
         pass
 
-import pytest
-from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+import asyncio  # noqa: E402
 
-from custom_components.fmd.const import DOMAIN
+import pytest  # noqa: E402
+from homeassistant import loader  # noqa: E402
 
-# Ensure pytest-homeassistant-custom-component plugin loads even if
-# PYTEST_DISABLE_PLUGIN_AUTOLOAD is set (Windows). This provides core HA
-# fixtures like hass and enable_custom_integrations. Placed after all imports
-# to satisfy flake8 E402 (imports must precede non-import statements).
-pytest_plugins = ["pytest_homeassistant_custom_component"]
+
+@pytest.fixture(scope="function")
+def event_loop():
+    """Create an instance of the event loop for each test case."""
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture
+async def enable_custom_integrations(hass):
+    """Enable custom integrations defined in the test dir."""
+    hass.data.pop(loader.DATA_CUSTOM_COMPONENTS)
 
 
 @pytest.fixture(autouse=True)
-def _auto_enable_custom_integrations(enable_custom_integrations):  # noqa: D401
-    """Autouse wrapper to ensure custom components directory is enabled."""
-    # Rely on the upstream fixture to perform the enabling; just yield to keep
-    # a stable autouse hook without redefining its behavior.
+async def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
@@ -195,57 +199,3 @@ def mock_config_entry():
         "allow_inaccurate_locations": False,
         "use_imperial": False,
     }
-
-
-def get_mock_config_entry() -> MockConfigEntry:
-    """Create a mock config entry for testing with artifacts (fmd_api 2.0.4+).
-
-    Returns a MockConfigEntry that can be modified before being added to hass.
-    """
-    from homeassistant.const import CONF_ID, CONF_URL
-
-    return MockConfigEntry(
-        version=1,
-        domain=DOMAIN,
-        title="test_user",
-        data={
-            CONF_URL: "https://fmd.example.com",
-            CONF_ID: "test_user",
-            "artifacts": {
-                "base_url": "https://fmd.example.com",
-                "fmd_id": "test_user",
-                "access_token": "mock_access_token",
-                "private_key": "-----BEGIN PRIVATE KEY-----\nMOCK_KEY\n-----END PRIVATE KEY-----",
-                "password_hash": "mock_password_hash",
-                "session_duration": 3600,
-                "token_issued_at": 1234567890.0,
-            },
-            "polling_interval": 30,
-            "allow_inaccurate_locations": False,
-            "use_imperial": False,
-        },
-        entry_id="test_entry_id",
-        unique_id="test_user",
-    )
-
-
-async def setup_integration(
-    hass: HomeAssistant,
-    mock_fmd_api: AsyncMock,
-) -> None:
-    """Set up the FMD integration for testing.
-
-    This is a helper function, not a fixture, so tests can call it directly.
-    """
-
-    # Mock async_add_executor_job to actually execute the callable
-    # This is needed because device_tracker uses it to run decrypt_data_blob
-    async def mock_executor_job(func, *args):
-        return func(*args)
-
-    config_entry = get_mock_config_entry()
-    config_entry.add_to_hass(hass)
-
-    with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
-        await hass.config_entries.async_setup(config_entry.entry_id)
-        await hass.async_block_till_done()

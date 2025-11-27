@@ -4,10 +4,11 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
-from conftest import setup_integration
 from fmd_api import AuthenticationError, FmdApiException, OperationError
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+
+from tests.common import setup_integration
 
 
 async def test_location_update_button(

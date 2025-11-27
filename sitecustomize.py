@@ -10,9 +10,9 @@ We now scope the disabling to Windows only. On Linux runners we allow normal
 plugin auto-discovery so Home Assistant fixtures are available without manual
 "-p" flags.
 """
-import os
 import sys
 
 if sys.platform.startswith("win"):
     # Only disable auto plugin loading on Windows to avoid pytest-socket issues.
-    os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
+    # os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
+    pass

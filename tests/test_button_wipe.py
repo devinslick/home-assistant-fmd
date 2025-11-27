@@ -4,12 +4,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from conftest import setup_integration
 from fmd_api import AuthenticationError, FmdApiException, OperationError
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.fmd.const import DOMAIN
+from tests.common import setup_integration
 
 
 async def test_wipe_device_button_blocked(

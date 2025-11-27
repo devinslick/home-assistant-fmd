@@ -545,7 +545,7 @@ async def test_config_entry_unload_cleans_up_entities_and_data(
     mock_fmd_api: AsyncMock,
 ) -> None:
     """Test unloading a config entry cleans up entities and hass.data."""
-    from conftest import setup_integration
+    from tests.common import setup_integration
 
     await setup_integration(hass, mock_fmd_api)
 

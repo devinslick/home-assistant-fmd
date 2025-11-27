@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from conftest import setup_integration
 from homeassistant.core import HomeAssistant
 
 from custom_components.fmd.const import DOMAIN
+from tests.common import setup_integration
 
 
 async def test_photo_count_sensor(
