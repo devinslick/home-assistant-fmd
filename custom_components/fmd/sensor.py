@@ -64,6 +64,7 @@ class FmdPhotoCountSensor(SensorEntity):
         self._photos_in_media_folder = data.get("photo_count_photos_in_media_folder", 0)
         self._last_download_count = data.get("photo_count_last_download_count", 0)
         last_time = data.get("photo_count_last_download_time")
+        self._last_download_time: datetime | None
         if last_time:
             try:
                 from datetime import datetime
