@@ -8,7 +8,7 @@ pytest-homeassistant-custom-component>=0.13.0
 homeassistant==2024.3.3
 
 # Fix josepy/acme incompatibility
-josepy<1.15.0
+josepy<2.3.0
 acme<3.0.0
 
 # Integration dependencies
