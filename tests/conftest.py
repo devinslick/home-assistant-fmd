@@ -18,6 +18,8 @@ if sys.platform.startswith("win"):
 
         pytest_socket.disable_socket = _no_disable_socket
     except ImportError:
+        # If pytest_socket is not installed, skip socket monkeypatching.
+        # This is safe: tests will run without socket blocking workaround.
         pass
 
 import pytest

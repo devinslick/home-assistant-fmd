@@ -234,6 +234,7 @@ class FmdWipeSafetySwitch(SwitchEntity):
             try:
                 await self._auto_disable_task
             except asyncio.CancelledError:
+                # Task cancellation is expected here
                 pass
 
         # Schedule automatic disable after 60 seconds (avoid duplicate tasks)

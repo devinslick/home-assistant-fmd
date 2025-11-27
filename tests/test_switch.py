@@ -349,6 +349,7 @@ async def test_switch_wipe_safety_auto_disable_task_cancellation(
     try:
         await task
     except asyncio.CancelledError:
+        # Task cancellation is expected here
         pass
 
     # Task should be cancelled and set to None
@@ -490,7 +491,8 @@ async def test_wipe_safety_switch_auto_disables_after_timeout(
         if switch._auto_disable_task:
             try:
                 await switch._auto_disable_task
-            except Exception:
+            except asyncio.CancelledError:
+                # Task cancellation is expected here
                 pass
 
     # After auto-disable, state should be off
