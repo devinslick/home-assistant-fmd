@@ -9,7 +9,7 @@ homeassistant==2024.3.3
 
 # Fix josepy/acme incompatibility
 josepy<1.15.0
-acme<3.0.0
+acme<6.0.0
 
 # Integration dependencies
 fmd-api==2.0.7
