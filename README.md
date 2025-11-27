@@ -55,15 +55,17 @@ Before installing this integration, you need:
 
 ### Required:
 1. ✅ **Home Assistant** (2023.1 or newer recommended)
-2. ✅ **FMD Server** (v012.0 recommended)
+2. ✅ **FMD Server** (v0.13.0 recommended)
    - Self-hosted or hosted instance
    - TLS certificate - HTTPS is required, not just HTTP
-   - FMD server must be  accessible from Home Assistant
-   - **Compatibility**: This integration is designed to maintain compatibility with fmd-server and has been tested with versions 0.11.0 and 0.12.0. It will seek to maintain compatibility with the latest versions of fmd-server but cannot guarantee backwards compatibility.
+   - FMD server must be accessible from Home Assistant
+   - **Compatibility**: This integration is designed to maintain compatibility with fmd-server.
+   - It has been tested with versions 0.11.0, 0.12.0, 0.12.1, and 0.13.0.
+   - It seeks to maintain compatibility with the latest versions of fmd-server but cannot guarantee backwards compatibility.
 3. ✅ **Android Device** with FMD app installed
-   - Android 8.0 or newer
-   - FMD app from [F-Droid](https://f-droid.org/) or [GitLab](https://gitlab.com/fmd-foss/fmd-android)
-   - Device configured to connect to your FMD server
+   - Android 7.0 or newer
+   - FMD app from [F-Droid](https://f-droid.org/packages/de.nulide.findmydevice/) or [GitLab](https://gitlab.com/fmd-foss/fmd-android)
+   - Android device connect to a [self-hosted](https://fmd-foss.org/docs/fmd-server/overview) or [hosted](https://server.fmd-foss.org/) FMD server
 4. ✅ **FMD Account Credentials**
    - Device ID (from FMD app settings)
    - Password (set when registering device)
@@ -156,20 +158,17 @@ The integration will create the following entities for each configured FMD devic
   - Controls retention limit for automatic cleanup
   - When "Photo: Auto-cleanup" is enabled, oldest photos are deleted after download if total exceeds this limit
   - Also controls how many photos are fetched from server (downloads N most recent)
-  - ✅ **Fully implemented** - Works with auto-cleanup feature
 
 ### Button Entities (Configuration)
 - **Location Update** - Request a new location from the device
   - Entity ID example: `button.fmd_test_user_location_update`
   - Sends a command to the FMD device to capture a new location using all available providers (Fused, GPS, network, cell)
   - Waits 10 seconds for the device to respond, then fetches the updated location from the server
-  - ✅ **Fully implemented** - Triggers immediate location update on-demand
 
 - **Volume: Ring device** - Make the device ring at maximum volume
   - Entity ID example: `button.fmd_test_user_ring`
   - Sends a ring command to the device, making it play a loud sound
   - Useful for finding a lost device nearby
-  - ✅ **Fully implemented** - Triggers ring command immediately
 
 - **Lock device** - Lock the device screen
   - Entity ID example: `button.fmd_test_user_lock`
@@ -178,21 +177,18 @@ The integration will create the following entities for each configured FMD devic
   - Example use: "Lost phone - please call 555-1234" or contact information
   - Client automatically sanitizes message for safety
   - Useful if device is lost or stolen
-  - ✅ **Fully implemented** - Triggers lock command with optional message
 
 - **Photo: Capture front** - Take a photo with the front-facing camera
   - Entity ID example: `button.fmd_test_user_capture_front`
   - Sends a "camera front" command to the device
   - Device captures photo and uploads to FMD server (~15-30 seconds)
   - Press "Photo: Download" button afterwards to retrieve the photo
-  - ✅ **Fully implemented** - Triggers front camera photo capture
 
 - **Photo: Capture rear** - Take a photo with the rear-facing camera
   - Entity ID example: `button.fmd_test_user_capture_rear`
   - Sends a "camera back" command to the device
   - Device captures photo and uploads to FMD server (~15-30 seconds)
   - Press "Photo: Download" button afterwards to retrieve the photo
-  - ✅ **Fully implemented** - Triggers rear camera photo capture
 
 - **Photo: Download** - Download photos from server to media folder
   - Entity ID example: `button.fmd_test_user_download_photos`
@@ -200,7 +196,6 @@ The integration will create the following entities for each configured FMD devic
   - Decrypts and saves photos to `/config/media/fmd/device_name` folder
   - Photos automatically appear in Home Assistant's Media Browser
   - Updates the "Photo Count" sensor
-  - ✅ **Fully implemented** - Downloads photos to media browser
 
 - **Wipe: ⚠️ Execute ⚠️** - ⚠️ **DANGEROUS**: Factory reset the device (erases ALL data)
   - Entity ID example: `button.fmd_test_user_wipe_device`
@@ -212,7 +207,6 @@ The integration will create the following entities for each configured FMD devic
   - ⚠️ **THIS CANNOT BE UNDONE** - All data on device will be permanently erased
   - Safety switch automatically disables after use to prevent accidental repeated presses
   - Icon: `mdi:delete-forever` to indicate destructive action
-  - ✅ **Fully implemented** - Device wipe with safety mechanism and PIN validation
 
 ### Switch Entities (Configuration)
 - **High Frequency Mode** - Enable active tracking with device location requests
@@ -224,13 +218,11 @@ The integration will create the following entities for each configured FMD devic
   - When disabled, returns to normal polling interval
   - ⚠️ **Battery impact**: Active tracking drains device battery faster
   - Useful for tracking during active travel, emergencies, or finding lost devices
-  - ✅ **Fully implemented** - True active tracking mode
 
 - **Location: allow inaccurate updates** - Toggle location filtering
   - Entity ID example: `switch.fmd_test_user_allow_inaccurate`
   - When **off** (default): Blocks location updates from low-accuracy providers (e.g., BeaconDB). Only accepts updates from accurate providers (Fused, GPS, and network).
   - When **on**: Accepts all location updates regardless of provider accuracy.
-  - ✅ **Fully implemented** - Filtering is active and can be toggled at runtime.
   - _Note: You can also configure this during initial setup via the config flow._
 
 - **Photo: Auto-cleanup** - Automatic deletion of old photos
@@ -239,7 +231,6 @@ The integration will create the following entities for each configured FMD devic
   - When **off** (default): Photos are never automatically deleted
   - Deletion is based on file modification time (oldest first)
   - ⚠️ **Warning**: Deleted photos cannot be recovered
-  - ✅ **Fully implemented** - Helps manage storage automatically
 
 - **Wipe: ⚠️ Safety switch ⚠️** - Safety switch for device wipe command
   - Entity ID example: `switch.fmd_test_user_device_wipe_safety`
@@ -247,7 +238,6 @@ The integration will create the following entities for each configured FMD devic
   - ⚠️ **Automatically disables after 60 seconds** for safety
   - ⚠️ **DANGEROUS**: Only enable if you intend to wipe the device
   - Icon: `mdi:alert-octagon` to indicate danger
-  - ✅ **Fully implemented** - Prevents accidental device wipes
 
 ### Select Entities (Configuration)
 - **Location Source** - Choose which location provider the Location Update button uses
@@ -258,21 +248,18 @@ The integration will create the following entities for each configured FMD devic
   - **Cell Only**: Fast but less accurate, uses cellular towers
   - **Last Known**: Returns cached location without new GPS request (instant, no battery use)
   - Selection persists and is used by the Location Update button
-  - ✅ **Fully implemented** - Configures location request behavior
 
 - **Bluetooth** - Send Bluetooth enable/disable commands
   - Entity ID example: `select.fmd_test_user_bluetooth_command`
   - Options: "Send Command...", "Enable Bluetooth", "Disable Bluetooth"
   - Sends command to device, then resets to "Send Command..." placeholder
   - ⚠️ **Requires Android 12+ BLUETOOTH_CONNECT permission**
-  - ✅ **Fully implemented** - Commands sent immediately, no state tracking
 
 - **Volume: Do Not Disturb** - Send DND enable/disable commands
   - Entity ID example: `select.fmd_test_user_do_not_disturb_command`
   - Options: "Send Command...", "Enable Do Not Disturb", "Disable Do Not Disturb"
   - Sends command to device, then resets to placeholder
   - ⚠️ **Requires Do Not Disturb Access permission**
-  - ✅ **Fully implemented** - Commands sent immediately, no state tracking
 
 - **Volume: Ringer mode** - Set device ringer mode
   - Entity ID example: `select.fmd_test_user_ringer_mode_command`
@@ -280,7 +267,6 @@ The integration will create the following entities for each configured FMD devic
   - Sends command to device, then resets to placeholder
   - ⚠️ **Requires Do Not Disturb Access permission**
   - ⚠️ **Note**: Silent mode also enables Do Not Disturb (Android behavior)
-  - ✅ **Fully implemented** - Commands sent immediately, no state tracking
 
 ### Text Entities (Configuration)
 - **Wipe: PIN** - Alphanumeric PIN required for device wipe command
@@ -294,7 +280,6 @@ The integration will create the following entities for each configured FMD devic
   - ⚠️ **Note**: Future FMD server versions may require 16+ character PINs
   - Stored securely in config entry
   - Icon: `mdi:key-variant`
-  - ✅ **Fully implemented** - PIN validation with clear error messages
 
 - **Lock: Message** - Optional message to display on locked device screen
   - Entity ID example: `text.fmd_test_user_lock_message`
@@ -303,7 +288,6 @@ The integration will create the following entities for each configured FMD devic
   - Client automatically sanitizes dangerous characters for safety
   - Useful for contact information or instructions (e.g., "Lost phone - call 555-1234")
   - Icon: `mdi:message-text-lock`
-  - ✅ **Fully implemented** - Message passed to lock command automatically
 
 ### Sensor Entities
 - **Photo count** - Total number of photos stored in media folder
@@ -313,7 +297,6 @@ The integration will create the following entities for each configured FMD devic
     - `last_download_count` - Number of photos downloaded in the last operation
     - `last_download_time` - ISO timestamp of the last photo download
     - `photos_in_media_folder` - Same as main value (kept for backward compatibility)
-  - ✅ **Fully implemented** - Updates automatically after photo downloads
 
 **All entities are grouped together under a single FMD device** in Home Assistant (e.g., "FMD test-user").
 
@@ -360,9 +343,7 @@ For a user with FMD account ID `test-user`, the following entities will be creat
 
 _Note: Hyphens in your FMD account ID will be converted to underscores in entity IDs._
 
-## Features
-
-### ✅ Implemented
+## Features Implemented ✅
 - **Dynamic polling interval updates** - Changes take effect immediately without restart
 - **High-frequency active-tracking mode** - Requests fresh device location at faster intervals (battery intensive)
 - **Location update button** - Triggers immediate on-demand location update from device

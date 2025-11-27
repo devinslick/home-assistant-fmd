@@ -20,7 +20,10 @@ rules:
   runtime-data: done
   test-before-configure: done
   test-before-setup: done
-  unique-config-entry: done
+  unique-config-entry:
+    status: todo
+    comment: |
+      Config flow does not currently call async_set_unique_id to prevent duplicate entries.
 
   # Silver
   action-exceptions: done
@@ -31,15 +34,15 @@ rules:
   integration-owner: done
   log-when-unavailable: done
   parallel-updates: done
-  reauthentication-flow:
-    status: In Progress
-    comment: |
-      Reauthentication flow was just implemented and is being tested in version 0.9.6
+  reauthentication-flow: done
   test-coverage: done
 
   # Gold
   devices: done
-  diagnostics: done  # Diagnostics endpoint provided via FMD API, logs, and error reporting
+  diagnostics:
+    status: todo
+    comment: |
+      Missing diagnostics platform (diagnostics.py).
   discovery-update-info:
     status: exempt
     comment: |
@@ -61,7 +64,10 @@ rules:
       The integration supports multiple devices and dynamic entity creation per
       device.
   entity-category: done
-  entity-device-class: done
+  entity-device-class:
+    status: partial
+    comment: |
+      Sensor lacks device class, and some buttons could use specific device classes.
   entity-disabled-by-default:
     status: exempt
     comment: |
@@ -69,7 +75,10 @@ rules:
   entity-translations: done
   exception-translations: done
   icon-translations: done
-  reconfiguration-flow: done
+  reconfiguration-flow:
+    status: todo
+    comment: |
+      Config flow does not implement async_step_reconfigure.
   repair-issues:
     status: exempt
     comment: |

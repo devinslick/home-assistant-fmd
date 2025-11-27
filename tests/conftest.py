@@ -1,60 +1,49 @@
 """Fixtures for FMD integration tests."""
 from __future__ import annotations
 
-import asyncio
 import sys
 from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
-# Importing pytest_socket for its side-effect: enabling real socket usage in tests.
-# Home Assistant's event loop creation on Windows may require an actual socket;
-# we explicitly enable sockets in the _enable_sockets_session fixture. Keeping
-# this import makes the dependency explicit and avoids accidental removal.
-import pytest_socket
-from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-from custom_components.fmd.const import DOMAIN
-
-# Ensure pytest-homeassistant-custom-component plugin loads even if
-# PYTEST_DISABLE_PLUGIN_AUTOLOAD is set (Windows). This provides core HA
-# fixtures like hass and enable_custom_integrations. Placed after all imports
-# to satisfy flake8 E402 (imports must precede non-import statements).
-pytest_plugins = ["pytest_homeassistant_custom_component"]
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _enable_sockets_session():
-    """Ensure sockets are enabled for event loop creation on Windows."""
-    import socket as _socket
-
-    pytest_socket.enable_socket()
-    # Debug: confirm socket class
+# Force enable sockets on Windows to avoid pytest-socket blocking ProactorEventLoop
+if sys.platform.startswith("win"):
     try:
-        clsname = _socket.socket.__qualname__
-        print(f"[conftest] socket enabled, socket class: {clsname}")
-    except Exception as e:
-        print(f"[conftest] socket enable check failed: {e}")
-    yield
-    pytest_socket.enable_socket()
+        import pytest_socket
+
+        pytest_socket.enable_socket()
+
+        # Monkeypatch disable_socket to be a no-op so it can't be re-enabled
+        def _no_disable_socket(*args, **kwargs):
+            pass
+
+        pytest_socket.disable_socket = _no_disable_socket
+    except ImportError:
+        # If pytest_socket is not installed, skip socket monkeypatching.
+        # This is safe: tests will run without socket blocking workaround.
+        pass
+
+import asyncio  # noqa: E402
+
+import pytest  # noqa: E402
+from homeassistant import loader  # noqa: E402
+
+
+@pytest.fixture(scope="function")
+def event_loop():
+    """Create an instance of the event loop for each test case."""
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture
+async def enable_custom_integrations(hass):
+    """Enable custom integrations defined in the test dir."""
+    hass.data.pop(loader.DATA_CUSTOM_COMPONENTS)
 
 
 @pytest.fixture(autouse=True)
-def _auto_enable_custom_integrations(enable_custom_integrations):  # noqa: D401
-    """Autouse wrapper to ensure custom components directory is enabled."""
-    # Rely on the upstream fixture to perform the enabling; just yield to keep
-    # a stable autouse hook without redefining its behavior.
-    yield
-
-
-# On Windows, use the SelectorEventLoop to avoid socketpair() during loop creation,
-# which some environments block via pytest-socket.
-@pytest.fixture(scope="session", autouse=True)
-def _windows_selector_event_loop_policy():
-    if sys.platform.startswith("win"):
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+async def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
@@ -210,60 +199,3 @@ def mock_config_entry():
         "allow_inaccurate_locations": False,
         "use_imperial": False,
     }
-
-
-def get_mock_config_entry() -> MockConfigEntry:
-    """Create a mock config entry for testing with artifacts (fmd_api 2.0.4+).
-
-    Returns a MockConfigEntry that can be modified before being added to hass.
-    """
-    from homeassistant.const import CONF_ID, CONF_URL
-
-    return MockConfigEntry(
-        version=1,
-        domain=DOMAIN,
-        title="test_user",
-        data={
-            CONF_URL: "https://fmd.example.com",
-            CONF_ID: "test_user",
-            "artifacts": {
-                "base_url": "https://fmd.example.com",
-                "fmd_id": "test_user",
-                "access_token": "mock_access_token",
-                "private_key": "-----BEGIN PRIVATE KEY-----\nMOCK_KEY\n-----END PRIVATE KEY-----",
-                "password_hash": "mock_password_hash",
-                "session_duration": 3600,
-                "token_issued_at": 1234567890.0,
-            },
-            "polling_interval": 30,
-            "allow_inaccurate_locations": False,
-            "use_imperial": False,
-        },
-        entry_id="test_entry_id",
-        unique_id="test_user",
-    )
-
-
-# Legacy helper removed (unused in current test suite)
-
-
-async def setup_integration(
-    hass: HomeAssistant,
-    mock_fmd_api: AsyncMock,
-) -> None:
-    """Set up the FMD integration for testing.
-
-    This is a helper function, not a fixture, so tests can call it directly.
-    """
-
-    # Mock async_add_executor_job to actually execute the callable
-    # This is needed because device_tracker uses it to run decrypt_data_blob
-    async def mock_executor_job(func, *args):
-        return func(*args)
-
-    config_entry = get_mock_config_entry()
-    config_entry.add_to_hass(hass)
-
-    with patch.object(hass, "async_add_executor_job", side_effect=mock_executor_job):
-        await hass.config_entries.async_setup(config_entry.entry_id)
-        await hass.async_block_till_done()

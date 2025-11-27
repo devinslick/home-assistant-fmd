@@ -192,7 +192,7 @@ class FmdWipeSafetySwitch(SwitchEntity):
         self._attr_unique_id = f"{entry.entry_id}_wipe_safety"
         self._attr_name = "Wipe: ⚠️ Safety switch ⚠️"
         self._attr_is_on = False
-        self._auto_disable_task = None
+        self._auto_disable_task: asyncio.Task[None] | None = None
 
         # Store reference for the wipe button to access
         if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
@@ -234,6 +234,7 @@ class FmdWipeSafetySwitch(SwitchEntity):
             try:
                 await self._auto_disable_task
             except asyncio.CancelledError:
+                # Task cancellation is expected here
                 pass
 
         # Schedule automatic disable after 60 seconds (avoid duplicate tasks)
