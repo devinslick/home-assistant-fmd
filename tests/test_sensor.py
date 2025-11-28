@@ -370,8 +370,12 @@ async def test_sensor_update_media_folder_error(
         mock_path = mock_path_cls.return_value
         mock_path.exists.return_value = True
         mock_path.is_dir.return_value = True
+
+        # Make division return the same mock object so chaining works
+        mock_path.__truediv__.return_value = mock_path
+
         # Raise exception when accessing glob
-        mock_path.__truediv__.return_value.glob.side_effect = Exception("Disk error")
+        mock_path.glob.side_effect = Exception("Disk error")
 
         # Trigger update
         sensor_entity = hass.data[DOMAIN]["test_entry_id"]["photo_count_sensor"]
@@ -379,3 +383,7 @@ async def test_sensor_update_media_folder_error(
 
         # Verify count is 0 on error
         assert sensor_entity.native_value == 0
+
+    # Sensor should have gracefully handled the error
+    sensor = hass.data["fmd"][list(hass.data["fmd"].keys())[0]]["photo_count_sensor"]
+    assert sensor._photos_in_media_folder == 0

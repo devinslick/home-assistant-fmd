@@ -4,8 +4,11 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fmd_api import AuthenticationError, FmdApiException, OperationError
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
+from custom_components.fmd.const import DOMAIN
 from tests.common import setup_integration
 
 pytestmark = pytest.mark.asyncio
@@ -146,3 +149,173 @@ async def test_photo_download_exif_extraction_exception(
         # Should have logged warning but continued to save file
         # We can verify file write was attempted
         # The code calls hass.async_add_executor_job(filepath.write_bytes, image_bytes)
+
+
+async def test_device_tracker_set_high_freq_fail(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
+    """Test device tracker fails to request location when enabling high freq mode."""
+    await setup_integration(hass, mock_fmd_api)
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+    tracker = hass.data[DOMAIN][entry_id]["tracker"]
+
+    # Get the client instance
+    client = mock_fmd_api.from_auth_artifacts.return_value
+
+    # Set request_location to fail
+    client.request_location.return_value = False
+
+    # Enable high frequency mode
+    await tracker.set_high_frequency_mode(True)
+
+    # Verify request_location was called
+    assert client.request_location.called
+    # And we should have logged a warning (covered by execution)
+
+
+async def test_switch_turn_on_off_no_tracker(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
+    """Test switch turn on/off when tracker is missing."""
+    await setup_integration(hass, mock_fmd_api)
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+
+    # Get the switch
+    switch_id = "switch.fmd_test_user_high_frequency_mode"
+
+    # Remove tracker from hass.data
+    tracker = hass.data[DOMAIN][entry_id].pop("tracker")
+
+    # Turn on switch
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": switch_id},
+        blocking=True,
+    )
+
+    # Turn off switch
+    await hass.services.async_call(
+        "switch",
+        "turn_off",
+        {"entity_id": switch_id},
+        blocking=True,
+    )
+
+    # Restore tracker for cleanup
+    hass.data[DOMAIN][entry_id]["tracker"] = tracker
+
+
+async def test_switch_allow_inaccurate_turn_on_off_no_tracker(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
+    """Test allow inaccurate switch turn on/off when tracker is missing."""
+    await setup_integration(hass, mock_fmd_api)
+    entry_id = list(hass.data[DOMAIN].keys())[0]
+
+    # Get the switch
+    switch_id = "switch.fmd_test_user_location_allow_inaccurate_updates"
+
+    # Remove tracker from hass.data
+    tracker = hass.data[DOMAIN][entry_id].pop("tracker")
+
+    # Turn on switch
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": switch_id},
+        blocking=True,
+    )
+
+    # Turn off switch
+    await hass.services.async_call(
+        "switch",
+        "turn_off",
+        {"entity_id": switch_id},
+        blocking=True,
+    )
+
+    # Restore tracker
+    hass.data[DOMAIN][entry_id]["tracker"] = tracker
+
+
+async def test_button_location_update_fail(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
+    """Test location update button fails to send request."""
+    await setup_integration(hass, mock_fmd_api)
+
+    # Get the client instance
+    client = mock_fmd_api.from_auth_artifacts.return_value
+
+    # Mock request_location to return False
+    client.request_location.return_value = False
+
+    button_id = "button.fmd_test_user_location_update"
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": button_id},
+        blocking=True,
+    )
+
+    assert client.request_location.called
+
+
+async def test_button_ring_errors(hass: HomeAssistant, mock_fmd_api: AsyncMock) -> None:
+    """Test ring button error handling."""
+    await setup_integration(hass, mock_fmd_api)
+    button_id = "button.fmd_test_user_volume_ring_device"
+
+    # Get the client instance
+    client = mock_fmd_api.from_auth_artifacts.return_value
+
+    # Test AuthenticationError
+    client.send_command.side_effect = AuthenticationError("Auth fail")
+    with pytest.raises(HomeAssistantError, match="Authentication failed"):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": button_id}, blocking=True
+        )
+
+    # Test OperationError
+    client.send_command.side_effect = OperationError("Op fail")
+    with pytest.raises(HomeAssistantError, match="Ring command failed"):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": button_id}, blocking=True
+        )
+
+    # Test FmdApiException
+    client.send_command.side_effect = FmdApiException("API fail")
+    with pytest.raises(HomeAssistantError, match="Ring command failed"):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": button_id}, blocking=True
+        )
+
+    # Test HomeAssistantError (direct raise)
+    client.send_command.side_effect = HomeAssistantError("HA fail")
+    with pytest.raises(HomeAssistantError, match="HA fail"):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": button_id}, blocking=True
+        )
+
+
+async def test_button_rear_camera_error(
+    hass: HomeAssistant, mock_fmd_api: AsyncMock
+) -> None:
+    """Test rear camera button error handling."""
+    await setup_integration(hass, mock_fmd_api)
+    button_id = "button.fmd_test_user_photo_capture_rear"
+
+    # Get the client instance
+    client = mock_fmd_api.from_auth_artifacts.return_value
+
+    # Test Exception
+    client.take_picture.side_effect = Exception("Camera fail")
+
+    # Should not raise, just log error
+    await hass.services.async_call(
+        "button", "press", {"entity_id": button_id}, blocking=True
+    )
+
+    assert client.take_picture.called
