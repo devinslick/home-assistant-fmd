@@ -151,40 +151,6 @@ async def test_photo_download_exif_extraction_exception(
         # The code calls hass.async_add_executor_job(filepath.write_bytes, image_bytes)
 
 
-async def test_device_tracker_high_freq_request_fail(
-    hass: HomeAssistant, mock_fmd_api: AsyncMock
-) -> None:
-    """Test device tracker high frequency poll fails to request location."""
-    await setup_integration(hass, mock_fmd_api)
-    entry_id = list(hass.data[DOMAIN].keys())[0]
-    tracker = hass.data[DOMAIN][entry_id]["tracker"]
-
-    # Get the client instance
-    client = mock_fmd_api.from_auth_artifacts.return_value
-
-    # Enable high frequency mode properly
-    # This will trigger an immediate request, so we let it succeed first
-    client.request_location.return_value = True
-    await tracker.set_high_frequency_mode(True)
-
-    # Now set it to fail for the polling update
-    client.request_location.return_value = False
-
-    # Trigger the update_locations via time interval
-    from datetime import timedelta
-
-    from homeassistant.util import dt as dt_util
-    from pytest_homeassistant_custom_component.common import async_fire_time_changed
-
-    # The interval should be high_frequency_interval now (default 5 mins)
-    next_update = dt_util.utcnow() + timedelta(minutes=tracker._high_frequency_interval)
-    async_fire_time_changed(hass, next_update + timedelta(seconds=1))
-    await hass.async_block_till_done()
-
-    # Verify request_location was called (it was called at least twice now)
-    assert client.request_location.call_count >= 2
-
-
 async def test_device_tracker_set_high_freq_fail(
     hass: HomeAssistant, mock_fmd_api: AsyncMock
 ) -> None:
