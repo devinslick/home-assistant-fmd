@@ -5,7 +5,7 @@ pytest-asyncio>=0.20.3
 pytest-cov>=3.0.0
 pytest-homeassistant-custom-component>=0.13.0
 # Use a newer HA version that supports Python 3.11 and 3.12
-homeassistant==2024.3.3
+homeassistant==2025.12.4
 
 # Fix josepy/acme incompatibility
 josepy<2.3.0
