@@ -46,7 +46,7 @@ async def test_wipe_pin_short_warning(
     )
 
     # Check for warning
-    assert "Wipe PIN is less than 16 characters" in caplog.text
+    assert "Wipe PIN is less than 8 characters" in caplog.text
 
 
 async def test_lock_message_update(
