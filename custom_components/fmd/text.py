@@ -37,7 +37,7 @@ class FmdWipePinText(TextEntity):
     """Text entity for device wipe PIN.
 
     The PIN must be alphanumeric ASCII with no spaces.
-    Note: Future FMD server versions may require 16+ character PINs.
+    Note: Future FMD server versions may require 8+ character PINs.
     """
 
     _attr_has_entity_name = True
@@ -95,11 +95,11 @@ class FmdWipePinText(TextEntity):
             _LOGGER.error("Invalid wipe PIN: %s", error_msg)
             raise ValueError(error_msg)
 
-        # Warn if PIN is less than 16 characters
-        if len(value) < 16:
+        # Warn if PIN is less than 8 characters
+        if len(value) < 8:
             _LOGGER.warning(
-                "Wipe PIN is less than 16 characters. "
-                "Future FMD server versions may require 16+ character PINs."
+                "Wipe PIN is less than 8 characters. "
+                "Future FMD server versions may require 8+ character PINs."
             )
 
         _LOGGER.info("Wipe PIN updated (length: %d characters)", len(value))

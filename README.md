@@ -277,7 +277,7 @@ The integration will create the following entities for each configured FMD devic
     - Cannot contain spaces
     - Must contain only ASCII characters
   - Password-mode text input (masked in UI for security)
-  - ⚠️ **Note**: Future FMD server versions may require 16+ character PINs
+  - ⚠️ **Note**: Current FMD server versions require 8+ character PINs for new accounts
   - Stored securely in config entry
   - Icon: `mdi:key-variant`
 
@@ -851,7 +851,7 @@ The integration includes multiple safety layers:
 - Must be alphanumeric (letters and numbers only)
 - Cannot contain spaces or special characters
 - Must be ASCII characters only
-- Recommended: 16+ characters (future-proofing)
+- Recommended: 8+ characters (future-proofing)
 - Set via "Wipe: PIN" text entity before attempting wipe
 
 **⚠️ Privacy Considerations**

@@ -12,7 +12,7 @@ New canonical: get_picture_blobs() and decode_picture()
 Deprecated wrappers still work but emit DeprecationWarning: take_front_photo(), take_rear_photo(), fetch_pictures(), get_pictures() (Device), get_picture(), download_photo()
 download_photo() now directly calls decode_picture() to avoid chained deprecations.
 Wipe (factory reset) validation
-Device.wipe(pin=..., confirm=True) required and PIN must be alphanumeric ASCII with no spaces. Future 16+ enforcement may come upstream; don’t enforce locally yet.
+Device.wipe(pin=..., confirm=True) required and PIN must be alphanumeric ASCII with no spaces. Future 8+ enforcement may come upstream; don’t enforce locally yet.
 Lock message
 Device.lock(message=...) now allows a message; it’s sanitized client-side. Safe to expose as optional parameter.
 Export ZIP robustness
@@ -42,7 +42,7 @@ Remove calls to device.fetch_pictures(), device.get_pictures(), device.get_pictu
 Wipe command UI/validation
 Ensure wipe action enforces:
 confirm=True in the call
-PIN required and must be alphanumeric ASCII with no spaces. Provide helpful validation message in UI. Don’t enforce 16+ yet; just display a warning note that future server versions may require it.
+PIN required and must be alphanumeric ASCII with no spaces. Provide helpful validation message in UI. Don’t enforce 8+ yet; just display a warning note that future server versions may require it.
 Lock with message
 Surface an optional “Lock message” input in the service or config flow. Integration can pass message through device.lock(message=...). Client sanitizes dangerous characters and caps length.
 Error handling improvements
