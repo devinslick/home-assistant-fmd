@@ -13,7 +13,7 @@
           "use_imperial": "Use Imperial Units"
         },
         "data_description": {
-          "url": "The FMD server URL (e.g., https://fmd.example.com)",
+          "url": "The full URL to your FMD server including protocol",
           "id": "Your FMD account ID",
           "password": "Your FMD account password",
           "polling_interval": "How often to check for location updates (1-1440 minutes)",
