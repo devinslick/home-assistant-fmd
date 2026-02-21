@@ -57,7 +57,7 @@ Before installing this integration, you need:
 1. ✅ **Home Assistant** (2023.1 or newer recommended)
 2. ✅ **FMD Server** (v0.13.0 recommended)
    - Self-hosted or hosted instance
-   - TLS certificate - HTTPS is required, not just HTTP
+   - HTTPS recommended for security; HTTP also supported (via fmd-api 2.0.9+)
    - FMD server must be accessible from Home Assistant
    - **Compatibility**: This integration is designed to maintain compatibility with fmd-server.
    - It has been tested with versions 0.11.0, 0.12.0, 0.12.1, and 0.13.0.
