@@ -13,7 +13,7 @@ acme<6.0.0
 
 # Integration dependencies
 fmd-api==2.0.9
-Pillow>=10.0.0
+Pillow>=12.2.0
 
 # Type checking
 mypy>=1.8.0
