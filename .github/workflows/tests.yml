@@ -63,4 +63,5 @@ jobs:
           slug: devinslick/home-assistant-fmd
           flags: unittests
           name: codecov-coverage
-          fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          # Codecov token is withheld on dependabot PRs; don't fail CI there
+          fail_ci_if_error: ${{ github.actor != 'dependabot[bot]' }}
