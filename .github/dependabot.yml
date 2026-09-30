@@ -4,6 +4,18 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # These are pinned in lockstep with pytest-homeassistant-custom-component,
+      # which pins them for the homeassistant version under test. Dependabot
+      # cannot bump them independently without breaking pip resolution
+      # (ResolutionImpossible). Bump the whole set together manually.
+      # See requirements_test.txt for details.
+      - dependency-name: "pytest"
+      - dependency-name: "pytest-asyncio"
+      - dependency-name: "pytest-cov"
+      - dependency-name: "pytest-homeassistant-custom-component"
+      - dependency-name: "homeassistant"
+      - dependency-name: "Pillow"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

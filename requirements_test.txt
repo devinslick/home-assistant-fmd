@@ -1,9 +1,14 @@
 # Test dependencies for FMD Home Assistant integration
 # For Python 3.13+
-pytest>=9.1.1
-pytest-asyncio>=1.4.0
-pytest-cov>=7.1.0
-pytest-homeassistant-custom-component>=0.13.316
+# The pytest stack is pinned in lockstep with pytest-homeassistant-custom-component:
+# PHACC 0.13.316 pins homeassistant==2026.2.3, pytest==9.0.0, pytest-asyncio==1.3.0,
+# pytest-cov==7.0.0, Pillow==12.0.0. Bumping any of these independently makes pip
+# resolution impossible (ResolutionImpossible). Bump the whole set together, aligned
+# with the PHACC release that targets the desired homeassistant version.
+pytest==9.0.0
+pytest-asyncio==1.3.0
+pytest-cov==7.0.0
+pytest-homeassistant-custom-component==0.13.316
 # Use a newer HA version that supports Python 3.11 and 3.12
 homeassistant==2026.2.3; python_version >= "3.13"
 
@@ -13,7 +18,9 @@ acme<6.0.0
 
 # Integration dependencies
 fmd-api==2.0.9
-Pillow>=12.3.0
+# Pillow arrives transitively via homeassistant (2026.2.3 pins Pillow==12.0.0);
+# it is NOT pinned here — an explicit pin fights the homeassistant pin and
+# previously broke CI (dependabot PR #45 bumped it past the HA pin).
 
 # Type checking
 mypy>=2.3.0
