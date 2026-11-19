@@ -13,7 +13,7 @@ pytest-homeassistant-custom-component==0.13.316
 homeassistant==2026.2.3; python_version >= "3.13"
 
 # Fix josepy/acme incompatibility
-josepy<2.3.0
+josepy<2.4.0
 acme<6.0.0
 
 # Integration dependencies
